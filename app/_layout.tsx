@@ -9,7 +9,6 @@ import { Platform } from "react-native";
 import { NAV_THEME } from "~/lib/constants";
 import { useColorScheme } from "~/lib/useColorScheme";
 import { PortalHost } from "@rn-primitives/portal";
-import { ThemeToggle } from "~/components/ThemeToggle";
 import { setAndroidNavigationBar } from "~/lib/android-navigation-bar";
 
 const LIGHT_THEME: Theme = {
@@ -68,10 +67,9 @@ export default function RootLayout() {
       <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
       <Stack>
         <Stack.Screen
-          name="index"
+          name="(tabs)"
           options={{
-            title: "Farmiz",
-            headerRight: () => <ThemeToggle />,
+            headerShown: false,
           }}
         />
       </Stack>
