@@ -1,0 +1,11 @@
+[package]
+name = "poultry-backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum="0.8.9"
+lambda_http="1.2.1"
+tokio={ version = "1.39.0", features = ["full"] }
+serde="1.0.188"
+serde_json="1.0.114"
