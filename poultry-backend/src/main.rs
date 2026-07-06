@@ -7,32 +7,13 @@
 //! of a basic `tower::Service` you get web framework niceties like routing, request component
 //! extraction, validation, etc.
 use axum::{
-    Json, Router, extract::{FromRef, FromRequestParts, State}, http::{StatusCode, request::Parts}, routing::get,
+    Router, extract::{FromRef, FromRequestParts, State}, http::{StatusCode, request::Parts}, routing::get,
 };
+use dotenv::dotenv;
 use lambda_http::{run, tracing, Error};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::{env::set_var, time::Duration};
+use std::{env, time::Duration};
 use sqlx::postgres::{PgPool, PgPoolOptions};
 
-#[derive(Deserialize, Serialize)]
-struct Params {
-    first: Option<String>,
-    second: Option<String>,
-}
-
-async fn root() -> Json<Value> {
-    Json(json!({ "msg": "I am GET /" }))
-}
-
-/// Example on how to return status codes and data from an Axum function
-async fn health_check() -> (StatusCode, String) {
-    let health = true;
-    match health {
-        true => (StatusCode::OK, "Healthy!".to_string()),
-        false => (StatusCode::INTERNAL_SERVER_ERROR, "Not healthy!".to_string()),
-    }
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -46,8 +27,9 @@ async fn main() -> Result<(), Error> {
 
     // required to enable CloudWatch error logging by the runtime
     tracing::init_default_subscriber();
+    dotenv().ok();
 
-    let db_connection_str = std::env::var("DATABASE_URL")
+    let db_connection_str = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:password@localhost".to_string());
 
     // set up connection pool
