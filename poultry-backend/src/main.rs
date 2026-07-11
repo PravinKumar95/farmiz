@@ -7,13 +7,15 @@
 //! of a basic `tower::Service` you get web framework niceties like routing, request component
 //! extraction, validation, etc.
 use axum::{
-    Router, extract::{FromRef, FromRequestParts, State}, http::{StatusCode, request::Parts}, routing::get,
+    Router, extract::{FromRef, FromRequestParts, State}, http::{StatusCode, request::Parts}, routing::{get, post},
 };
 use dotenv::dotenv;
 use lambda_http::{run, tracing, Error};
 use std::{env, time::Duration};
 use sqlx::postgres::{PgPool, PgPoolOptions};
+use tower_http::cors::{Any, CorsLayer};
 
+mod auth;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -29,27 +31,42 @@ async fn main() -> Result<(), Error> {
     tracing::init_default_subscriber();
     dotenv().ok();
 
+    auth::init_jwks().await;
+
     let db_connection_str = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:password@localhost".to_string());
 
-    // set up connection pool
+    // set up connection pool (lazy: won't block startup if Neon DB is suspended)
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .acquire_timeout(Duration::from_secs(3))
-        .connect(&db_connection_str)
-        .await
-        .expect("can't connect to database");
+        .acquire_timeout(Duration::from_secs(30))
+        .connect_lazy(&db_connection_str)
+        .expect("invalid database URL");
+
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
 
     let app = Router::new()
         .route(
             "/",
             get(using_connection_pool_extractor).post(using_connection_extractor),
         )
+        .route("/protected", get(protected_handler))
+        .route("/api/auth/signup", post(auth::signup))
+        .route("/api/auth/signin", post(auth::signin))
+        .layer(cors)
         .with_state(pool);
 
 
     run(app).await
 }
+
+async fn protected_handler(user: auth::AuthenticatedUser) -> Result<String, (StatusCode, String)> {
+    Ok(format!("Hello, user {}! You are authenticated.", user.user_id))
+}
+
 
 // we can extract the connection pool with `State`
 async fn using_connection_pool_extractor(
