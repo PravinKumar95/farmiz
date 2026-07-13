@@ -4,6 +4,7 @@
 
 # HTML title tag content
 title = "poultry-app"
+base_path = "/farmiz/"
 
 # include `assets` in web platform
 [web.resource]
