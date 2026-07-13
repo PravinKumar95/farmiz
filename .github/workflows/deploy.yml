@@ -49,8 +49,10 @@ jobs:
       - name: Build Dioxus App
         working-directory: ./poultry-app
         # Since this is deployed to a project page (username.github.io/farmiz), 
-        # we MUST add `--base-path farmiz` so that assets (CSS, JS) load correctly.
-        run: dx build --release --base-path farmiz
+        # we MUST add `--base-path /farmiz/` so that assets (CSS, JS) load correctly.
+        run: |
+          dx build --release --base-path /farmiz/
+          sed -i 's|<head>|<head><base href="/farmiz/" />|' ../target/dx/poultry-app/release/web/public/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

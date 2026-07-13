@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use dioxus_primitives::tabs::{self, TabContentProps, TabListProps, TabTriggerProps};
 use dioxus_primitives::{dioxus_attributes::attributes, merge_attributes};
 
-#[css_module("/src/components/tabs/style.css")]
+#[css_module("src/components/tabs/style.css")]
 struct Styles;
 
 /// The props for the [`Tabs`] component.

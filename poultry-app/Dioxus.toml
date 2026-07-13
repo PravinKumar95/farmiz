@@ -5,12 +5,13 @@
 # HTML title tag content
 title = "poultry-app"
 base_path = "/farmiz/"
+head = "<base href=\"/farmiz/\" />"
 
 # include `assets` in web platform
 [web.resource]
 
 # Additional CSS style files
-style = []
+style = ["assets/main.css", "assets/tailwind.css"]
 
 # Additional JavaScript files
 script = []
