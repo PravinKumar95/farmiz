@@ -1,0 +1,62 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node (for Tailwind)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install Dioxus CLI
+        run: cargo install dioxus-cli --version 0.7.1
+
+      - name: Build Tailwind CSS
+        working-directory: ./poultry-app
+        run: |
+          npm install tailwindcss @tailwindcss/cli
+          npx @tailwindcss/cli -i tailwind.css -o assets/tailwind.css
+
+      - name: Build Dioxus App
+        working-directory: ./poultry-app
+        # Since this is deployed to a project page (username.github.io/farmiz), 
+        # we MUST add `--basepath farmiz` so that assets (CSS, JS) load correctly.
+        run: dx build --release --basepath farmiz
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './poultry-app/dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
