@@ -25,7 +25,7 @@ fn App() -> Element {
         document::Link { rel: "stylesheet", href: MAIN_CSS }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
 
-        div { class: "min-h-screen py-12 flex flex-col items-center px-4 sm:px-6 lg:px-8",
+        div { class: "min-h-[100dvh] py-12 flex flex-col items-center px-4 sm:px-6 lg:px-8",
             if auth_token().is_some() {
                 // ── Authenticated: show Dashboard ──
                 Dashboard {
