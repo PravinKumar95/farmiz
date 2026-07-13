@@ -148,6 +148,8 @@ pub async fn signup(headers: HeaderMap, Json(payload): Json<serde_json::Value>) 
         .and_then(|v| v.to_str().ok())
         .unwrap_or("http://localhost:8080");
 
+    lambda_http::tracing::info!("Sign-up request for email: {}", payload.get("email").and_then(|e| e.as_str()).unwrap_or("unknown"));
+
     let client = reqwest::Client::new();
     let res = client
         .post(format!("{}/sign-up/email", neon_auth_url))
@@ -159,11 +161,16 @@ pub async fn signup(headers: HeaderMap, Json(payload): Json<serde_json::Value>) 
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let status = res.status();
-    let json = res
-        .json::<serde_json::Value>()
+    let body = res
+        .text()
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
+
+    lambda_http::tracing::info!("Neon Auth sign-up response status={}, body={}", status, body);
+
+    let json: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to parse Neon Auth response: {} — raw: {}", e, body)))?;
+
     if !status.is_success() {
         return Err((
             StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_REQUEST),
@@ -173,3 +180,46 @@ pub async fn signup(headers: HeaderMap, Json(payload): Json<serde_json::Value>) 
 
     Ok(Json(json))
 }
+
+pub async fn verify_email(headers: HeaderMap, Json(payload): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let neon_auth_url = env::var("NEON_AUTH_URL")
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "NEON_AUTH_URL missing".to_string()))?;
+
+    let origin = headers
+        .get("origin")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("http://localhost:8080");
+
+    lambda_http::tracing::info!("Verify email request for: {}", payload.get("email").and_then(|e| e.as_str()).unwrap_or("unknown"));
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(format!("{}/email-otp/verify-email", neon_auth_url))
+        .header("Origin", origin)
+        .header("Referer", origin)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let status = res.status();
+    let body = res
+        .text()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    lambda_http::tracing::info!("Neon Auth verify-email response status={}, body={}", status, body);
+
+    let json: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to parse verify response: {} — raw: {}", e, body)))?;
+
+    if !status.is_success() {
+        return Err((
+            StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_REQUEST),
+            json.to_string(),
+        ));
+    }
+
+    Ok(Json(json))
+}
+

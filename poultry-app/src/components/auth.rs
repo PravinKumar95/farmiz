@@ -14,14 +14,27 @@ struct SignUpPayload {
     password: String,
 }
 
+#[derive(Clone)]
+pub struct LoginInfo {
+    pub token: String,
+    pub email: String,
+}
+
 #[component]
-pub fn SignIn() -> Element {
+pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
     let mut email = use_signal(|| "".to_string());
     let mut password = use_signal(|| "".to_string());
-    let mut message = use_signal(|| "".to_string());
+    let mut error_msg = use_signal(|| "".to_string());
+    let mut is_loading = use_signal(|| false);
 
     let handle_submit = move |evt: Event<FormData>| {
+        evt.prevent_default();
         evt.stop_propagation();
+        is_loading.set(true);
+        error_msg.set("".to_string());
+
+        let login_email = email().clone();
+
         spawn(async move {
             let payload = SignInPayload {
                 email: email(),
@@ -41,17 +54,31 @@ pub fn SignIn() -> Element {
                     if resp.status().is_success() {
                         if let Ok(json) = resp.json::<serde_json::Value>().await {
                             if let Some(token) = json.get("token").and_then(|t| t.as_str()) {
-                                message.set(format!("Signed in! Token: {}...", &token[..10]));
-                            } else {
-                                message.set("Signed in, but no token returned.".into());
+                                on_login.call(LoginInfo {
+                                    token: token.to_string(),
+                                    email: login_email,
+                                });
+                                return;
                             }
                         }
+                        error_msg.set("Signed in, but no token returned.".into());
                     } else {
-                        message.set(format!("Error: {}", resp.status()));
+                        let status = resp.status();
+                        let body = resp.text().await.unwrap_or_default();
+                        let msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                            json.get("message")
+                                .and_then(|m| m.as_str())
+                                .map(|s| s.to_string())
+                                .unwrap_or(format!("Error: {}", status))
+                        } else {
+                            format!("Error: {}", status)
+                        };
+                        error_msg.set(msg);
                     }
                 }
-                Err(e) => message.set(format!("Request failed: {}", e)),
+                Err(e) => error_msg.set(format!("Request failed: {}", e)),
             }
+            is_loading.set(false);
         });
     };
 
@@ -68,7 +95,8 @@ pub fn SignIn() -> Element {
                     value: "{email}",
                     oninput: move |e| email.set(e.value()),
                     class: "border p-2 rounded text-black",
-                    required: true
+                    required: true,
+                    disabled: is_loading()
                 }
                 input {
                     r#type: "password",
@@ -76,19 +104,46 @@ pub fn SignIn() -> Element {
                     value: "{password}",
                     oninput: move |e| password.set(e.value()),
                     class: "border p-2 rounded text-black",
-                    required: true
+                    required: true,
+                    disabled: is_loading()
                 }
                 button {
                     r#type: "submit",
-                    class: "bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors",
-                    "Sign In"
+                    class: if is_loading() {
+                        "bg-gray-400 text-white p-2 rounded cursor-not-allowed"
+                    } else {
+                        "bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors"
+                    },
+                    disabled: is_loading(),
+                    if is_loading() { "Signing in..." } else { "Sign In" }
                 }
             }
-            if !message().is_empty() {
-                div { class: "p-2 bg-gray-100 text-sm mt-2 rounded text-black", "{message}" }
+            if !error_msg().is_empty() {
+                div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700", "{error_msg}" }
             }
         }
     }
+}
+
+#[derive(Clone, PartialEq)]
+enum SignUpState {
+    Form,
+    Loading,
+    VerifyOtp { email_address: String },
+    Verifying,
+    Verified,
+}
+
+#[derive(Clone, PartialEq)]
+enum MessageKind {
+    None,
+    Error(String),
+}
+
+#[derive(Serialize)]
+struct VerifyEmailPayload {
+    email: String,
+    otp: String,
 }
 
 #[component]
@@ -96,10 +151,18 @@ pub fn SignUp() -> Element {
     let mut name = use_signal(|| "".to_string());
     let mut email = use_signal(|| "".to_string());
     let mut password = use_signal(|| "".to_string());
-    let mut message = use_signal(|| "".to_string());
+    let mut otp_code = use_signal(|| "".to_string());
+    let mut state = use_signal(|| SignUpState::Form);
+    let mut feedback = use_signal(|| MessageKind::None);
 
-    let handle_submit = move |evt: Event<FormData>| {
+    let handle_signup = move |evt: Event<FormData>| {
+        evt.prevent_default();
         evt.stop_propagation();
+        state.set(SignUpState::Loading);
+        feedback.set(MessageKind::None);
+
+        let submitted_email = email().clone();
+
         spawn(async move {
             let payload = SignUpPayload {
                 name: name(),
@@ -118,57 +181,257 @@ pub fn SignUp() -> Element {
             match res {
                 Ok(resp) => {
                     if resp.status().is_success() {
-                        message.set("Account created! You can now sign in.".into());
+                        state.set(SignUpState::VerifyOtp { email_address: submitted_email });
                     } else {
-                        let err = resp.text().await.unwrap_or_default();
-                        message.set(format!("Error: {}", err));
+                        let err_body = resp.text().await.unwrap_or_default();
+                        let msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&err_body) {
+                            json.get("message")
+                                .and_then(|m| m.as_str())
+                                .map(|s| s.to_string())
+                                .or_else(|| json.get("error").and_then(|e| e.as_str()).map(|s| s.to_string()))
+                                .unwrap_or(err_body)
+                        } else {
+                            err_body
+                        };
+                        feedback.set(MessageKind::Error(msg));
+                        state.set(SignUpState::Form);
                     }
                 }
-                Err(e) => message.set(format!("Request failed: {}", e)),
+                Err(e) => {
+                    feedback.set(MessageKind::Error(format!("Request failed: {}", e)));
+                    state.set(SignUpState::Form);
+                }
             }
         });
     };
 
-    rsx! {
-        div {
-            class: "flex flex-col gap-4 p-4 max-w-sm mx-auto",
-            h2 { class: "text-2xl font-bold", "Sign Up" }
-            form {
-                onsubmit: handle_submit,
-                class: "flex flex-col gap-3",
-                input {
-                    r#type: "text",
-                    placeholder: "Name",
-                    value: "{name}",
-                    oninput: move |e| name.set(e.value()),
-                    class: "border p-2 rounded text-black",
-                    required: true
+    let handle_verify = move |evt: Event<FormData>| {
+        evt.prevent_default();
+        evt.stop_propagation();
+        feedback.set(MessageKind::None);
+
+        let current_email = email().clone();
+        let code = otp_code().clone();
+
+        state.set(SignUpState::Verifying);
+
+        spawn(async move {
+            let payload = VerifyEmailPayload {
+                email: current_email,
+                otp: code,
+            };
+
+            let backend_url = option_env!("BACKEND_URL").unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
+            let client = reqwest::Client::new();
+            let res = client
+                .post(format!("{}/api/auth/verify-email", backend_url))
+                .json(&payload)
+                .send()
+                .await;
+
+            match res {
+                Ok(resp) => {
+                    if resp.status().is_success() {
+                        state.set(SignUpState::Verified);
+                    } else {
+                        let err_body = resp.text().await.unwrap_or_default();
+                        let msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&err_body) {
+                            json.get("message")
+                                .and_then(|m| m.as_str())
+                                .map(|s| s.to_string())
+                                .or_else(|| json.get("error").and_then(|e| e.as_str()).map(|s| s.to_string()))
+                                .unwrap_or(err_body)
+                        } else {
+                            err_body
+                        };
+                        feedback.set(MessageKind::Error(msg));
+                        // Go back to the OTP input so they can retry
+                        state.set(SignUpState::VerifyOtp { email_address: email() });
+                    }
                 }
-                input {
-                    r#type: "email",
-                    placeholder: "Email",
-                    value: "{email}",
-                    oninput: move |e| email.set(e.value()),
-                    class: "border p-2 rounded text-black",
-                    required: true
-                }
-                input {
-                    r#type: "password",
-                    placeholder: "Password",
-                    value: "{password}",
-                    oninput: move |e| password.set(e.value()),
-                    class: "border p-2 rounded text-black",
-                    required: true
-                }
-                button {
-                    r#type: "submit",
-                    class: "bg-green-500 text-white p-2 rounded hover:bg-green-600 transition-colors",
-                    "Sign Up"
+                Err(e) => {
+                    feedback.set(MessageKind::Error(format!("Request failed: {}", e)));
+                    state.set(SignUpState::VerifyOtp { email_address: email() });
                 }
             }
-            if !message().is_empty() {
-                div { class: "p-2 bg-gray-100 text-sm mt-2 rounded text-black", "{message}" }
+        });
+    };
+
+    match state() {
+        // ── OTP Verification Screen ──
+        SignUpState::VerifyOtp { email_address } => {
+            let display_email = email_address;
+            let is_verifying = false;
+            rsx! {
+                div {
+                    class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
+                    div { class: "text-4xl mb-2", "✉️" }
+                    h2 { class: "text-2xl font-bold", "Check Your Email" }
+                    p { class: "text-gray-600 mt-1",
+                        "We sent a verification code to:"
+                    }
+                    p { class: "font-semibold text-black mt-1", "{display_email}" }
+
+                    form {
+                        onsubmit: handle_verify,
+                        class: "flex flex-col gap-3 mt-4",
+                        input {
+                            r#type: "text",
+                            placeholder: "Enter 6-digit code",
+                            value: "{otp_code}",
+                            oninput: move |e| otp_code.set(e.value()),
+                            class: "border p-3 rounded text-black text-center text-xl tracking-widest font-mono",
+                            maxlength: "6",
+                            required: true,
+                            disabled: is_verifying,
+                            autocomplete: "one-time-code"
+                        }
+                        button {
+                            r#type: "submit",
+                            class: "bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors",
+                            disabled: is_verifying,
+                            "Verify Email"
+                        }
+                    }
+
+                    match feedback() {
+                        MessageKind::Error(msg) => rsx! {
+                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700 text-left", "{msg}" }
+                        },
+                        MessageKind::None => rsx! {},
+                    }
+
+                    p { class: "text-xs text-gray-400 mt-3",
+                        "Didn't receive the code? Check your spam folder or try signing up again."
+                    }
+                }
+            }
+        }
+
+        SignUpState::Verifying => {
+            let display_email = email();
+            rsx! {
+                div {
+                    class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
+                    div { class: "text-4xl mb-2", "✉️" }
+                    h2 { class: "text-2xl font-bold", "Check Your Email" }
+                    p { class: "text-gray-600 mt-1",
+                        "We sent a verification code to:"
+                    }
+                    p { class: "font-semibold text-black mt-1", "{display_email}" }
+
+                    form {
+                        onsubmit: handle_verify,
+                        class: "flex flex-col gap-3 mt-4",
+                        input {
+                            r#type: "text",
+                            placeholder: "Enter 6-digit code",
+                            value: "{otp_code}",
+                            oninput: move |e| otp_code.set(e.value()),
+                            class: "border p-3 rounded text-black text-center text-xl tracking-widest font-mono",
+                            maxlength: "6",
+                            required: true,
+                            disabled: true,
+                            autocomplete: "one-time-code"
+                        }
+                        button {
+                            r#type: "submit",
+                            class: "bg-gray-400 text-white p-2 rounded cursor-not-allowed",
+                            disabled: true,
+                            "Verifying..."
+                        }
+                    }
+
+                    match feedback() {
+                        MessageKind::Error(msg) => rsx! {
+                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700 text-left", "{msg}" }
+                        },
+                        MessageKind::None => rsx! {},
+                    }
+
+                    p { class: "text-xs text-gray-400 mt-3",
+                        "Didn't receive the code? Check your spam folder or try signing up again."
+                    }
+                }
+            }
+        }
+
+        // ── Verified Success Screen ──
+        SignUpState::Verified => {
+            rsx! {
+                div {
+                    class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
+                    div { class: "text-4xl mb-2", "✅" }
+                    h2 { class: "text-2xl font-bold text-green-700", "Email Verified!" }
+                    p { class: "text-gray-600 mt-2",
+                        "Your account is ready. You can now sign in with your credentials."
+                    }
+                    div { class: "bg-green-50 border border-green-200 rounded-lg p-4 mt-4 text-sm text-green-800",
+                        "Switch to the "
+                        span { class: "font-bold", "Sign In" }
+                        " tab above to log in."
+                    }
+                }
+            }
+        }
+
+        // ── Sign Up Form (default + loading) ──
+        _ => {
+            let is_loading = state() == SignUpState::Loading;
+            rsx! {
+                div {
+                    class: "flex flex-col gap-4 p-4 max-w-sm mx-auto",
+                    h2 { class: "text-2xl font-bold", "Sign Up" }
+                    form {
+                        onsubmit: handle_signup,
+                        class: "flex flex-col gap-3",
+                        input {
+                            r#type: "text",
+                            placeholder: "Name",
+                            value: "{name}",
+                            oninput: move |e| name.set(e.value()),
+                            class: "border p-2 rounded text-black",
+                            required: true,
+                            disabled: is_loading
+                        }
+                        input {
+                            r#type: "email",
+                            placeholder: "Email",
+                            value: "{email}",
+                            oninput: move |e| email.set(e.value()),
+                            class: "border p-2 rounded text-black",
+                            required: true,
+                            disabled: is_loading
+                        }
+                        input {
+                            r#type: "password",
+                            placeholder: "Password",
+                            value: "{password}",
+                            oninput: move |e| password.set(e.value()),
+                            class: "border p-2 rounded text-black",
+                            required: true,
+                            disabled: is_loading
+                        }
+                        button {
+                            r#type: "submit",
+                            class: if is_loading {
+                                "bg-gray-400 text-white p-2 rounded cursor-not-allowed"
+                            } else {
+                                "bg-green-500 text-white p-2 rounded hover:bg-green-600 transition-colors"
+                            },
+                            disabled: is_loading,
+                            if is_loading { "Creating account..." } else { "Sign Up" }
+                        }
+                    }
+                    match feedback() {
+                        MessageKind::Error(msg) => rsx! {
+                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700", "{msg}" }
+                        },
+                        MessageKind::None => rsx! {},
+                    }
+                }
             }
         }
     }
 }
+

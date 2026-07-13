@@ -56,6 +56,7 @@ async fn main() -> Result<(), Error> {
         .route("/protected", get(protected_handler))
         .route("/api/auth/signup", post(auth::signup))
         .route("/api/auth/signin", post(auth::signin))
+        .route("/api/auth/verify-email", post(auth::verify_email))
         .layer(cors)
         .with_state(pool);
 
