@@ -1,5 +1,8 @@
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
+use crate::components::input::Input;
+use crate::components::button::Button;
+use crate::components::label::Label;
 
 #[derive(Serialize)]
 struct SignInPayload {
@@ -84,36 +87,38 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
 
     rsx! {
         div {
-            class: "flex flex-col gap-4 p-4 max-w-sm mx-auto",
-            h2 { class: "text-2xl font-bold", "Sign In" }
+            class: "flex flex-col gap-4 p-2 w-full",
             form {
                 onsubmit: handle_submit,
-                class: "flex flex-col gap-3",
-                input {
-                    r#type: "email",
-                    placeholder: "Email",
-                    value: "{email}",
-                    oninput: move |e| email.set(e.value()),
-                    class: "border p-2 rounded text-black",
-                    required: true,
-                    disabled: is_loading()
+                class: "flex flex-col gap-4",
+                div {
+                    class: "flex flex-col gap-2",
+                    Label { html_for: "signin_email", "Email" }
+                    Input {
+                        id: "signin_email",
+                        r#type: "email",
+                        placeholder: "m@example.com",
+                        value: "{email}",
+                        oninput: move |e: Event<FormData>| email.set(e.value()),
+                        required: true,
+                        disabled: is_loading()
+                    }
                 }
-                input {
-                    r#type: "password",
-                    placeholder: "Password",
-                    value: "{password}",
-                    oninput: move |e| password.set(e.value()),
-                    class: "border p-2 rounded text-black",
-                    required: true,
-                    disabled: is_loading()
+                div {
+                    class: "flex flex-col gap-2",
+                    Label { html_for: "signin_password", "Password" }
+                    Input {
+                        id: "signin_password",
+                        r#type: "password",
+                        value: "{password}",
+                        oninput: move |e: Event<FormData>| password.set(e.value()),
+                        required: true,
+                        disabled: is_loading()
+                    }
                 }
-                button {
+                Button {
                     r#type: "submit",
-                    class: if is_loading() {
-                        "bg-gray-400 text-white p-2 rounded cursor-not-allowed"
-                    } else {
-                        "bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors"
-                    },
+                    class: "w-full",
                     disabled: is_loading(),
                     if is_loading() { "Signing in..." } else { "Sign In" }
                 }
@@ -275,20 +280,19 @@ pub fn SignUp() -> Element {
                     form {
                         onsubmit: handle_verify,
                         class: "flex flex-col gap-3 mt-4",
-                        input {
+                        Input {
                             r#type: "text",
                             placeholder: "Enter 6-digit code",
                             value: "{otp_code}",
-                            oninput: move |e| otp_code.set(e.value()),
-                            class: "border p-3 rounded text-black text-center text-xl tracking-widest font-mono",
+                            oninput: move |e: Event<FormData>| otp_code.set(e.value()),
+                            class: "text-center text-xl tracking-widest font-mono",
                             maxlength: "6",
                             required: true,
                             disabled: is_verifying,
                             autocomplete: "one-time-code"
                         }
-                        button {
+                        Button {
                             r#type: "submit",
-                            class: "bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors",
                             disabled: is_verifying,
                             "Verify Email"
                         }
@@ -323,20 +327,19 @@ pub fn SignUp() -> Element {
                     form {
                         onsubmit: handle_verify,
                         class: "flex flex-col gap-3 mt-4",
-                        input {
+                        Input {
                             r#type: "text",
                             placeholder: "Enter 6-digit code",
                             value: "{otp_code}",
-                            oninput: move |e| otp_code.set(e.value()),
-                            class: "border p-3 rounded text-black text-center text-xl tracking-widest font-mono",
+                            oninput: move |e: Event<FormData>| otp_code.set(e.value()),
+                            class: "text-center text-xl tracking-widest font-mono",
                             maxlength: "6",
                             required: true,
                             disabled: true,
                             autocomplete: "one-time-code"
                         }
-                        button {
+                        Button {
                             r#type: "submit",
-                            class: "bg-gray-400 text-white p-2 rounded cursor-not-allowed",
                             disabled: true,
                             "Verifying..."
                         }
@@ -380,45 +383,51 @@ pub fn SignUp() -> Element {
             let is_loading = state() == SignUpState::Loading;
             rsx! {
                 div {
-                    class: "flex flex-col gap-4 p-4 max-w-sm mx-auto",
-                    h2 { class: "text-2xl font-bold", "Sign Up" }
+                    class: "flex flex-col gap-4 p-2 w-full",
                     form {
                         onsubmit: handle_signup,
-                        class: "flex flex-col gap-3",
-                        input {
-                            r#type: "text",
-                            placeholder: "Name",
-                            value: "{name}",
-                            oninput: move |e| name.set(e.value()),
-                            class: "border p-2 rounded text-black",
-                            required: true,
-                            disabled: is_loading
+                        class: "flex flex-col gap-4",
+                        div {
+                            class: "flex flex-col gap-2",
+                            Label { html_for: "signup_name", "Name" }
+                            Input {
+                                id: "signup_name",
+                                r#type: "text",
+                                placeholder: "John Doe",
+                                value: "{name}",
+                                oninput: move |e: Event<FormData>| name.set(e.value()),
+                                required: true,
+                                disabled: is_loading
+                            }
                         }
-                        input {
-                            r#type: "email",
-                            placeholder: "Email",
-                            value: "{email}",
-                            oninput: move |e| email.set(e.value()),
-                            class: "border p-2 rounded text-black",
-                            required: true,
-                            disabled: is_loading
+                        div {
+                            class: "flex flex-col gap-2",
+                            Label { html_for: "signup_email", "Email" }
+                            Input {
+                                id: "signup_email",
+                                r#type: "email",
+                                placeholder: "m@example.com",
+                                value: "{email}",
+                                oninput: move |e: Event<FormData>| email.set(e.value()),
+                                required: true,
+                                disabled: is_loading
+                            }
                         }
-                        input {
-                            r#type: "password",
-                            placeholder: "Password",
-                            value: "{password}",
-                            oninput: move |e| password.set(e.value()),
-                            class: "border p-2 rounded text-black",
-                            required: true,
-                            disabled: is_loading
+                        div {
+                            class: "flex flex-col gap-2",
+                            Label { html_for: "signup_password", "Password" }
+                            Input {
+                                id: "signup_password",
+                                r#type: "password",
+                                value: "{password}",
+                                oninput: move |e: Event<FormData>| password.set(e.value()),
+                                required: true,
+                                disabled: is_loading
+                            }
                         }
-                        button {
+                        Button {
                             r#type: "submit",
-                            class: if is_loading {
-                                "bg-gray-400 text-white p-2 rounded cursor-not-allowed"
-                            } else {
-                                "bg-green-500 text-white p-2 rounded hover:bg-green-600 transition-colors"
-                            },
+                            class: "w-full",
                             disabled: is_loading,
                             if is_loading { "Creating account..." } else { "Sign Up" }
                         }

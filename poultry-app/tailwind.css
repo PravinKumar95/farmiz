@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Enable Dark Mode as default */
+    --light: ;
+    /* --dark is undefined */
+    
+    --primary-color: var(--color-white);
+    --primary-color-2: var(--color-gray-950);
+    --primary-color-3: var(--color-gray-900);
+    --primary-color-4: var(--color-gray-50);
+    --primary-color-5: var(--color-gray-800);
+    --primary-color-6: var(--color-gray-700);
+    --primary-color-7: var(--color-gray-600);
+    
+    --secondary-color-1: var(--color-white);
+    --secondary-color-2: var(--color-blue-600);
+    --secondary-color-3: var(--color-gray-200);
+    --secondary-color-4: var(--color-gray-100);
+    --secondary-color-5: var(--color-gray-400);
+    
+    --focused-border-color: var(--color-blue-500);
+    --primary-error-color: var(--color-red-500);
+    --contrast-error-color: var(--color-white);
+  }
+}
