@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-use dioxus_sdk::storage::use_persistent;
 
 mod components;
 use components::auth::{SignIn, SignUp};
@@ -12,13 +11,18 @@ const MAIN_CSS: Asset = asset!("/assets/main.css");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        dioxus_sdk::storage::set_dir!();
+    }
+
     dioxus::launch(App);
 }
 
 #[component]
 fn App() -> Element {
-    let mut auth_token = use_persistent("auth_token", || None::<String>);
-    let mut auth_email = use_persistent("auth_email", || None::<String>);
+    let mut auth_token = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>("auth_token".to_string(), || None::<String>);
+    let mut auth_email = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>("auth_email".to_string(), || None::<String>);
 
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
