@@ -48,11 +48,18 @@ jobs:
 
       - name: Build Dioxus App
         working-directory: ./poultry-app
-        # Since this is deployed to a project page (username.github.io/farmiz), 
-        # we MUST add `--base-path /farmiz/` so that assets (CSS, JS) load correctly.
+        run: dx build --release
+
+      - name: Prepare deployment directory
         run: |
-          dx build --release --base-path /farmiz/
-          sed -i 's|<head>|<head><base href="/farmiz/" />|' ../target/dx/poultry-app/release/web/public/index.html
+          # GitHub Pages serves project sites at /farmiz/
+          # The Dioxus WASM runtime constructs absolute paths like /assets/style-dxh...css
+          # We need these to resolve to /farmiz/assets/... on the server.
+          # Solution: Create a site root with a farmiz/ subfolder containing the build output.
+          mkdir -p _site/farmiz
+          cp -r target/dx/poultry-app/release/web/public/* _site/farmiz/
+          # Also copy assets to the root /assets/ so absolute paths work
+          cp -r target/dx/poultry-app/release/web/public/assets _site/assets
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -60,8 +67,9 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './target/dx/poultry-app/release/web/public'
+          path: './_site'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
