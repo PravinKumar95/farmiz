@@ -48,18 +48,25 @@ jobs:
 
       - name: Build Dioxus App
         working-directory: ./poultry-app
-        run: dx build --release
-
-      - name: Prepare deployment directory
         run: |
-          # GitHub Pages serves project sites at /farmiz/
-          # The Dioxus WASM runtime constructs absolute paths like /assets/style-dxh...css
-          # We need these to resolve to /farmiz/assets/... on the server.
-          # Solution: Create a site root with a farmiz/ subfolder containing the build output.
-          mkdir -p _site/farmiz
-          cp -r target/dx/poultry-app/release/web/public/* _site/farmiz/
-          # Also copy assets to the root /assets/ so absolute paths work
-          cp -r target/dx/poultry-app/release/web/public/assets _site/assets
+          dx build --release --base-path /farmiz/
+          sed -i 's|<head>|<head><base href="/farmiz/" />|' ../target/dx/poultry-app/release/web/public/index.html
+
+      - name: Patch WASM asset paths
+        working-directory: ./target/dx/poultry-app/release/web/public/assets
+        run: |
+          # The Dioxus WASM runtime hardcodes "/assets/" for dynamic CSS injections.
+          # This breaks on GitHub Pages subpaths because it ignores the <base> tag.
+          # We patch the WASM binary directly to use "assets//" (relative) instead.
+          python3 -c '
+          import glob
+          for wasm_file in glob.glob("*.wasm"):
+              with open(wasm_file, "rb") as f:
+                  data = f.read()
+              data = data.replace(b"/assets/", b"assets//")
+              with open(wasm_file, "wb") as f:
+                  f.write(data)
+          '
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -67,7 +74,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './_site'
+          path: './target/dx/poultry-app/release/web/public'
 
       - name: Deploy to GitHub Pages
         id: deployment
