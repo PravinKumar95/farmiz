@@ -63,7 +63,7 @@ jobs:
           for wasm_file in glob.glob("*.wasm"):
               with open(wasm_file, "rb") as f:
                   data = f.read()
-              data = data.replace(b"/assets/", b"assets//")
+              data = data.replace(b"\xc0\x08/assets/\x00", b"\xc0\x08assets//\x00")
               with open(wasm_file, "wb") as f:
                   f.write(data)
           '
