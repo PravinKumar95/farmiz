@@ -53,6 +53,8 @@ jobs:
 
       - name: Build Dioxus App
         working-directory: ./poultry-app
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
         run: |
           dx bundle --out-dir docs
           mv docs/public/* docs
