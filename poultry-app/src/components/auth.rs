@@ -45,22 +45,43 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
             };
 
             let backend_url = option_env!("BACKEND_URL").unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
-            let client = reqwest::Client::new();
+            println!("Attempting sign in with URL: {}", backend_url);
+            
+            // Catch panics in client creation and add timeout
+            let client = match std::panic::catch_unwind(|| {
+                reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(15))
+                    .build()
+                    .unwrap()
+            }) {
+                Ok(c) => c,
+                Err(_) => {
+                    error_msg.set("Failed to initialize HTTP client (panic)".into());
+                    is_loading.set(false);
+                    return;
+                }
+            };
+
+            println!("Client created, sending request...");
             let res = client
                 .post(format!("{}/api/auth/signin", backend_url))
                 .json(&payload)
                 .send()
                 .await;
 
+            println!("Request completed with result: {:?}", res.is_ok());
+
             match res {
                 Ok(resp) => {
                     if resp.status().is_success() {
                         if let Ok(json) = resp.json::<serde_json::Value>().await {
                             if let Some(token) = json.get("token").and_then(|t| t.as_str()) {
+                                println!("Login successful!");
                                 on_login.call(LoginInfo {
                                     token: token.to_string(),
                                     email: login_email,
                                 });
+                                is_loading.set(false);
                                 return;
                             }
                         }
@@ -68,6 +89,7 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
                     } else {
                         let status = resp.status();
                         let body = resp.text().await.unwrap_or_default();
+                        println!("Server error: {} - {}", status, body);
                         let msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
                             json.get("message")
                                 .and_then(|m| m.as_str())
@@ -79,7 +101,10 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
                         error_msg.set(msg);
                     }
                 }
-                Err(e) => error_msg.set(format!("Request failed: {}", e)),
+                Err(e) => {
+                    println!("Network error: {:?}", e);
+                    error_msg.set(format!("Request failed: {}", e));
+                }
             }
             is_loading.set(false);
         });
