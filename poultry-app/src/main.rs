@@ -10,7 +10,7 @@ const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
-// ── Main Application Entry Point ───────────────────────────────────────────────
+
 fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     {
