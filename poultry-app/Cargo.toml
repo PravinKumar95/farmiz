@@ -9,7 +9,7 @@ edition = "2021"
 [dependencies]
 dioxus = { version = "0.7.1", features = [] }
 dioxus-sdk = { version = "0.7.0", features = ["storage"] }
-reqwest = { version = "0.13.4", features = ["json"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "native-tls"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1", default-features = false }

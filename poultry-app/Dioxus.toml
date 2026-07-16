@@ -6,3 +6,8 @@
 title = "poultry-app"
 base_path = "farmiz"
 
+[ios]
+team_id = "P442DXTPTC"
+
+[bundle]
+identifier = "Farmiz.PoultryApp"

@@ -47,21 +47,7 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
             let backend_url = option_env!("BACKEND_URL").unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
             println!("Attempting sign in with URL: {}", backend_url);
             
-            // Catch panics in client creation and add timeout
-            let client = match std::panic::catch_unwind(|| {
-                reqwest::Client::builder()
-                    .timeout(std::time::Duration::from_secs(15))
-                    .build()
-                    .unwrap()
-            }) {
-                Ok(c) => c,
-                Err(_) => {
-                    error_msg.set("Failed to initialize HTTP client (panic)".into());
-                    is_loading.set(false);
-                    return;
-                }
-            };
-
+            let client = reqwest::Client::new();
             println!("Client created, sending request...");
             let res = client
                 .post(format!("{}/api/auth/signin", backend_url))
