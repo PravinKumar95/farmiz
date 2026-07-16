@@ -33,11 +33,19 @@ static JWKS: OnceCell<Jwks> = OnceCell::new();
 pub async fn init_jwks() {
     let jwks_url = env::var("NEON_AUTH_JWKS_URL").expect("NEON_AUTH_JWKS_URL must be set");
     let client = reqwest::Client::new();
-    let jwks: Jwks = client
+    let res = client
         .get(&jwks_url)
         .send()
         .await
-        .expect("Failed to fetch JWKS")
+        .expect("Failed to fetch JWKS");
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        panic!("Failed to fetch JWKS (status {}): {}", status, body);
+    }
+
+    let jwks: Jwks = res
         .json()
         .await
         .expect("Failed to parse JWKS");
