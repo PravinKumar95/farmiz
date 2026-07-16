@@ -33,24 +33,34 @@ static JWKS: OnceCell<Jwks> = OnceCell::new();
 pub async fn init_jwks() {
     let jwks_url = env::var("NEON_AUTH_JWKS_URL").expect("NEON_AUTH_JWKS_URL must be set");
     let client = reqwest::Client::new();
-    let res = client
-        .get(&jwks_url)
-        .send()
-        .await
-        .expect("Failed to fetch JWKS");
+    
+    let mut retries = 5;
+    let mut last_error = String::new();
 
-    if !res.status().is_success() {
-        let status = res.status();
-        let body = res.text().await.unwrap_or_default();
-        panic!("Failed to fetch JWKS (status {}): {}", status, body);
+    while retries > 0 {
+        match client.get(&jwks_url).send().await {
+            Ok(res) => {
+                if res.status().is_success() {
+                    let jwks: Jwks = res.json().await.expect("Failed to parse JWKS");
+                    JWKS.set(jwks).expect("JWKS already initialized");
+                    return;
+                } else {
+                    last_error = format!("Status {}: {}", res.status(), res.text().await.unwrap_or_default());
+                }
+            }
+            Err(e) => {
+                last_error = e.to_string();
+            }
+        }
+        
+        retries -= 1;
+        if retries > 0 {
+            lambda_http::tracing::warn!("JWKS fetch failed, retrying in 2 seconds... Error: {}", last_error);
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
     }
 
-    let jwks: Jwks = res
-        .json()
-        .await
-        .expect("Failed to parse JWKS");
-
-    JWKS.set(jwks).expect("JWKS already initialized");
+    panic!("Failed to fetch JWKS after retries. Last error: {}", last_error);
 }
 
 pub struct AuthenticatedUser {
