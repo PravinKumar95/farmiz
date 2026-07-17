@@ -25,6 +25,20 @@ pub fn use_egg_sales() -> Resource<Vec<EggSale>> {
     })
 }
 
+pub async fn create_egg_sale(token: &str, payload: &EggSale) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let res = client.post(format!("{BACKEND_URL}/api/sales/egg"))
+        .header("Authorization", format!("Bearer {}", token))
+        .json(payload)
+        .send().await.map_err(|e| e.to_string())?;
+    
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Error: {}", res.status()))
+    }
+}
+
 pub fn use_broken_egg_sales() -> Resource<Vec<BrokenEggSale>> {
     let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
     use_resource(move || {
@@ -39,6 +53,20 @@ pub fn use_broken_egg_sales() -> Resource<Vec<BrokenEggSale>> {
             }
         }
     })
+}
+
+pub async fn create_broken_egg_sale(token: &str, payload: &BrokenEggSale) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let res = client.post(format!("{BACKEND_URL}/api/sales/broken"))
+        .header("Authorization", format!("Bearer {}", token))
+        .json(payload)
+        .send().await.map_err(|e| e.to_string())?;
+    
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Error: {}", res.status()))
+    }
 }
 
 pub fn use_material_purchases() -> Resource<Vec<MaterialPurchase>> {
@@ -57,6 +85,20 @@ pub fn use_material_purchases() -> Resource<Vec<MaterialPurchase>> {
     })
 }
 
+pub async fn create_material_purchase(token: &str, payload: &MaterialPurchase) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let res = client.post(format!("{BACKEND_URL}/api/purchases"))
+        .header("Authorization", format!("Bearer {}", token))
+        .json(payload)
+        .send().await.map_err(|e| e.to_string())?;
+    
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Error: {}", res.status()))
+    }
+}
+
 pub fn use_feed_batches() -> Resource<Vec<FeedBatch>> {
     let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
     use_resource(move || {
@@ -71,6 +113,20 @@ pub fn use_feed_batches() -> Resource<Vec<FeedBatch>> {
             }
         }
     })
+}
+
+pub async fn create_feed_batch(token: &str, payload: &FeedBatch) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let res = client.post(format!("{BACKEND_URL}/api/feed"))
+        .header("Authorization", format!("Bearer {}", token))
+        .json(payload)
+        .send().await.map_err(|e| e.to_string())?;
+    
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Error: {}", res.status()))
+    }
 }
 
 pub fn use_labor_records() -> Resource<Vec<LaborRecord>> {
@@ -89,6 +145,20 @@ pub fn use_labor_records() -> Resource<Vec<LaborRecord>> {
     })
 }
 
+pub async fn create_labor_record(token: &str, payload: &LaborRecord) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let res = client.post(format!("{BACKEND_URL}/api/labor"))
+        .header("Authorization", format!("Bearer {}", token))
+        .json(payload)
+        .send().await.map_err(|e| e.to_string())?;
+    
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Error: {}", res.status()))
+    }
+}
+
 pub fn use_parties() -> Resource<Vec<Party>> {
     let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
     use_resource(move || {
@@ -103,4 +173,18 @@ pub fn use_parties() -> Resource<Vec<Party>> {
             }
         }
     })
+}
+
+pub async fn create_party(token: &str, payload: &Party) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let res = client.post(format!("{BACKEND_URL}/api/parties"))
+        .header("Authorization", format!("Bearer {}", token))
+        .json(payload)
+        .send().await.map_err(|e| e.to_string())?;
+    
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Error: {}", res.status()))
+    }
 }

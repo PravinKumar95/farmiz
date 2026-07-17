@@ -1,18 +1,113 @@
 use dioxus::prelude::*;
+use dioxus_sdk::storage::{use_storage, LocalStorage};
 
 use crate::components::button::Button;
 use crate::components::card::{Card, CardContent, CardHeader, CardFooter};
-use crate::services::use_feed_batches;
+use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
+use crate::components::input::Input;
+use crate::components::label::Label;
+use crate::services::{use_feed_batches, create_feed_batch};
+use crate::models::FeedBatch;
 
 #[component]
 pub fn Feed() -> Element {
-    let batches = use_feed_batches();
+    let mut batches = use_feed_batches();
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let mut is_sheet_open = use_signal(|| false);
+
+    let mut form_date = use_signal(|| String::new());
+    let mut form_batch_id = use_signal(|| String::new());
+    let mut form_type = use_signal(|| String::new());
+    let mut form_rate = use_signal(|| String::new());
+    let mut form_total = use_signal(|| String::new());
+    let mut form_payment = use_signal(|| String::new());
+    let mut form_error = use_signal(|| String::new());
+
+    let submit_handler = move |_| {
+        let date = form_date().trim().to_string();
+        let batch_id = form_batch_id().trim().to_string();
+        let feed_type = form_type().trim().to_string();
+        
+        if date.is_empty() { form_error.set("Date required".to_string()); return; }
+        if batch_id.is_empty() { form_error.set("Batch ID required".to_string()); return; }
+        if feed_type.is_empty() { form_error.set("Feed Type required".to_string()); return; }
+        
+        let rate: f64 = match form_rate().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid rate".to_string()); return; } };
+        let total: f64 = match form_total().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid total amount".to_string()); return; } };
+        let payment: f64 = match form_payment().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid payment amount".to_string()); return; } };
+        
+        let new_record = FeedBatch {
+            id: String::new(),
+            date,
+            batch_id,
+            feed_type,
+            rate,
+            total_amount: total,
+            payment,
+            opening_balance: 0.0,
+            closing_balance: total - payment,
+            created_at: None,
+        };
+
+        let token = auth_token.read().clone();
+        spawn(async move {
+            match create_feed_batch(&token, &new_record).await {
+                Ok(_) => {
+                    is_sheet_open.set(false);
+                    form_error.set(String::new());
+                    batches.restart();
+                }
+                Err(e) => form_error.set(e),
+            }
+        });
+    };
 
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
             div { class: "flex justify-between items-center",
                 h1 { class: "text-2xl font-bold tracking-tight", "Feed Mill" }
-                Button { "Log Batch" }
+                Button { onclick: move |_| is_sheet_open.set(true), "Add Feed Batch" }
+            }
+
+            if is_sheet_open() {
+                Sheet {
+                    open: Some(is_sheet_open()),
+                    on_open_change: move |open| is_sheet_open.set(open),
+                    SheetHeader { SheetTitle { "Add Feed Batch" } }
+                    div { class: "flex flex-col gap-4 py-4 overflow-y-auto max-h-[70vh]",
+                        if !form_error().is_empty() {
+                            div { class: "text-sm text-red-500 font-medium", "{form_error}" }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "date", "Date" }
+                            Input { value: "{form_date}", oninput: move |e: FormEvent| form_date.set(e.value()), placeholder: "YYYY-MM-DD" }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "batch", "Batch ID" }
+                            Input { value: "{form_batch_id}", oninput: move |e: FormEvent| form_batch_id.set(e.value()) }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "type", "Feed Type" }
+                            Input { value: "{form_type}", oninput: move |e: FormEvent| form_type.set(e.value()) }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "rate", "Rate" }
+                            Input { value: "{form_rate}", oninput: move |e: FormEvent| form_rate.set(e.value()), placeholder: "0.00" }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "total", "Total Amount" }
+                            Input { value: "{form_total}", oninput: move |e: FormEvent| form_total.set(e.value()), placeholder: "0.00" }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "payment", "Payment" }
+                            Input { value: "{form_payment}", oninput: move |e: FormEvent| form_payment.set(e.value()), placeholder: "0.00" }
+                        }
+                    }
+                    SheetFooter {
+                        Button { onclick: submit_handler, "Save Batch" }
+                        Button { onclick: move |_| is_sheet_open.set(false), "Cancel" }
+                    }
+                }
             }
 
             div { class: "flex flex-col gap-3 mt-4",
@@ -20,33 +115,27 @@ pub fn Feed() -> Element {
                     Card { key: "{batch.id}",
                         CardHeader {
                             div { class: "flex justify-between items-center text-sm",
-                                span { class: "font-bold text-base", "Batch: {batch.batch_id}" }
                                 span { class: "text-muted-foreground", "{batch.date}" }
+                                span { class: "font-mono font-medium", "Batch: {batch.batch_id}" }
                             }
                         }
                         CardContent {
-                            div { class: "flex justify-between",
-                                div {
-                                    div { class: "text-xs text-muted-foreground", "Feed Type" }
-                                    div { class: "font-medium", "{batch.feed_type}" }
-                                }
-                                div { class: "text-right",
-                                    div { class: "text-xs text-muted-foreground", "Rate" }
-                                    div { class: "font-medium", "₹{batch.rate}" }
+                            div { class: "flex flex-col gap-1",
+                                div { class: "font-bold text-lg", "{batch.feed_type}" }
+                                div { class: "text-sm text-muted-foreground flex justify-between",
+                                    span { "Rate: ₹{batch.rate:.2}" }
+                                    span { class: "font-semibold text-primary", "₹ {batch.total_amount:.2}" }
                                 }
                             }
                         }
-                        CardFooter {
-                            div { class: "flex flex-col w-full gap-2",
-                                div { class: "flex justify-between items-center w-full",
-                                    div { class: "text-sm text-muted-foreground", "Total Amount" }
-                                    div { class: "font-bold text-lg", "₹{batch.total_amount}" }
-                                }
-                                div { class: "flex justify-between items-center w-full text-xs text-muted-foreground pt-2 border-t dark:border-stone-800",
-                                    div { "Op Bal: ₹{batch.opening_balance}" }
-                                    div { "Payment: ₹{batch.payment}" }
-                                    div { "Cl Bal: ₹{batch.closing_balance}" }
-                                }
+                        CardFooter { class: "bg-muted/50 pt-4 rounded-b-xl flex justify-between text-sm",
+                            div { class: "flex flex-col",
+                                span { class: "text-muted-foreground", "Payment" }
+                                span { class: "font-medium text-green-600", "₹ {batch.payment:.2}" }
+                            }
+                            div { class: "flex flex-col items-end",
+                                span { class: "text-muted-foreground", "Closing Balance" }
+                                span { class: "font-medium text-blue-600", "₹ {batch.closing_balance:.2}" }
                             }
                         }
                     }

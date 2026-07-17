@@ -12,8 +12,8 @@ struct Styles;
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum SheetSide {
     Top,
-    #[default]
     Right,
+    #[default]
     Bottom,
     Left,
 }
@@ -34,7 +34,7 @@ pub fn Sheet(props: DialogRootProps) -> Element {
     let content_base = attributes!(div {
         class: Styles::dx_sheet,
         "data-slot": "sheet-content",
-        "data-side": SheetSide::Right.as_str(),
+        "data-side": SheetSide::Bottom.as_str(),
     });
     let content_attributes = merge_attributes(vec![content_base, props.attributes]);
 

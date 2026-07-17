@@ -88,6 +88,10 @@
   bottom: 0;
   border-top: 1px solid var(--primary-color-6);
   transform: translateY(100%);
+  max-height: 92vh;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
 }
 
 .dx-sheet-root[data-state="open"] .dx-sheet[data-side="right"] {
