@@ -4,6 +4,7 @@ use tracing::Level;
 
 mod components;
 mod layouts;
+mod models;
 mod routes;
 mod screens;
 

@@ -2,6 +2,11 @@ use dioxus::prelude::*;
 
 use crate::layouts::AuthenticatedLayout;
 use crate::screens::dashboard::Dashboard;
+use crate::screens::sales::Sales;
+use crate::screens::purchases::Purchases;
+use crate::screens::feed::Feed;
+use crate::screens::labor::Labor;
+use crate::screens::parties::Parties;
 
 #[derive(Clone, Debug, PartialEq, Routable)]
 pub enum AuthenticatedRoute {
@@ -10,6 +15,16 @@ pub enum AuthenticatedRoute {
     #[redirect("/signin", || AuthenticatedRoute::Dashboard {})]
     #[redirect("/signup", || AuthenticatedRoute::Dashboard {})]
     Dashboard {},
+    #[route("/sales")]
+    Sales {},
+    #[route("/purchases")]
+    Purchases {},
+    #[route("/feed")]
+    Feed {},
+    #[route("/labor")]
+    Labor {},
+    #[route("/parties")]
+    Parties {},
     #[route("/:.._route")]
     PageNotFound { _route: Vec<String> },
 }

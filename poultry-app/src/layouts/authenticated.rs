@@ -29,6 +29,41 @@ pub fn AuthenticatedLayout() -> Element {
                                     }
                                 }
                                 SidebarMenuItem {
+                                    dioxus_router::components::Link { to: AuthenticatedRoute::Sales {},
+                                        SidebarMenuButton {
+                                            span { "🥚 Sales" }
+                                        }
+                                    }
+                                }
+                                SidebarMenuItem {
+                                    dioxus_router::components::Link { to: AuthenticatedRoute::Purchases {},
+                                        SidebarMenuButton {
+                                            span { "🛒 Purchases" }
+                                        }
+                                    }
+                                }
+                                SidebarMenuItem {
+                                    dioxus_router::components::Link { to: AuthenticatedRoute::Feed {},
+                                        SidebarMenuButton {
+                                            span { "🌾 Feed Mill" }
+                                        }
+                                    }
+                                }
+                                SidebarMenuItem {
+                                    dioxus_router::components::Link { to: AuthenticatedRoute::Labor {},
+                                        SidebarMenuButton {
+                                            span { "👥 Labor" }
+                                        }
+                                    }
+                                }
+                                SidebarMenuItem {
+                                    dioxus_router::components::Link { to: AuthenticatedRoute::Parties {},
+                                        SidebarMenuButton {
+                                            span { "📒 Ledger" }
+                                        }
+                                    }
+                                }
+                                SidebarMenuItem {
                                     SidebarMenuButton {
                                         span { "⚙️ Settings" }
                                     }
