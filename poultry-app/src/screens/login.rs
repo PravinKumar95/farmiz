@@ -105,8 +105,8 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
     rsx! {
         Card {
             CardHeader {
-                CardTitle { "Login to your account" }
-                CardDescription { "Enter your email below to login to your account" }
+                CardTitle { class: "text-2xl font-bold text-center", "Welcome back" }
+                CardDescription { "Enter your email below to login to your farmiz account" }
             }
             CardContent {
                 form { onsubmit: handle_submit,
@@ -493,6 +493,7 @@ pub fn SignUp() -> Element {
 pub fn LoginScreen(on_login: EventHandler<LoginInfo>) -> Element {
     rsx! {
         div { class: "max-w-md mx-auto p-4 justify-center",
+
             SignIn { on_login }
         }
 

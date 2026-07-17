@@ -3,8 +3,11 @@ use dioxus::prelude::*;
 use tracing::Level;
 
 mod components;
+mod layouts;
+mod routes;
 mod screens;
 
+use crate::routes::PublicRoute;
 use crate::screens::{dashboard::Dashboard, login::LoginScreen};
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
@@ -40,7 +43,7 @@ fn App() -> Element {
             href: asset!("/assets/tailwind.css"),
         }
         document::Stylesheet { href: asset!("/assets/dx-components-theme.css") }
-        div { class: "pt-25 h-screen flex flex-col items-center justify-center dark:bg-stone-900",
+        div { class: "pt-25 h-screen flex flex-col items-center dark:bg-stone-900",
             if auth_token().is_some() {
                 // ── Authenticated: show Dashboard ──
                 Dashboard {
@@ -51,6 +54,8 @@ fn App() -> Element {
                     },
                 }
             } else {
+                Router::<PublicRoute> {
+                }
                 // ── Not authenticated: show Sign In / Sign Up ──
                 LoginScreen {
                     on_login: move |info: screens::login::LoginInfo| {

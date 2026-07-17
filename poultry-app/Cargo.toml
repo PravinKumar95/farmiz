@@ -7,7 +7,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = { version = "0.7.1", features = [] }
+dioxus = { version = "0.7.1", features = ["router"] }
 dioxus-sdk = { version = "0.7.0", features = ["storage"] }
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "native-tls"] }
 serde = { version = "1.0.228", features = ["derive"] }
