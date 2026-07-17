@@ -63,11 +63,15 @@ fn App() -> Element {
             href: asset!("/assets/tailwind.css"),
         }
         document::Stylesheet { href: asset!("/assets/dx-components-theme.css") }
-        div { class: "pt-25 h-screen flex flex-col items-center dark:bg-stone-900",
-            if auth_token().is_some() {
-                // ── Authenticated routes ──
+        if auth_token().is_some() {
+            // ── Authenticated routes ──
+            div { class: "w-full h-[100dvh] dark:bg-stone-900",
                 Router::<crate::routes::AuthenticatedRoute> {}
-            } else {
+            }
+        } else {
+            div { 
+                class: "flex flex-col items-center dark:bg-stone-900 min-h-[100dvh]",
+                style: "padding-top: calc(env(safe-area-inset-top) + 6rem); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); box-sizing: border-box;",
                 Router::<PublicRoute> {}
             }
         }

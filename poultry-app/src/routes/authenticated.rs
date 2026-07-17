@@ -1,9 +1,11 @@
 use dioxus::prelude::*;
 
+use crate::layouts::AuthenticatedLayout;
 use crate::screens::dashboard::Dashboard;
 
 #[derive(Clone, Debug, PartialEq, Routable)]
 pub enum AuthenticatedRoute {
+    #[layout(AuthenticatedLayout)]
     #[route("/")]
     #[redirect("/signin", || AuthenticatedRoute::Dashboard {})]
     #[redirect("/signup", || AuthenticatedRoute::Dashboard {})]
