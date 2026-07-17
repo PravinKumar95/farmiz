@@ -1,6 +1,6 @@
-use dioxus::prelude::*;
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardHeader, CardTitle};
+use dioxus::prelude::*;
 
 #[component]
 pub fn Dashboard(user_email: String, on_signout: EventHandler<()>) -> Element {

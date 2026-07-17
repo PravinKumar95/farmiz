@@ -1,8 +1,12 @@
+use crate::components::button::Button;
+use crate::components::card::{
+    Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
+};
+use crate::components::input::Input;
+use crate::components::label::Label;
+use crate::components::tabs::{TabContent, TabList, TabTrigger, Tabs};
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::input::Input;
-use crate::components::button::Button;
-use crate::components::label::Label;
 
 #[derive(Serialize)]
 struct SignInPayload {
@@ -44,9 +48,10 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
                 password: password(),
             };
 
-            let backend_url = option_env!("BACKEND_URL").unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
+            let backend_url = option_env!("BACKEND_URL")
+                .unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
             println!("Attempting sign in with URL: {}", backend_url);
-            
+
             let client = reqwest::Client::new();
             println!("Client created, sending request...");
             let res = client
@@ -76,7 +81,8 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
                         let status = resp.status();
                         let body = resp.text().await.unwrap_or_default();
                         println!("Server error: {} - {}", status, body);
-                        let msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                        let msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body)
+                        {
                             json.get("message")
                                 .and_then(|m| m.as_str())
                                 .map(|s| s.to_string())
@@ -97,45 +103,56 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
     };
 
     rsx! {
-        div {
-            class: "flex flex-col gap-4 p-2 w-full",
-            form {
-                onsubmit: handle_submit,
-                class: "flex flex-col gap-4",
-                div {
-                    class: "flex flex-col gap-2",
-                    Label { html_for: "signin_email", "Email" }
-                    Input {
-                        id: "signin_email",
-                        r#type: "email",
-                        placeholder: "m@example.com",
-                        value: "{email}",
-                        oninput: move |e: Event<FormData>| email.set(e.value()),
-                        required: true,
-                        disabled: is_loading()
-                    }
-                }
-                div {
-                    class: "flex flex-col gap-2",
-                    Label { html_for: "signin_password", "Password" }
-                    Input {
-                        id: "signin_password",
-                        r#type: "password",
-                        value: "{password}",
-                        oninput: move |e: Event<FormData>| password.set(e.value()),
-                        required: true,
-                        disabled: is_loading()
-                    }
-                }
-                Button {
-                    r#type: "submit",
-                    class: "w-full",
-                    disabled: is_loading(),
-                    if is_loading() { "Signing in..." } else { "Sign In" }
-                }
+        Card {
+            CardHeader {
+                CardTitle { "Login to your account" }
+                CardDescription { "Enter your email below to login to your account" }
             }
-            if !error_msg().is_empty() {
-                div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700", "{error_msg}" }
+            CardContent {
+                form { onsubmit: handle_submit,
+                    div { class: "flex flex-col gap-4",
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "signin_email", "Email" }
+                            Input {
+                                id: "signin_email",
+                                r#type: "email",
+                                placeholder: "m@example.com",
+                                value: "{email}",
+                                oninput: move |e: Event<FormData>| email.set(e.value()),
+                                required: true,
+                                disabled: is_loading(),
+                            }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "signin_password", "Password" }
+                            Input {
+                                id: "signin_password",
+                                r#type: "password",
+                                value: "{password}",
+                                oninput: move |e: Event<FormData>| password.set(e.value()),
+                                required: true,
+                                disabled: is_loading(),
+                            }
+                        }
+                    }
+                    CardFooter { class: "pt-4",
+                        Button {
+                            r#type: "submit",
+                            class: "w-full",
+                            disabled: is_loading(),
+                            if is_loading() {
+                                "Signing in..."
+                            } else {
+                                "Sign In"
+                            }
+                        }
+                    }
+                }
+                if !error_msg().is_empty() {
+                    div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700",
+                        "{error_msg}"
+                    }
+                }
             }
         }
     }
@@ -186,7 +203,8 @@ pub fn SignUp() -> Element {
                 password: password(),
             };
 
-            let backend_url = option_env!("BACKEND_URL").unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
+            let backend_url = option_env!("BACKEND_URL")
+                .unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
             let client = reqwest::Client::new();
             let res = client
                 .post(format!("{}/api/auth/signup", backend_url))
@@ -197,14 +215,22 @@ pub fn SignUp() -> Element {
             match res {
                 Ok(resp) => {
                     if resp.status().is_success() {
-                        state.set(SignUpState::VerifyOtp { email_address: submitted_email });
+                        state.set(SignUpState::VerifyOtp {
+                            email_address: submitted_email,
+                        });
                     } else {
                         let err_body = resp.text().await.unwrap_or_default();
-                        let msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&err_body) {
+                        let msg = if let Ok(json) =
+                            serde_json::from_str::<serde_json::Value>(&err_body)
+                        {
                             json.get("message")
                                 .and_then(|m| m.as_str())
                                 .map(|s| s.to_string())
-                                .or_else(|| json.get("error").and_then(|e| e.as_str()).map(|s| s.to_string()))
+                                .or_else(|| {
+                                    json.get("error")
+                                        .and_then(|e| e.as_str())
+                                        .map(|s| s.to_string())
+                                })
                                 .unwrap_or(err_body)
                         } else {
                             err_body
@@ -237,7 +263,8 @@ pub fn SignUp() -> Element {
                 otp: code,
             };
 
-            let backend_url = option_env!("BACKEND_URL").unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
+            let backend_url = option_env!("BACKEND_URL")
+                .unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
             let client = reqwest::Client::new();
             let res = client
                 .post(format!("{}/api/auth/verify-email", backend_url))
@@ -251,23 +278,33 @@ pub fn SignUp() -> Element {
                         state.set(SignUpState::Verified);
                     } else {
                         let err_body = resp.text().await.unwrap_or_default();
-                        let msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&err_body) {
+                        let msg = if let Ok(json) =
+                            serde_json::from_str::<serde_json::Value>(&err_body)
+                        {
                             json.get("message")
                                 .and_then(|m| m.as_str())
                                 .map(|s| s.to_string())
-                                .or_else(|| json.get("error").and_then(|e| e.as_str()).map(|s| s.to_string()))
+                                .or_else(|| {
+                                    json.get("error")
+                                        .and_then(|e| e.as_str())
+                                        .map(|s| s.to_string())
+                                })
                                 .unwrap_or(err_body)
                         } else {
                             err_body
                         };
                         feedback.set(MessageKind::Error(msg));
                         // Go back to the OTP input so they can retry
-                        state.set(SignUpState::VerifyOtp { email_address: email() });
+                        state.set(SignUpState::VerifyOtp {
+                            email_address: email(),
+                        });
                     }
                 }
                 Err(e) => {
                     feedback.set(MessageKind::Error(format!("Request failed: {}", e)));
-                    state.set(SignUpState::VerifyOtp { email_address: email() });
+                    state.set(SignUpState::VerifyOtp {
+                        email_address: email(),
+                    });
                 }
             }
         });
@@ -279,13 +316,10 @@ pub fn SignUp() -> Element {
             let display_email = email_address;
             let is_verifying = false;
             rsx! {
-                div {
-                    class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
+                div { class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
                     div { class: "text-4xl mb-2", "✉️" }
                     h2 { class: "text-2xl font-bold", "Check Your Email" }
-                    p { class: "text-gray-600 mt-1",
-                        "We sent a verification code to:"
-                    }
+                    p { class: "text-gray-600 mt-1", "We sent a verification code to:" }
                     p { class: "font-semibold text-black mt-1", "{display_email}" }
 
                     form {
@@ -300,18 +334,16 @@ pub fn SignUp() -> Element {
                             maxlength: "6",
                             required: true,
                             disabled: is_verifying,
-                            autocomplete: "one-time-code"
+                            autocomplete: "one-time-code",
                         }
-                        Button {
-                            r#type: "submit",
-                            disabled: is_verifying,
-                            "Verify Email"
-                        }
+                        Button { r#type: "submit", disabled: is_verifying, "Verify Email" }
                     }
 
                     match feedback() {
                         MessageKind::Error(msg) => rsx! {
-                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700 text-left", "{msg}" }
+                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700 text-left",
+                                "{msg}"
+                            }
                         },
                         MessageKind::None => rsx! {},
                     }
@@ -326,13 +358,10 @@ pub fn SignUp() -> Element {
         SignUpState::Verifying => {
             let display_email = email();
             rsx! {
-                div {
-                    class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
+                div { class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
                     div { class: "text-4xl mb-2", "✉️" }
                     h2 { class: "text-2xl font-bold", "Check Your Email" }
-                    p { class: "text-gray-600 mt-1",
-                        "We sent a verification code to:"
-                    }
+                    p { class: "text-gray-600 mt-1", "We sent a verification code to:" }
                     p { class: "font-semibold text-black mt-1", "{display_email}" }
 
                     form {
@@ -347,18 +376,16 @@ pub fn SignUp() -> Element {
                             maxlength: "6",
                             required: true,
                             disabled: true,
-                            autocomplete: "one-time-code"
+                            autocomplete: "one-time-code",
                         }
-                        Button {
-                            r#type: "submit",
-                            disabled: true,
-                            "Verifying..."
-                        }
+                        Button { r#type: "submit", disabled: true, "Verifying..." }
                     }
 
                     match feedback() {
                         MessageKind::Error(msg) => rsx! {
-                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700 text-left", "{msg}" }
+                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700 text-left",
+                                "{msg}"
+                            }
                         },
                         MessageKind::None => rsx! {},
                     }
@@ -373,8 +400,7 @@ pub fn SignUp() -> Element {
         // ── Verified Success Screen ──
         SignUpState::Verified => {
             rsx! {
-                div {
-                    class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
+                div { class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
                     div { class: "text-4xl mb-2", "✅" }
                     h2 { class: "text-2xl font-bold text-green-700", "Email Verified!" }
                     p { class: "text-gray-600 mt-2",
@@ -393,61 +419,69 @@ pub fn SignUp() -> Element {
         _ => {
             let is_loading = state() == SignUpState::Loading;
             rsx! {
-                div {
-                    class: "flex flex-col gap-4 p-2 w-full",
-                    form {
-                        onsubmit: handle_signup,
-                        class: "flex flex-col gap-4",
-                        div {
-                            class: "flex flex-col gap-2",
-                            Label { html_for: "signup_name", "Name" }
-                            Input {
-                                id: "signup_name",
-                                r#type: "text",
-                                placeholder: "John Doe",
-                                value: "{name}",
-                                oninput: move |e: Event<FormData>| name.set(e.value()),
-                                required: true,
-                                disabled: is_loading
+                Card {
+                    CardHeader {
+                        CardTitle { "Create a new account" }
+                        CardDescription { "Enter your details below to create a new account" }
+                    }
+                    CardContent {
+                        form {
+                            onsubmit: handle_signup,
+                            class: "flex flex-col gap-4",
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "signup_name", "Name" }
+                                Input {
+                                    id: "signup_name",
+                                    r#type: "text",
+                                    placeholder: "John Doe",
+                                    value: "{name}",
+                                    oninput: move |e: Event<FormData>| name.set(e.value()),
+                                    required: true,
+                                    disabled: is_loading,
+                                }
+                            }
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "signup_email", "Email" }
+                                Input {
+                                    id: "signup_email",
+                                    r#type: "email",
+                                    placeholder: "m@example.com",
+                                    value: "{email}",
+                                    oninput: move |e: Event<FormData>| email.set(e.value()),
+                                    required: true,
+                                    disabled: is_loading,
+                                }
+                            }
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "signup_password", "Password" }
+                                Input {
+                                    id: "signup_password",
+                                    r#type: "password",
+                                    value: "{password}",
+                                    oninput: move |e: Event<FormData>| password.set(e.value()),
+                                    required: true,
+                                    disabled: is_loading,
+                                }
                             }
                         }
-                        div {
-                            class: "flex flex-col gap-2",
-                            Label { html_for: "signup_email", "Email" }
-                            Input {
-                                id: "signup_email",
-                                r#type: "email",
-                                placeholder: "m@example.com",
-                                value: "{email}",
-                                oninput: move |e: Event<FormData>| email.set(e.value()),
-                                required: true,
-                                disabled: is_loading
-                            }
+                        match feedback() {
+                            MessageKind::Error(msg) => rsx! {
+                                div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700", "{msg}" }
+                            },
+                            MessageKind::None => rsx! {},
                         }
-                        div {
-                            class: "flex flex-col gap-2",
-                            Label { html_for: "signup_password", "Password" }
-                            Input {
-                                id: "signup_password",
-                                r#type: "password",
-                                value: "{password}",
-                                oninput: move |e: Event<FormData>| password.set(e.value()),
-                                required: true,
-                                disabled: is_loading
-                            }
-                        }
+                    }
+                    CardFooter {
                         Button {
                             r#type: "submit",
                             class: "w-full",
                             disabled: is_loading,
-                            if is_loading { "Creating account..." } else { "Sign Up" }
+                            if is_loading {
+                                "Creating account..."
+                            } else {
+                                "Sign Up"
+                            }
                         }
-                    }
-                    match feedback() {
-                        MessageKind::Error(msg) => rsx! {
-                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700", "{msg}" }
-                        },
-                        MessageKind::None => rsx! {},
                     }
                 }
             }
@@ -455,3 +489,12 @@ pub fn SignUp() -> Element {
     }
 }
 
+#[component]
+pub fn LoginScreen(on_login: EventHandler<LoginInfo>) -> Element {
+    rsx! {
+        div { class: "max-w-md mx-auto p-4 justify-center",
+            SignIn { on_login }
+        }
+
+    }
+}
