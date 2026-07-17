@@ -8,7 +8,7 @@ mod routes;
 mod screens;
 
 use crate::routes::PublicRoute;
-use crate::screens::dashboard::Dashboard;
+
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 
@@ -23,6 +23,9 @@ fn main() {
 
 #[derive(Clone, Copy)]
 pub struct LoginAction(pub Callback<crate::screens::login::LoginInfo>);
+
+#[derive(Clone, Copy)]
+pub struct LogoutAction(pub Callback<()>);
 
 #[component]
 fn App() -> Element {
@@ -42,6 +45,13 @@ fn App() -> Element {
         }))
     });
 
+    use_context_provider(|| {
+        LogoutAction(Callback::new(move |()| {
+            auth_token.set(None);
+            auth_email.set(None);
+        }))
+    });
+
     rsx! {
         document::Meta {
             name: "viewport",
@@ -55,14 +65,8 @@ fn App() -> Element {
         document::Stylesheet { href: asset!("/assets/dx-components-theme.css") }
         div { class: "pt-25 h-screen flex flex-col items-center dark:bg-stone-900",
             if auth_token().is_some() {
-                // ── Authenticated: show Dashboard ──
-                Dashboard {
-                    user_email: auth_email().unwrap_or_default(),
-                    on_signout: move |_| {
-                        auth_token.set(None);
-                        auth_email.set(None);
-                    },
-                }
+                // ── Authenticated routes ──
+                Router::<crate::routes::AuthenticatedRoute> {}
             } else {
                 Router::<PublicRoute> {}
             }

@@ -6,8 +6,8 @@ use crate::screens::{login::SignIn, login::SignUp};
 #[derive(Clone, Debug, PartialEq, Routable)]
 pub enum PublicRoute {
     #[layout(PublicLayout)]
-    #[route("/signin")]
-    #[redirect("/", || PublicRoute::SignIn {})]
+    #[route("/")]
+    #[redirect("/signin", || PublicRoute::SignIn {})]
     SignIn {},
     #[route("/signup")]
     SignUp,

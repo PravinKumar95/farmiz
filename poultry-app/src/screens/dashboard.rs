@@ -3,7 +3,19 @@ use crate::components::card::{Card, CardContent, CardHeader, CardTitle};
 use dioxus::prelude::*;
 
 #[component]
-pub fn Dashboard(user_email: String, on_signout: EventHandler<()>) -> Element {
+pub fn Dashboard() -> Element {
+    let nav = dioxus_router::hooks::use_navigator();
+    let mut auth_email = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
+        "auth_email".to_string(),
+        || None::<String>,
+    );
+    let user_email = auth_email().unwrap_or_default();
+
+    let logout_action = use_context::<crate::LogoutAction>();
+    let on_signout = move |_| {
+        nav.replace(crate::routes::AuthenticatedRoute::Dashboard {});
+        logout_action.0.call(());
+    };
     rsx! {
         div {
             class: "w-full flex flex-col gap-6 max-w-2xl mx-auto",
@@ -14,7 +26,7 @@ pub fn Dashboard(user_email: String, on_signout: EventHandler<()>) -> Element {
                 h1 { class: "text-2xl sm:text-3xl font-bold break-words", "🐔 Farmiz Dashboard" }
                 Button {
                     variant: ButtonVariant::Outline,
-                    onclick: move |_| on_signout.call(()),
+                    onclick: on_signout,
                     "Sign Out"
                 }
             }
