@@ -15,7 +15,7 @@ pub fn Sales() -> Element {
     let mut active_tab = use_signal(|| Some("standard".to_string()));
     let mut standard_sales = use_egg_sales();
     let mut broken_sales = use_broken_egg_sales();
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
     let mut is_sheet_open = use_signal(|| false);
 
     // Form state shared
@@ -39,7 +39,7 @@ pub fn Sales() -> Element {
             return;
         }
         
-        let token = auth_token.read().clone();
+        let token = auth_token.read().clone().unwrap_or_default();
         
         if active_tab() == Some("standard".to_string()) {
             let boxes: i32 = match form_boxes().parse() {

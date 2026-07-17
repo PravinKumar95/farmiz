@@ -12,7 +12,7 @@ use crate::models::LaborRecord;
 #[component]
 pub fn Labor() -> Element {
     let mut records = use_labor_records();
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
     let mut is_sheet_open = use_signal(|| false);
 
     let mut form_date = use_signal(|| String::new());
@@ -40,7 +40,7 @@ pub fn Labor() -> Element {
             created_at: None,
         };
 
-        let token = auth_token.read().clone();
+        let token = auth_token.read().clone().unwrap_or_default();
         spawn(async move {
             match create_labor_record(&token, &new_record).await {
                 Ok(_) => {

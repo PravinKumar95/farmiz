@@ -74,6 +74,8 @@ where
     type Rejection = (StatusCode, String);
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        lambda_http::tracing::info!("AuthenticatedUser extraction started");
+        
         let auth_header = parts
             .headers
             .get("Authorization")
@@ -88,12 +90,14 @@ where
         }
 
         let token = &auth_header["Bearer ".len()..];
+        lambda_http::tracing::info!("Extracting kid from header");
 
-        let header = decode_header(token).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+        let header = decode_header(token).map_err(|e| (StatusCode::UNAUTHORIZED, format!("decode_header failed: {} for token: {:.10}...", e, token)))?;
         let kid = header
             .kid
             .ok_or((StatusCode::UNAUTHORIZED, "Missing kid in token header".to_string()))?;
 
+        lambda_http::tracing::info!("Fetching JWKS for kid: {}", kid);
         let jwks = JWKS
             .get()
             .ok_or((StatusCode::INTERNAL_SERVER_ERROR, "JWKS not initialized".to_string()))?;
@@ -107,15 +111,18 @@ where
         // Extract the base64url encoded 'x' coordinate
         let x = jwk.x.as_deref().ok_or((StatusCode::INTERNAL_SERVER_ERROR, "Missing 'x' in JWK".to_string()))?;
 
+        lambda_http::tracing::info!("Creating DecodingKey from Ed components");
         let decoding_key = DecodingKey::from_ed_components(x)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
         let mut validation = Validation::new(Algorithm::EdDSA);
         validation.validate_aud = false; // Disable audience validation as per user request
 
+        lambda_http::tracing::info!("Decoding token with jsonwebtoken");
         let decoded = decode::<Claims>(token, &decoding_key, &validation)
-            .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+            .map_err(|e| (StatusCode::UNAUTHORIZED, format!("decode failed: {}", e)))?;
 
+        lambda_http::tracing::info!("Successfully authenticated user: {}", decoded.claims.sub);
         Ok(AuthenticatedUser {
             user_id: decoded.claims.sub,
         })
@@ -134,7 +141,7 @@ pub async fn signin(headers: HeaderMap, Json(payload): Json<serde_json::Value>) 
     let client = reqwest::Client::new();
     let res = client
         .post(format!("{}/sign-in/email", neon_auth_url))
-        .header("Origin", origin)
+        .header("Origin", origin.clone())
         .header("Referer", origin)
         .json(&payload)
         .send()
@@ -142,16 +149,73 @@ pub async fn signin(headers: HeaderMap, Json(payload): Json<serde_json::Value>) 
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let status = res.status();
+    
+    // Extract the set-cookie header to get the session token
+    let cookies = res
+        .headers()
+        .get_all(reqwest::header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok().map(|s| s.to_string()))
+        .collect::<Vec<_>>();
+        
     let json = res
         .json::<serde_json::Value>()
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
+
     if !status.is_success() {
         return Err((
             StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_REQUEST),
             json.to_string(),
         ));
+    }
+    
+    // If signin was successful, fetch the JWT token using the session cookie
+    if !cookies.is_empty() {
+        lambda_http::tracing::info!("Attempting to fetch JWT with {} cookies", cookies.len());
+        let mut jwt_req = client.get(format!("{}/token", neon_auth_url));
+        for cookie in &cookies {
+            jwt_req = jwt_req.header(reqwest::header::COOKIE, cookie);
+        }
+        
+        match jwt_req.send().await {
+            Ok(jwt_res) => {
+                let status = jwt_res.status();
+                lambda_http::tracing::info!("JWT fetch status: {}", status);
+                if status.is_success() {
+                    match jwt_res.json::<serde_json::Value>().await {
+                        Ok(jwt_json) => {
+                            if let Some(jwt_token) = jwt_json.get("token") {
+                                lambda_http::tracing::info!("Successfully extracted JWT token");
+                                let mut final_json = json.clone();
+                                if let Some(obj) = final_json.as_object_mut() {
+                                    obj.insert("token".to_string(), jwt_token.clone());
+                                }
+                                return Ok(Json(final_json));
+                            } else {
+                                lambda_http::tracing::error!("No 'token' field in JWT response: {:?}", jwt_json);
+                            }
+                        }
+                        Err(e) => {
+                            lambda_http::tracing::error!("Failed to parse JWT response: {}", e);
+                        }
+                    }
+                } else {
+                    let text = jwt_res.text().await.unwrap_or_default();
+                    lambda_http::tracing::error!("JWT fetch failed with status {}: {}", status, text);
+                    return Err((
+                        StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                        format!("Failed to fetch JWT: {}", text),
+                    ));
+                }
+            }
+            Err(e) => {
+                lambda_http::tracing::error!("Failed to send JWT request: {}", e);
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("JWT request error: {}", e)));
+            }
+        }
+    } else {
+        lambda_http::tracing::warn!("No cookies returned from signin, cannot fetch JWT");
     }
 
     Ok(Json(json))

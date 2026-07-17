@@ -69,7 +69,10 @@ pub fn SignIn() -> Element {
                 Ok(resp) => {
                     if resp.status().is_success() {
                         if let Ok(json) = resp.json::<serde_json::Value>().await {
-                            if let Some(token) = json.get("token").and_then(|t| t.as_str()) {
+                            let token_str = json.get("token").and_then(|t| t.as_str())
+                                .or_else(|| json.get("session").and_then(|s| s.get("access_token")).and_then(|t| t.as_str()));
+                            
+                            if let Some(token) = token_str {
                                 println!("Login successful!");
                                 on_login.call(LoginInfo {
                                     token: token.to_string(),

@@ -20,6 +20,14 @@ pub struct Party {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Deserialize, Clone)]
+pub struct CreateParty {
+    pub name: String,
+    pub party_type: String,
+    pub current_balance: f64,
+}
+
+
 #[derive(Serialize, Deserialize, FromRow, Clone)]
 pub struct EggSale {
     pub id: Uuid,
@@ -38,6 +46,23 @@ pub struct EggSale {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Deserialize, Clone)]
+pub struct CreateEggSale {
+    pub date: String,
+    pub party_name: String,
+    pub quantity_boxes: i32,
+    pub total_eggs: i32,
+    pub size: String,
+    pub gross_rate: f64,
+    pub less_discount: f64,
+    pub net_rate: f64,
+    pub total_amount: f64,
+    pub received_amount: f64,
+    pub payment_mode: String,
+    pub balance: f64,
+}
+
+
 #[derive(Serialize, Deserialize, FromRow, Clone)]
 pub struct BrokenEggSale {
     pub id: Uuid,
@@ -52,6 +77,20 @@ pub struct BrokenEggSale {
     pub balance_amount: f64,
     pub created_at: Option<DateTime<Utc>>,
 }
+
+#[derive(Deserialize, Clone)]
+pub struct CreateBrokenEggSale {
+    pub date: String,
+    pub bakery_name: String,
+    pub trays_sold: i32,
+    pub rate: f64,
+    pub amount: f64,
+    pub payment_received: f64,
+    pub return_trays: i32,
+    pub empty_trays_balance: i32,
+    pub balance_amount: f64,
+}
+
 
 #[derive(Serialize, Deserialize, FromRow, Clone)]
 pub struct MaterialPurchase {
@@ -68,6 +107,20 @@ pub struct MaterialPurchase {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Deserialize, Clone)]
+pub struct CreateMaterialPurchase {
+    pub date: String,
+    pub material_name: String,
+    pub party_name: String,
+    pub quantity_kg: f64,
+    pub rate_per_kg: f64,
+    pub total_amount: f64,
+    pub advance_paid: f64,
+    pub status: String,
+    pub balance: f64,
+}
+
+
 #[derive(Serialize, Deserialize, FromRow, Clone)]
 pub struct FeedBatch {
     pub id: Uuid,
@@ -82,6 +135,19 @@ pub struct FeedBatch {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Deserialize, Clone)]
+pub struct CreateFeedBatch {
+    pub date: String,
+    pub batch_id: String,
+    pub feed_type: String,
+    pub rate: f64,
+    pub total_amount: f64,
+    pub payment: f64,
+    pub opening_balance: f64,
+    pub closing_balance: f64,
+}
+
+
 #[derive(Serialize, Deserialize, FromRow, Clone)]
 pub struct LaborRecord {
     pub id: Uuid,
@@ -91,6 +157,15 @@ pub struct LaborRecord {
     pub advance_given: f64,
     pub created_at: Option<DateTime<Utc>>,
 }
+
+#[derive(Deserialize, Clone)]
+pub struct CreateLaborRecord {
+    pub date: String,
+    pub employee_name: String,
+    pub attendance: f64,
+    pub advance_given: f64,
+}
+
 
 // --- ROUTER ---
 
@@ -117,7 +192,7 @@ async fn get_parties(_user: crate::auth::AuthenticatedUser, State(pool): State<P
 async fn create_party(
     _user: crate::auth::AuthenticatedUser,
     State(pool): State<PgPool>,
-    Json(payload): Json<Party>,
+    Json(payload): Json<CreateParty>,
 ) -> Result<Json<Party>, (StatusCode, String)> {
     let record = sqlx::query_as::<_, Party>(
         "INSERT INTO parties (name, party_type, current_balance) VALUES ($1, $2, $3) RETURNING *"
@@ -142,7 +217,7 @@ async fn get_egg_sales(_user: crate::auth::AuthenticatedUser, State(pool): State
 async fn create_egg_sale(
     _user: crate::auth::AuthenticatedUser,
     State(pool): State<PgPool>,
-    Json(payload): Json<EggSale>,
+    Json(payload): Json<CreateEggSale>,
 ) -> Result<Json<EggSale>, (StatusCode, String)> {
     let record = sqlx::query_as::<_, EggSale>(
         r#"INSERT INTO egg_sales (
@@ -170,7 +245,7 @@ async fn get_broken_sales(_user: crate::auth::AuthenticatedUser, State(pool): St
 async fn create_broken_sale(
     _user: crate::auth::AuthenticatedUser,
     State(pool): State<PgPool>,
-    Json(payload): Json<BrokenEggSale>,
+    Json(payload): Json<CreateBrokenEggSale>,
 ) -> Result<Json<BrokenEggSale>, (StatusCode, String)> {
     let record = sqlx::query_as::<_, BrokenEggSale>(
         r#"INSERT INTO broken_egg_sales (
@@ -197,7 +272,7 @@ async fn get_purchases(_user: crate::auth::AuthenticatedUser, State(pool): State
 async fn create_purchase(
     _user: crate::auth::AuthenticatedUser,
     State(pool): State<PgPool>,
-    Json(payload): Json<MaterialPurchase>,
+    Json(payload): Json<CreateMaterialPurchase>,
 ) -> Result<Json<MaterialPurchase>, (StatusCode, String)> {
     let record = sqlx::query_as::<_, MaterialPurchase>(
         r#"INSERT INTO material_purchases (
@@ -224,7 +299,7 @@ async fn get_feed_batches(_user: crate::auth::AuthenticatedUser, State(pool): St
 async fn create_feed_batch(
     _user: crate::auth::AuthenticatedUser,
     State(pool): State<PgPool>,
-    Json(payload): Json<FeedBatch>,
+    Json(payload): Json<CreateFeedBatch>,
 ) -> Result<Json<FeedBatch>, (StatusCode, String)> {
     let record = sqlx::query_as::<_, FeedBatch>(
         r#"INSERT INTO feed_batches (
@@ -250,7 +325,7 @@ async fn get_labor_records(_user: crate::auth::AuthenticatedUser, State(pool): S
 async fn create_labor_record(
     _user: crate::auth::AuthenticatedUser,
     State(pool): State<PgPool>,
-    Json(payload): Json<LaborRecord>,
+    Json(payload): Json<CreateLaborRecord>,
 ) -> Result<Json<LaborRecord>, (StatusCode, String)> {
     let record = sqlx::query_as::<_, LaborRecord>(
         r#"INSERT INTO labor_records (

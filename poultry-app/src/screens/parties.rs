@@ -11,7 +11,7 @@ use dioxus_sdk::storage::{use_storage, LocalStorage};
 #[component]
 pub fn Parties() -> Element {
     let mut parties = use_parties();
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
     let mut is_sheet_open = use_signal(|| false);
     
     // Form state
@@ -43,7 +43,7 @@ pub fn Parties() -> Element {
         };
 
         form_error.set(String::new());
-        let token = auth_token.read().clone();
+        let token = auth_token.read().clone().unwrap_or_default();
         
         let new_party = Party {
             id: String::new(),

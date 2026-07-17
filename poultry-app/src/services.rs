@@ -10,9 +10,9 @@ const BACKEND_URL: &str = match option_env!("BACKEND_URL") {
 };
 
 pub fn use_egg_sales() -> Resource<Vec<EggSale>> {
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
     use_resource(move || {
-        let token = auth_token.read().clone();
+        let token = auth_token.read().clone().unwrap_or_default();
         async move {
             let client = reqwest::Client::new();
             match client.get(format!("{BACKEND_URL}/api/sales/egg"))
@@ -35,14 +35,14 @@ pub async fn create_egg_sale(token: &str, payload: &EggSale) -> Result<(), Strin
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(format!("Error: {}", res.status()))
+        Err(res.text().await.unwrap_or_else(|_| "Unknown API error".to_string()))
     }
 }
 
 pub fn use_broken_egg_sales() -> Resource<Vec<BrokenEggSale>> {
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
     use_resource(move || {
-        let token = auth_token.read().clone();
+        let token = auth_token.read().clone().unwrap_or_default();
         async move {
             let client = reqwest::Client::new();
             match client.get(format!("{BACKEND_URL}/api/sales/broken"))
@@ -65,14 +65,14 @@ pub async fn create_broken_egg_sale(token: &str, payload: &BrokenEggSale) -> Res
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(format!("Error: {}", res.status()))
+        Err(res.text().await.unwrap_or_else(|_| "Unknown API error".to_string()))
     }
 }
 
 pub fn use_material_purchases() -> Resource<Vec<MaterialPurchase>> {
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
     use_resource(move || {
-        let token = auth_token.read().clone();
+        let token = auth_token.read().clone().unwrap_or_default();
         async move {
             let client = reqwest::Client::new();
             match client.get(format!("{BACKEND_URL}/api/purchases"))
@@ -95,14 +95,14 @@ pub async fn create_material_purchase(token: &str, payload: &MaterialPurchase) -
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(format!("Error: {}", res.status()))
+        Err(res.text().await.unwrap_or_else(|_| "Unknown API error".to_string()))
     }
 }
 
 pub fn use_feed_batches() -> Resource<Vec<FeedBatch>> {
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
     use_resource(move || {
-        let token = auth_token.read().clone();
+        let token = auth_token.read().clone().unwrap_or_default();
         async move {
             let client = reqwest::Client::new();
             match client.get(format!("{BACKEND_URL}/api/feed"))
@@ -125,14 +125,14 @@ pub async fn create_feed_batch(token: &str, payload: &FeedBatch) -> Result<(), S
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(format!("Error: {}", res.status()))
+        Err(res.text().await.unwrap_or_else(|_| "Unknown API error".to_string()))
     }
 }
 
 pub fn use_labor_records() -> Resource<Vec<LaborRecord>> {
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
     use_resource(move || {
-        let token = auth_token.read().clone();
+        let token = auth_token.read().clone().unwrap_or_default();
         async move {
             let client = reqwest::Client::new();
             match client.get(format!("{BACKEND_URL}/api/labor"))
@@ -155,14 +155,14 @@ pub async fn create_labor_record(token: &str, payload: &LaborRecord) -> Result<(
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(format!("Error: {}", res.status()))
+        Err(res.text().await.unwrap_or_else(|_| "Unknown API error".to_string()))
     }
 }
 
 pub fn use_parties() -> Resource<Vec<Party>> {
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
     use_resource(move || {
-        let token = auth_token.read().clone();
+        let token = auth_token.read().clone().unwrap_or_default();
         async move {
             let client = reqwest::Client::new();
             match client.get(format!("{BACKEND_URL}/api/parties"))
@@ -185,6 +185,6 @@ pub async fn create_party(token: &str, payload: &Party) -> Result<(), String> {
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(format!("Error: {}", res.status()))
+        Err(res.text().await.unwrap_or_else(|_| "Unknown API error".to_string()))
     }
 }
