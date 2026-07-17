@@ -28,7 +28,10 @@ pub struct LoginInfo {
 }
 
 #[component]
-pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
+pub fn SignIn() -> Element {
+    let login_action = use_context::<crate::LoginAction>();
+    let on_login = login_action.0;
+
     let mut email = use_signal(|| "".to_string());
     let mut password = use_signal(|| "".to_string());
     let mut error_msg = use_signal(|| "".to_string());
@@ -135,7 +138,7 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
                             }
                         }
                     }
-                    CardFooter { class: "pt-4",
+                    CardFooter { class: "pt-4 flex flex-col gap-3",
                         Button {
                             r#type: "submit",
                             class: "w-full",
@@ -144,6 +147,14 @@ pub fn SignIn(on_login: EventHandler<LoginInfo>) -> Element {
                                 "Signing in..."
                             } else {
                                 "Sign In"
+                            }
+                        }
+                        div { class: "text-sm text-center text-gray-500 w-full mt-2",
+                            "Don't have an account?"
+                            Link {
+                                to: crate::routes::PublicRoute::SignUp,
+                                class: "ml-1 text-blue-600 hover:underline dark:text-blue-400 font-medium",
+                                "Sign up"
                             }
                         }
                     }
@@ -470,32 +481,31 @@ pub fn SignUp() -> Element {
                             },
                             MessageKind::None => rsx! {},
                         }
-                    }
-                    CardFooter {
-                        Button {
-                            r#type: "submit",
-                            class: "w-full",
-                            disabled: is_loading,
-                            if is_loading {
-                                "Creating account..."
-                            } else {
-                                "Sign Up"
+                        CardFooter { class: "pt-4 flex flex-col gap-3",
+                            Button {
+                                r#type: "submit",
+                                class: "w-full",
+                                disabled: is_loading,
+                                if is_loading {
+                                    "Creating account..."
+                                } else {
+                                    "Sign Up"
+                                }
+                            }
+                            div { class: "text-sm text-center text-gray-500 w-full mt-2",
+                                "Already have an account?"
+                                Link {
+                                    to: crate::routes::PublicRoute::SignIn {
+                                    },
+                                    class: "ml-1 text-blue-600 hover:underline dark:text-blue-400 font-medium",
+                                    "Sign in"
+                                }
                             }
                         }
                     }
+
                 }
             }
         }
-    }
-}
-
-#[component]
-pub fn LoginScreen(on_login: EventHandler<LoginInfo>) -> Element {
-    rsx! {
-        div { class: "max-w-md mx-auto p-4 justify-center",
-
-            SignIn { on_login }
-        }
-
     }
 }

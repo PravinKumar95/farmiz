@@ -8,7 +8,7 @@ mod routes;
 mod screens;
 
 use crate::routes::PublicRoute;
-use crate::screens::{dashboard::Dashboard, login::LoginScreen};
+use crate::screens::dashboard::Dashboard;
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 
@@ -21,6 +21,9 @@ fn main() {
     dioxus::launch(App);
 }
 
+#[derive(Clone, Copy)]
+pub struct LoginAction(pub Callback<crate::screens::login::LoginInfo>);
+
 #[component]
 fn App() -> Element {
     let mut auth_token = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
@@ -31,6 +34,13 @@ fn App() -> Element {
         "auth_email".to_string(),
         || None::<String>,
     );
+
+    use_context_provider(|| {
+        LoginAction(Callback::new(move |info: crate::screens::login::LoginInfo| {
+            auth_token.set(Some(info.token));
+            auth_email.set(Some(info.email));
+        }))
+    });
 
     rsx! {
         document::Meta {
@@ -54,15 +64,7 @@ fn App() -> Element {
                     },
                 }
             } else {
-                Router::<PublicRoute> {
-                }
-                // ── Not authenticated: show Sign In / Sign Up ──
-                LoginScreen {
-                    on_login: move |info: screens::login::LoginInfo| {
-                        auth_token.set(Some(info.token));
-                        auth_email.set(Some(info.email));
-                    },
-                }
+                Router::<PublicRoute> {}
             }
         }
     }
