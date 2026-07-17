@@ -4,9 +4,8 @@ use crate::components::card::{
 };
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::components::tabs::{TabContent, TabList, TabTrigger, Tabs};
 use dioxus::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Serialize)]
 struct SignInPayload {
@@ -25,6 +24,7 @@ struct SignUpPayload {
 pub struct LoginInfo {
     pub token: String,
     pub email: String,
+    pub session_cookies: Option<Vec<String>>,
 }
 
 #[component]
@@ -72,11 +72,16 @@ pub fn SignIn() -> Element {
                             let token_str = json.get("token").and_then(|t| t.as_str())
                                 .or_else(|| json.get("session").and_then(|s| s.get("access_token")).and_then(|t| t.as_str()));
                             
+                            let session_cookies = json.get("session_cookies").and_then(|c| {
+                                c.as_array().map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
+                            });
+                            
                             if let Some(token) = token_str {
                                 println!("Login successful!");
                                 on_login.call(LoginInfo {
                                     token: token.to_string(),
                                     email: login_email,
+                                    session_cookies,
                                 });
                                 is_loading.set(false);
                                 return;

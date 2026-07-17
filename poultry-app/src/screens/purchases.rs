@@ -1,18 +1,17 @@
 use dioxus::prelude::*;
-use dioxus_sdk::storage::{use_storage, LocalStorage};
 
 use crate::components::button::Button;
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
 use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::services::{use_material_purchases, create_material_purchase};
+use crate::services::*;
 use crate::models::MaterialPurchase;
 
 #[component]
 pub fn Purchases() -> Element {
     let mut purchases = use_material_purchases();
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
+    let api = crate::services::use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
     let mut form_date = use_signal(|| String::new());
@@ -62,10 +61,10 @@ pub fn Purchases() -> Element {
             created_at: None,
         };
 
-        let token = auth_token.read().clone().unwrap_or_default();
         spawn(async move {
-            match create_material_purchase(&token, &new_record).await {
+            match api.post("/api/purchases", &new_record).await {
                 Ok(_) => {
+
                     is_sheet_open.set(false);
                     form_error.set(String::new());
                     purchases.restart();

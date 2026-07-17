@@ -5,7 +5,7 @@ use dioxus::prelude::*;
 #[component]
 pub fn Dashboard() -> Element {
     let nav = dioxus_router::hooks::use_navigator();
-    let mut auth_email = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
+    let auth_email = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
         "auth_email".to_string(),
         || None::<String>,
     );

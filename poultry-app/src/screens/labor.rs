@@ -1,18 +1,17 @@
 use dioxus::prelude::*;
-use dioxus_sdk::storage::{use_storage, LocalStorage};
 
 use crate::components::button::Button;
 use crate::components::card::{Card, CardContent, CardHeader};
 use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::services::{use_labor_records, create_labor_record};
+use crate::services::*;
 use crate::models::LaborRecord;
 
 #[component]
 pub fn Labor() -> Element {
     let mut records = use_labor_records();
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
+    let api = crate::services::use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
     let mut form_date = use_signal(|| String::new());
@@ -40,10 +39,10 @@ pub fn Labor() -> Element {
             created_at: None,
         };
 
-        let token = auth_token.read().clone().unwrap_or_default();
         spawn(async move {
-            match create_labor_record(&token, &new_record).await {
+            match api.post("/api/labor", &new_record).await {
                 Ok(_) => {
+
                     is_sheet_open.set(false);
                     form_error.set(String::new());
                     records.restart();

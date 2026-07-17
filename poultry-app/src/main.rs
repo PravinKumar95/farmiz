@@ -40,10 +40,16 @@ fn App() -> Element {
         || None::<String>,
     );
 
+    let mut session_cookies = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
+        "session_cookies".to_string(),
+        || None::<Vec<String>>,
+    );
+
     use_context_provider(|| {
         LoginAction(Callback::new(move |info: crate::screens::login::LoginInfo| {
             auth_token.set(Some(info.token));
             auth_email.set(Some(info.email));
+            session_cookies.set(info.session_cookies);
         }))
     });
 
@@ -51,6 +57,7 @@ fn App() -> Element {
         LogoutAction(Callback::new(move |()| {
             auth_token.set(None);
             auth_email.set(None);
+            session_cookies.set(None);
         }))
     });
 

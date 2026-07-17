@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-use dioxus_sdk::storage::{use_storage, LocalStorage};
 
 use crate::components::button::Button;
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
@@ -7,7 +6,7 @@ use crate::components::tabs::{TabContent, TabList, TabTrigger, Tabs};
 use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::services::{use_broken_egg_sales, use_egg_sales, create_egg_sale, create_broken_egg_sale};
+use crate::services::*;
 use crate::models::{EggSale, BrokenEggSale};
 
 #[component]
@@ -15,7 +14,7 @@ pub fn Sales() -> Element {
     let mut active_tab = use_signal(|| Some("standard".to_string()));
     let mut standard_sales = use_egg_sales();
     let mut broken_sales = use_broken_egg_sales();
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
+    let api = crate::services::use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
     // Form state shared
@@ -38,8 +37,6 @@ pub fn Sales() -> Element {
             form_error.set("Party name is required.".to_string());
             return;
         }
-        
-        let token = auth_token.read().clone().unwrap_or_default();
         
         if active_tab() == Some("standard".to_string()) {
             let boxes: i32 = match form_boxes().parse() {
@@ -76,8 +73,9 @@ pub fn Sales() -> Element {
             };
 
             spawn(async move {
-                match create_egg_sale(&token, &new_sale).await {
-                    Ok(_) => {
+                match api.post("/api/sales/egg", &new_sale).await {
+                Ok(_) => {
+
                         is_sheet_open.set(false);
                         form_error.set(String::new());
                         standard_sales.restart();
@@ -116,8 +114,9 @@ pub fn Sales() -> Element {
             };
 
             spawn(async move {
-                match create_broken_egg_sale(&token, &new_sale).await {
-                    Ok(_) => {
+                match api.post("/api/sales/broken", &new_sale).await {
+                Ok(_) => {
+
                         is_sheet_open.set(false);
                         form_error.set(String::new());
                         broken_sales.restart();

@@ -1,18 +1,17 @@
 use dioxus::prelude::*;
-use dioxus_sdk::storage::{use_storage, LocalStorage};
 
 use crate::components::button::Button;
 use crate::components::card::{Card, CardContent, CardHeader, CardFooter};
 use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::services::{use_feed_batches, create_feed_batch};
+use crate::services::*;
 use crate::models::FeedBatch;
 
 #[component]
 pub fn Feed() -> Element {
     let mut batches = use_feed_batches();
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
+    let api = crate::services::use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
     let mut form_date = use_signal(|| String::new());
@@ -49,19 +48,10 @@ pub fn Feed() -> Element {
             created_at: None,
         };
 
-        let token = auth_token.read().clone().unwrap_or_default();
-        if token.is_empty() {
-            form_error.set("Token is empty. Please log out and log in again!".to_string());
-            return;
-        }
-        if token.starts_with('"') {
-            form_error.set(format!("Token has quotes: {}", &token[..10]));
-            return;
-        }
-        
         spawn(async move {
-            match create_feed_batch(&token, &new_record).await {
+            match api.post("/api/feed", &new_record).await {
                 Ok(_) => {
+
                     is_sheet_open.set(false);
                     form_error.set(String::new());
                     batches.restart();

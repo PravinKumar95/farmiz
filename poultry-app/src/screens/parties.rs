@@ -3,15 +3,14 @@ use crate::components::button::Button;
 use crate::components::card::{Card, CardContent};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter, SheetClose};
-use crate::services::{use_parties, create_party};
+use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
+use crate::services::*;
 use crate::models::Party;
-use dioxus_sdk::storage::{use_storage, LocalStorage};
 
 #[component]
 pub fn Parties() -> Element {
     let mut parties = use_parties();
-    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
+    let api = crate::services::use_auth();
     let mut is_sheet_open = use_signal(|| false);
     
     // Form state
@@ -43,8 +42,6 @@ pub fn Parties() -> Element {
         };
 
         form_error.set(String::new());
-        let token = auth_token.read().clone().unwrap_or_default();
-        
         let new_party = Party {
             id: String::new(),
             name,
@@ -54,8 +51,9 @@ pub fn Parties() -> Element {
         };
 
         spawn(async move {
-            match create_party(&token, &new_party).await {
+            match api.post("/api/parties", &new_party).await {
                 Ok(_) => {
+
                     is_sheet_open.set(false);
                     form_name.set(String::new());
                     form_type.set(String::new());
