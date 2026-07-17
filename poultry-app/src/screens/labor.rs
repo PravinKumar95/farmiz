@@ -16,7 +16,7 @@ pub fn Labor() -> Element {
             }
 
             div { class: "flex flex-col gap-3 mt-4",
-                for record in records() {
+                for record in records.cloned().unwrap_or_default() {
                     Card { key: "{record.id}",
                         CardHeader {
                             div { class: "flex justify-between items-center text-sm",

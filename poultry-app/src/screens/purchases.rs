@@ -16,7 +16,7 @@ pub fn Purchases() -> Element {
             }
 
             div { class: "flex flex-col gap-3 mt-4",
-                for purchase in purchases() {
+                for purchase in purchases.cloned().unwrap_or_default() {
                     Card { key: "{purchase.id}",
                         CardHeader {
                             div { class: "flex justify-between items-center text-sm",

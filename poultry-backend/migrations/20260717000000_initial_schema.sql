@@ -1,0 +1,74 @@
+CREATE TABLE IF NOT EXISTS parties (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    party_type VARCHAR(50) NOT NULL, -- "CUSTOMER", "SUPPLIER", "EMPLOYEE", "BAKERY"
+    current_balance DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS egg_sales (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date VARCHAR(50) NOT NULL,
+    party_name VARCHAR(255) NOT NULL,
+    quantity_boxes INTEGER NOT NULL,
+    total_eggs INTEGER NOT NULL,
+    size VARCHAR(50) NOT NULL,
+    gross_rate DOUBLE PRECISION NOT NULL,
+    less_discount DOUBLE PRECISION NOT NULL,
+    net_rate DOUBLE PRECISION NOT NULL,
+    total_amount DOUBLE PRECISION NOT NULL,
+    received_amount DOUBLE PRECISION NOT NULL,
+    payment_mode VARCHAR(50) NOT NULL,
+    balance DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS broken_egg_sales (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date VARCHAR(50) NOT NULL,
+    bakery_name VARCHAR(255) NOT NULL,
+    trays_sold INTEGER NOT NULL,
+    rate DOUBLE PRECISION NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
+    payment_received DOUBLE PRECISION NOT NULL,
+    return_trays INTEGER NOT NULL,
+    empty_trays_balance INTEGER NOT NULL,
+    balance_amount DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS material_purchases (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date VARCHAR(50) NOT NULL,
+    material_name VARCHAR(255) NOT NULL,
+    party_name VARCHAR(255) NOT NULL,
+    quantity_kg DOUBLE PRECISION NOT NULL,
+    rate_per_kg DOUBLE PRECISION NOT NULL,
+    total_amount DOUBLE PRECISION NOT NULL,
+    advance_paid DOUBLE PRECISION NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    balance DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS feed_batches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date VARCHAR(50) NOT NULL,
+    batch_id VARCHAR(50) NOT NULL,
+    feed_type VARCHAR(255) NOT NULL,
+    rate DOUBLE PRECISION NOT NULL,
+    total_amount DOUBLE PRECISION NOT NULL,
+    payment DOUBLE PRECISION NOT NULL,
+    opening_balance DOUBLE PRECISION NOT NULL,
+    closing_balance DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS labor_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date VARCHAR(50) NOT NULL,
+    employee_name VARCHAR(255) NOT NULL,
+    attendance DOUBLE PRECISION NOT NULL,
+    advance_given DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,33 +1,106 @@
 use dioxus::prelude::*;
+use dioxus_sdk::storage::{use_storage, LocalStorage};
 use crate::models::{
-    get_dummy_broken_egg_sales, get_dummy_egg_sales, get_dummy_feed_batches,
-    get_dummy_labor_records, get_dummy_material_purchases, get_dummy_parties, BrokenEggSale,
-    EggSale, FeedBatch, LaborRecord, MaterialPurchase, Party,
+    BrokenEggSale, EggSale, FeedBatch, LaborRecord, MaterialPurchase, Party,
 };
 
-/// Service Layer to loosely couple UI from the actual Data Models and data source.
-/// These hooks will later encapsulate API calls and state management (e.g., using `use_resource`).
+const BACKEND_URL: &str = match option_env!("BACKEND_URL") {
+    Some(url) => url,
+    None => "http://localhost:3000",
+};
 
-pub fn use_egg_sales() -> Signal<Vec<EggSale>> {
-    use_signal(|| get_dummy_egg_sales())
+pub fn use_egg_sales() -> Resource<Vec<EggSale>> {
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    use_resource(move || {
+        let token = auth_token.read().clone();
+        async move {
+            let client = reqwest::Client::new();
+            match client.get(format!("{BACKEND_URL}/api/sales/egg"))
+                .header("Authorization", format!("Bearer {}", token))
+                .send().await {
+                Ok(res) => res.json::<Vec<EggSale>>().await.unwrap_or_default(),
+                Err(_) => vec![],
+            }
+        }
+    })
 }
 
-pub fn use_broken_egg_sales() -> Signal<Vec<BrokenEggSale>> {
-    use_signal(|| get_dummy_broken_egg_sales())
+pub fn use_broken_egg_sales() -> Resource<Vec<BrokenEggSale>> {
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    use_resource(move || {
+        let token = auth_token.read().clone();
+        async move {
+            let client = reqwest::Client::new();
+            match client.get(format!("{BACKEND_URL}/api/sales/broken"))
+                .header("Authorization", format!("Bearer {}", token))
+                .send().await {
+                Ok(res) => res.json::<Vec<BrokenEggSale>>().await.unwrap_or_default(),
+                Err(_) => vec![],
+            }
+        }
+    })
 }
 
-pub fn use_material_purchases() -> Signal<Vec<MaterialPurchase>> {
-    use_signal(|| get_dummy_material_purchases())
+pub fn use_material_purchases() -> Resource<Vec<MaterialPurchase>> {
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    use_resource(move || {
+        let token = auth_token.read().clone();
+        async move {
+            let client = reqwest::Client::new();
+            match client.get(format!("{BACKEND_URL}/api/purchases"))
+                .header("Authorization", format!("Bearer {}", token))
+                .send().await {
+                Ok(res) => res.json::<Vec<MaterialPurchase>>().await.unwrap_or_default(),
+                Err(_) => vec![],
+            }
+        }
+    })
 }
 
-pub fn use_feed_batches() -> Signal<Vec<FeedBatch>> {
-    use_signal(|| get_dummy_feed_batches())
+pub fn use_feed_batches() -> Resource<Vec<FeedBatch>> {
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    use_resource(move || {
+        let token = auth_token.read().clone();
+        async move {
+            let client = reqwest::Client::new();
+            match client.get(format!("{BACKEND_URL}/api/feed"))
+                .header("Authorization", format!("Bearer {}", token))
+                .send().await {
+                Ok(res) => res.json::<Vec<FeedBatch>>().await.unwrap_or_default(),
+                Err(_) => vec![],
+            }
+        }
+    })
 }
 
-pub fn use_labor_records() -> Signal<Vec<LaborRecord>> {
-    use_signal(|| get_dummy_labor_records())
+pub fn use_labor_records() -> Resource<Vec<LaborRecord>> {
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    use_resource(move || {
+        let token = auth_token.read().clone();
+        async move {
+            let client = reqwest::Client::new();
+            match client.get(format!("{BACKEND_URL}/api/labor"))
+                .header("Authorization", format!("Bearer {}", token))
+                .send().await {
+                Ok(res) => res.json::<Vec<LaborRecord>>().await.unwrap_or_default(),
+                Err(_) => vec![],
+            }
+        }
+    })
 }
 
-pub fn use_parties() -> Signal<Vec<Party>> {
-    use_signal(|| get_dummy_parties())
+pub fn use_parties() -> Resource<Vec<Party>> {
+    let auth_token = use_storage::<LocalStorage, _>("auth_token".to_string(), String::new);
+    use_resource(move || {
+        let token = auth_token.read().clone();
+        async move {
+            let client = reqwest::Client::new();
+            match client.get(format!("{BACKEND_URL}/api/parties"))
+                .header("Authorization", format!("Bearer {}", token))
+                .send().await {
+                Ok(res) => res.json::<Vec<Party>>().await.unwrap_or_default(),
+                Err(_) => vec![],
+            }
+        }
+    })
 }

@@ -16,7 +16,7 @@ pub fn Parties() -> Element {
             }
 
             div { class: "flex flex-col gap-3 mt-4",
-                for party in parties() {
+                for party in parties.cloned().unwrap_or_default() {
                     Card { key: "{party.id}",
                         CardContent {
                             div { class: "flex justify-between items-center pt-4",

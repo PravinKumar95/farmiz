@@ -16,7 +16,7 @@ pub fn Feed() -> Element {
             }
 
             div { class: "flex flex-col gap-3 mt-4",
-                for batch in batches() {
+                for batch in batches.cloned().unwrap_or_default() {
                     Card { key: "{batch.id}",
                         CardHeader {
                             div { class: "flex justify-between items-center text-sm",

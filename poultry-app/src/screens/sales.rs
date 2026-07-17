@@ -28,7 +28,7 @@ pub fn Sales() -> Element {
 
                 TabContent { value: "standard", index: 0usize,
                     div { class: "flex flex-col gap-3 mt-4",
-                        for sale in standard_sales() {
+                        for sale in standard_sales.cloned().unwrap_or_default() {
                             Card { key: "{sale.id}",
                                 CardHeader {
                                     div { class: "flex justify-between items-center text-sm",
@@ -71,7 +71,7 @@ pub fn Sales() -> Element {
 
                 TabContent { value: "broken", index: 1usize,
                     div { class: "flex flex-col gap-3 mt-4",
-                        for sale in broken_sales() {
+                        for sale in broken_sales.cloned().unwrap_or_default() {
                             Card { key: "{sale.id}",
                                 CardHeader {
                                     div { class: "flex justify-between items-center text-sm",

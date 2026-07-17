@@ -16,6 +16,7 @@ use sqlx::postgres::{PgPool, PgPoolOptions};
 use tower_http::cors::{Any, CorsLayer};
 
 mod auth;
+mod api;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -43,6 +44,11 @@ async fn main() -> Result<(), Error> {
         .connect_lazy(&db_connection_str)
         .expect("invalid database URL");
 
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run database migrations");
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
@@ -57,6 +63,7 @@ async fn main() -> Result<(), Error> {
         .route("/api/auth/signup", post(auth::signup))
         .route("/api/auth/signin", post(auth::signin))
         .route("/api/auth/verify-email", post(auth::verify_email))
+        .nest("/api", api::routes())
         .layer(cors)
         .with_state(pool);
 
