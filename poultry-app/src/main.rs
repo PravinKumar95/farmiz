@@ -7,6 +7,7 @@ mod layouts;
 mod models;
 mod routes;
 mod screens;
+mod services;
 
 use crate::routes::PublicRoute;
 
