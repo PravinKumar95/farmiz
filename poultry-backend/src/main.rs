@@ -62,6 +62,7 @@ async fn main() -> Result<(), Error> {
         .route("/protected", get(protected_handler))
         .route("/api/auth/signup", post(auth::signup))
         .route("/api/auth/signin", post(auth::signin))
+        .route("/api/auth/refresh", post(auth::refresh_token))
         .route("/api/auth/verify-email", post(auth::verify_email))
         .nest("/api", api::routes())
         .layer(cors)

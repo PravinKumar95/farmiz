@@ -185,14 +185,15 @@ pub async fn signin(headers: HeaderMap, Json(payload): Json<serde_json::Value>) 
                 if status.is_success() {
                     match jwt_res.json::<serde_json::Value>().await {
                         Ok(jwt_json) => {
-                            if let Some(jwt_token) = jwt_json.get("token") {
-                                lambda_http::tracing::info!("Successfully extracted JWT token");
-                                let mut final_json = json.clone();
-                                if let Some(obj) = final_json.as_object_mut() {
-                                    obj.insert("token".to_string(), jwt_token.clone());
-                                }
-                                return Ok(Json(final_json));
-                            } else {
+                                if let Some(jwt_token) = jwt_json.get("token") {
+                                    lambda_http::tracing::info!("Successfully extracted JWT token");
+                                    let mut final_json = json.clone();
+                                    if let Some(obj) = final_json.as_object_mut() {
+                                        obj.insert("token".to_string(), jwt_token.clone());
+                                        obj.insert("session_cookies".to_string(), serde_json::json!(cookies));
+                                    }
+                                    return Ok(Json(final_json));
+                                } else {
                                 lambda_http::tracing::error!("No 'token' field in JWT response: {:?}", jwt_json);
                             }
                         }
@@ -305,3 +306,50 @@ pub async fn verify_email(headers: HeaderMap, Json(payload): Json<serde_json::Va
     Ok(Json(json))
 }
 
+
+#[derive(serde::Deserialize)]
+pub struct RefreshRequest {
+    pub session_cookies: Vec<String>,
+}
+
+pub async fn refresh_token(axum::Json(payload): axum::Json<RefreshRequest>) -> Result<axum::Json<serde_json::Value>, (axum::http::StatusCode, String)> {
+    let neon_auth_url = std::env::var("NEON_AUTH_URL")
+        .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "NEON_AUTH_URL missing".to_string()))?;
+
+    if payload.session_cookies.is_empty() {
+        return Err((axum::http::StatusCode::BAD_REQUEST, "No session cookies provided".to_string()));
+    }
+
+    let client = reqwest::Client::new();
+    let mut jwt_req = client.get(format!("{}/token", neon_auth_url));
+    for cookie in &payload.session_cookies {
+        jwt_req = jwt_req.header(reqwest::header::COOKIE, cookie);
+    }
+
+    match jwt_req.send().await {
+        Ok(jwt_res) => {
+            let status = jwt_res.status();
+            if status.is_success() {
+                match jwt_res.json::<serde_json::Value>().await {
+                    Ok(jwt_json) => {
+                        if let Some(jwt_token) = jwt_json.get("token") {
+                            return Ok(axum::Json(serde_json::json!({
+                                "token": jwt_token,
+                            })));
+                        } else {
+                            return Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, "No token field in JWT response".to_string()));
+                        }
+                    }
+                    Err(e) => return Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to parse JWT response: {}", e))),
+                }
+            } else {
+                let text = jwt_res.text().await.unwrap_or_default();
+                return Err((
+                    axum::http::StatusCode::from_u16(status.as_u16()).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+                    format!("Failed to fetch JWT: {}", text),
+                ));
+            }
+        }
+        Err(e) => return Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("JWT request error: {}", e))),
+    }
+}
