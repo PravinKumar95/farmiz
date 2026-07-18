@@ -15,10 +15,10 @@ pub fn Parties() -> Element {
     let mut is_sheet_open = use_signal(|| false);
     
     // Form state
-    let mut form_name = use_signal(|| String::new());
-    let mut form_type = use_signal(|| String::new());
-    let mut form_balance = use_signal(|| String::new());
-    let mut form_error = use_signal(|| String::new());
+    let mut form_name = use_signal(String::new);
+    let mut form_type = use_signal(String::new);
+    let mut form_balance = use_signal(String::new);
+    let mut form_error = use_signal(String::new);
 
     let submit_handler = move |_| {
         let name = form_name().trim().to_string();

@@ -16,13 +16,13 @@ pub fn Feed() -> Element {
 
     let mut form_id = use_signal(|| Option::<String>::None);
 
-    let mut form_date = use_signal(|| String::new());
-    let mut form_batch_id = use_signal(|| String::new());
-    let mut form_type = use_signal(|| String::new());
-    let mut form_rate = use_signal(|| String::new());
-    let mut form_total = use_signal(|| String::new());
-    let mut form_payment = use_signal(|| String::new());
-    let mut form_error = use_signal(|| String::new());
+    let mut form_date = use_signal(String::new);
+    let mut form_batch_id = use_signal(String::new);
+    let mut form_type = use_signal(String::new);
+    let mut form_rate = use_signal(String::new);
+    let mut form_total = use_signal(String::new);
+    let mut form_payment = use_signal(String::new);
+    let mut form_error = use_signal(String::new);
 
     let submit_handler = move |_| {
         let date = form_date().trim().to_string();
@@ -37,7 +37,7 @@ pub fn Feed() -> Element {
         let total: f64 = match form_total().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid total amount".to_string()); return; } };
         let payment: f64 = match form_payment().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid payment amount".to_string()); return; } };
         
-        let mut new_record = FeedBatch {
+        let new_record = FeedBatch {
             id: form_id().unwrap_or_default(),
             date,
             batch_id,

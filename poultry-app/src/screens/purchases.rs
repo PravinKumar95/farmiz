@@ -10,20 +10,20 @@ use crate::models::MaterialPurchase;
 
 #[component]
 pub fn Purchases() -> Element {
-    let mut parties = use_parties();
+    let parties = use_parties();
     let mut purchases = use_material_purchases();
     let api = crate::services::use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
     let mut form_id = use_signal(|| Option::<String>::None);
 
-    let mut form_date = use_signal(|| String::new());
-    let mut form_material = use_signal(|| String::new());
-    let mut form_party = use_signal(|| String::new());
-    let mut form_qty = use_signal(|| String::new());
-    let mut form_rate = use_signal(|| String::new());
-    let mut form_advance = use_signal(|| String::new());
-    let mut form_error = use_signal(|| String::new());
+    let mut form_date = use_signal(String::new);
+    let mut form_material = use_signal(String::new);
+    let mut form_party = use_signal(String::new);
+    let mut form_qty = use_signal(String::new);
+    let mut form_rate = use_signal(String::new);
+    let mut form_advance = use_signal(String::new);
+    let mut form_error = use_signal(String::new);
 
     let submit_handler = move |_| {
         let date = form_date().trim().to_string();
@@ -50,7 +50,7 @@ pub fn Purchases() -> Element {
         let total_amount = qty * rate;
         let status = if advance >= total_amount { "PAID" } else { "PENDING" };
         
-        let mut new_record = MaterialPurchase {
+        let new_record = MaterialPurchase {
             id: form_id().unwrap_or_default(),
             date,
             material_name: material,

@@ -14,11 +14,11 @@ pub fn Employees() -> Element {
     let mut is_sheet_open = use_signal(|| false);
     
     // Form state
-    let mut form_name = use_signal(|| String::new());
-    let mut form_role = use_signal(|| String::new());
-    let mut form_wage = use_signal(|| String::new());
-    let mut form_balance = use_signal(|| String::new());
-    let mut form_error = use_signal(|| String::new());
+    let mut form_name = use_signal(String::new);
+    let mut form_role = use_signal(String::new);
+    let mut form_wage = use_signal(String::new);
+    let mut form_balance = use_signal(String::new);
+    let mut form_error = use_signal(String::new);
 
     let submit_handler = move |_| {
         let name = form_name().trim().to_string();

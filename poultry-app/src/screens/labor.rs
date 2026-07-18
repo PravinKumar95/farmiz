@@ -10,18 +10,18 @@ use crate::models::LaborRecord;
 
 #[component]
 pub fn Labor() -> Element {
-    let mut employees = use_employees();
+    let employees = use_employees();
     let mut records = use_labor_records();
     let api = crate::services::use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
     let mut form_id = use_signal(|| Option::<String>::None);
 
-    let mut form_date = use_signal(|| String::new());
-    let mut form_employee = use_signal(|| String::new());
-    let mut form_attendance = use_signal(|| String::new());
-    let mut form_advance = use_signal(|| String::new());
-    let mut form_error = use_signal(|| String::new());
+    let mut form_date = use_signal(String::new);
+    let mut form_employee = use_signal(String::new);
+    let mut form_attendance = use_signal(String::new);
+    let mut form_advance = use_signal(String::new);
+    let mut form_error = use_signal(String::new);
 
     let submit_handler = move |_| {
         let date = form_date().trim().to_string();
@@ -33,7 +33,7 @@ pub fn Labor() -> Element {
         let attendance: f64 = match form_attendance().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid attendance".to_string()); return; } };
         let advance: f64 = match form_advance().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid advance amount".to_string()); return; } };
         
-        let mut new_record = LaborRecord {
+        let new_record = LaborRecord {
             id: form_id().unwrap_or_default(),
             date,
             employee_name: employee,

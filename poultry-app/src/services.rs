@@ -148,7 +148,7 @@ impl AuthSession {
 pub fn use_egg_sales() -> Resource<Vec<EggSale>> {
     let auth = use_auth();
     use_resource(move || {
-        let auth = auth.clone();
+        let auth = auth;
         async move {
             auth.get::<Vec<EggSale>>("/api/sales/egg").await.unwrap_or_default()
         }
@@ -158,7 +158,7 @@ pub fn use_egg_sales() -> Resource<Vec<EggSale>> {
 pub fn use_broken_egg_sales() -> Resource<Vec<BrokenEggSale>> {
     let auth = use_auth();
     use_resource(move || {
-        let auth = auth.clone();
+        let auth = auth;
         async move {
             auth.get::<Vec<BrokenEggSale>>("/api/sales/broken").await.unwrap_or_default()
         }
@@ -168,7 +168,7 @@ pub fn use_broken_egg_sales() -> Resource<Vec<BrokenEggSale>> {
 pub fn use_material_purchases() -> Resource<Vec<MaterialPurchase>> {
     let auth = use_auth();
     use_resource(move || {
-        let auth = auth.clone();
+        let auth = auth;
         async move {
             auth.get::<Vec<MaterialPurchase>>("/api/purchases").await.unwrap_or_default()
         }
@@ -178,7 +178,7 @@ pub fn use_material_purchases() -> Resource<Vec<MaterialPurchase>> {
 pub fn use_feed_batches() -> Resource<Vec<FeedBatch>> {
     let auth = use_auth();
     use_resource(move || {
-        let auth = auth.clone();
+        let auth = auth;
         async move {
             auth.get::<Vec<FeedBatch>>("/api/feed").await.unwrap_or_default()
         }
@@ -188,7 +188,7 @@ pub fn use_feed_batches() -> Resource<Vec<FeedBatch>> {
 pub fn use_labor_records() -> Resource<Vec<LaborRecord>> {
     let auth = use_auth();
     use_resource(move || {
-        let auth = auth.clone();
+        let auth = auth;
         async move {
             auth.get::<Vec<LaborRecord>>("/api/labor").await.unwrap_or_default()
         }
@@ -198,7 +198,7 @@ pub fn use_labor_records() -> Resource<Vec<LaborRecord>> {
 pub fn use_parties() -> Resource<Vec<Party>> {
     let auth = use_auth();
     use_resource(move || {
-        let auth = auth.clone();
+        let auth = auth;
         async move {
             auth.get::<Vec<Party>>("/api/parties").await.unwrap_or_default()
         }
@@ -208,7 +208,7 @@ pub fn use_parties() -> Resource<Vec<Party>> {
 pub fn use_employees() -> Resource<Vec<Employee>> {
     let auth = use_auth();
     use_resource(move || {
-        let auth = auth.clone();
+        let auth = auth;
         async move {
             auth.get::<Vec<Employee>>("/api/employees").await.unwrap_or_default()
         }
@@ -218,7 +218,7 @@ pub fn use_employees() -> Resource<Vec<Employee>> {
 pub fn use_dashboard_stats() -> Resource<Option<crate::models::DashboardStats>> {
     let auth = use_auth();
     use_resource(move || {
-        let auth = auth.clone();
+        let auth = auth;
         async move {
             auth.get::<crate::models::DashboardStats>("/api/dashboard/stats").await.ok()
         }
@@ -228,7 +228,7 @@ pub fn use_dashboard_stats() -> Resource<Option<crate::models::DashboardStats>> 
 pub fn use_party_ledger(party_id: String) -> Resource<Vec<crate::models::LedgerEntry>> {
     let auth = use_auth();
     use_resource(move || {
-        let auth = auth.clone();
+        let auth = auth;
         let id = party_id.clone();
         async move {
             auth.get::<Vec<crate::models::LedgerEntry>>(&format!("/api/parties/{}/ledger", id)).await.unwrap_or_default()

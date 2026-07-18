@@ -12,7 +12,7 @@ use crate::components::button::ButtonVariant;
 
 #[component]
 pub fn Sales() -> Element {
-    let mut parties = use_parties();
+    let parties = use_parties();
     let mut active_tab = use_signal(|| Some("standard".to_string()));
     let mut standard_sales = use_egg_sales();
     let mut broken_sales = use_broken_egg_sales();
@@ -20,12 +20,12 @@ pub fn Sales() -> Element {
     let mut is_sheet_open = use_signal(|| false);
 
     let mut form_id = use_signal(|| Option::<String>::None);
-    let mut form_date = use_signal(|| String::new());
-    let mut form_party = use_signal(|| String::new());
-    let mut form_boxes = use_signal(|| String::new());
-    let mut form_rate = use_signal(|| String::new());
-    let mut form_received = use_signal(|| String::new());
-    let mut form_error = use_signal(|| String::new());
+    let mut form_date = use_signal(String::new);
+    let mut form_party = use_signal(String::new);
+    let mut form_boxes = use_signal(String::new);
+    let mut form_rate = use_signal(String::new);
+    let mut form_received = use_signal(String::new);
+    let mut form_error = use_signal(String::new);
 
     let submit_handler = move |_| {
         let date = form_date().trim().to_string();
@@ -57,7 +57,7 @@ pub fn Sales() -> Element {
             let total_eggs = boxes * 210;
             let total_amount = (total_eggs as f64) * rate; // Simplified logic
             
-            let mut new_sale = EggSale {
+            let new_sale = EggSale {
                 id: form_id().unwrap_or_default(),
                 date,
                 party_name: party,
@@ -105,7 +105,7 @@ pub fn Sales() -> Element {
             
             let total_amount = (trays as f64) * rate;
             
-            let mut new_sale = BrokenEggSale {
+            let new_sale = BrokenEggSale {
                 id: form_id().unwrap_or_default(),
                 date,
                 bakery_name: party,
