@@ -35,6 +35,7 @@
     --color-blue-600: oklch(54.6% 0.245 262.881);
     --color-indigo-50: oklch(96.2% 0.018 272.314);
     --color-purple-600: oklch(55.8% 0.288 302.321);
+    --color-gray-50: oklch(98.5% 0.002 247.839);
     --color-gray-200: oklch(92.8% 0.006 264.531);
     --color-gray-400: oklch(70.7% 0.022 261.325);
     --color-gray-500: oklch(55.1% 0.027 264.364);
@@ -423,6 +424,9 @@
   .border-red-200 {
     border-color: var(--color-red-200);
   }
+  .bg-gray-50 {
+    background-color: var(--color-gray-50);
+  }
   .bg-green-50 {
     background-color: var(--color-green-50);
   }
@@ -618,6 +622,9 @@
   @media (hover: hover) {
     .hover\:scale-\[1\.01\]:hover {
       scale: 1.01;
+    }
+    .hover\:bg-gray-50:hover {
+      background-color: var(--color-gray-50);
     }
     .hover\:underline:hover {
       text-decoration-line: underline;

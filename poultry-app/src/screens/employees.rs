@@ -144,13 +144,13 @@ pub fn Employees() -> Element {
                         class: "block rounded-xl",
                         Card {
                             CardContent {
-                                div { class: "flex justify-between items-center pt-4",
+                                div { class: "flex justify-between items-center",
                                     div { class: "flex flex-col",
                                         span { class: "font-bold text-base", "{employee.name}" }
-                                        span { class: "text-xs text-muted-foreground mt-1 uppercase tracking-wider", "{employee.role}" }
+                                        span { class: "text-xs text-gray-500 mt-1 uppercase tracking-wider", "{employee.role}" }
                                     }
                                     div { class: "flex flex-col items-end",
-                                        div { class: "text-xs text-muted-foreground mb-1", "Current Balance" }
+                                        div { class: "text-xs text-gray-500 mb-1", "Current Balance" }
                                         div {
                                             class: if employee.current_balance < 0.0 {
                                                 "font-bold text-lg text-red-500"

@@ -151,7 +151,7 @@ pub fn Purchases() -> Element {
                     Card { key: "{purchase.id}",
                         CardHeader {
                             div { class: "flex justify-between items-center text-sm",
-                                span { class: "text-muted-foreground", "{purchase.date}" }
+                                span { class: "text-gray-500", "{purchase.date}" }
                                 div {
                                     class: if purchase.status == "PAID" {
                                         "bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -165,20 +165,20 @@ pub fn Purchases() -> Element {
                         CardContent {
                             div { class: "flex flex-col gap-1",
                                 div { class: "font-bold text-lg", "{purchase.material_name}" }
-                                div { class: "text-sm text-muted-foreground flex justify-between",
+                                div { class: "text-sm text-gray-500 flex justify-between",
                                     span { "{purchase.party_name}" }
                                     span { "{purchase.quantity_kg} KG @ ₹{purchase.rate_per_kg:.2}/KG" }
                                 }
                             }
                         }
-                        CardFooter { class: "bg-muted/50 pt-4 rounded-b-xl flex flex-col gap-4",
+                        CardFooter { class: "flex flex-col gap-4 w-full",
                             div { class: "flex justify-between text-sm w-full",
                                 div { class: "flex flex-col",
-                                    span { class: "text-muted-foreground", "Advance" }
+                                    span { class: "text-gray-500", "Advance" }
                                     span { class: "font-medium text-green-600", "₹ {purchase.advance_paid:.2}" }
                                 }
                                 div { class: "flex flex-col items-end",
-                                    span { class: "text-muted-foreground", "Balance" }
+                                    span { class: "text-gray-500", "Balance" }
                                     span { class: "font-medium text-red-500", "₹ {purchase.balance:.2}" }
                                 }
                             }

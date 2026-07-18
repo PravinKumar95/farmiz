@@ -33,7 +33,7 @@ pub fn PartyDetail(id: String) -> Element {
                 CardContent { class: "p-0 overflow-hidden rounded-xl",
                     div { class: "w-full overflow-x-auto",
                         table { class: "w-full text-sm text-left",
-                            thead { class: "text-xs text-muted-foreground uppercase bg-muted/50",
+                            thead { class: "text-xs text-gray-500 uppercase bg-gray-50",
                                 tr {
                                     th { class: "px-6 py-3", "Date" }
                                     th { class: "px-6 py-3", "Description" }
@@ -47,8 +47,8 @@ pub fn PartyDetail(id: String) -> Element {
                                     {
                                         running_balance = running_balance + entry.charge - entry.payment;
                                         rsx! {
-                                            tr { class: "hover:bg-muted/30 transition-colors",
-                                                td { class: "px-6 py-4 whitespace-nowrap text-muted-foreground", "{entry.date}" }
+                                            tr { class: "hover:bg-gray-50 transition-colors",
+                                                td { class: "px-6 py-4 whitespace-nowrap text-gray-500", "{entry.date}" }
                                                 td { class: "px-6 py-4", "{entry.description}" }
                                                 td { class: "px-6 py-4 text-right text-red-500", 
                                                     if entry.charge > 0.0 { "₹ {entry.charge:.2}" } else { "-" }

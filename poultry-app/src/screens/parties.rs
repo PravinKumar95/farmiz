@@ -129,13 +129,13 @@ pub fn Parties() -> Element {
                         class: "block transition-transform hover:scale-[1.01] hover:shadow-md rounded-xl",
                         Card {
                             CardContent {
-                                div { class: "flex justify-between items-center pt-4",
+                                div { class: "flex justify-between items-center",
                                     div { class: "flex flex-col",
                                         span { class: "font-bold text-base", "{party.name}" }
-                                        span { class: "text-xs text-muted-foreground mt-1 uppercase tracking-wider", "{party.party_type}" }
+                                        span { class: "text-xs text-gray-500 mt-1 uppercase tracking-wider", "{party.party_type}" }
                                     }
                                     div { class: "flex flex-col items-end",
-                                        div { class: "text-xs text-muted-foreground mb-1", "Current Balance" }
+                                        div { class: "text-xs text-gray-500 mb-1", "Current Balance" }
                                         div {
                                             class: if party.current_balance < 0.0 {
                                                 "font-bold text-lg text-red-500"

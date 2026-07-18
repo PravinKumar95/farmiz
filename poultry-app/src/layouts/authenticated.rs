@@ -80,7 +80,7 @@ pub fn AuthenticatedLayout() -> Element {
                     }
                 }
                 SidebarFooter {
-                    div { class: "p-4 text-xs text-muted-foreground", "Farmiz v0.1.0" }
+                    div { class: "p-4 text-xs text-gray-500", "Farmiz v0.1.0" }
                 }
             }
             SidebarInset {

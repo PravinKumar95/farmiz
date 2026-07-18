@@ -119,23 +119,23 @@ pub fn Labor() -> Element {
                     Card { key: "{record.id}",
                         CardHeader {
                             div { class: "flex justify-between items-center text-sm",
-                                span { class: "text-muted-foreground", "{record.date}" }
+                                span { class: "text-gray-500", "{record.date}" }
                                 span { class: "font-semibold text-primary", "{record.employee_name}" }
                             }
                         }
                         CardContent {
                             div { class: "flex justify-between items-center",
                                 div { class: "flex flex-col gap-1",
-                                    span { class: "text-xs text-muted-foreground uppercase tracking-wider", "Attendance" }
+                                    span { class: "text-xs text-gray-500 uppercase tracking-wider", "Attendance" }
                                     span { class: "font-medium text-lg", "{record.attendance} Days" }
                                 }
                                 div { class: "flex flex-col gap-1 items-end",
-                                    span { class: "text-xs text-muted-foreground uppercase tracking-wider", "Advance Given" }
+                                    span { class: "text-xs text-gray-500 uppercase tracking-wider", "Advance Given" }
                                     span { class: "font-bold text-lg text-red-500", "₹ {record.advance_given:.2}" }
                                 }
                             }
                         }
-                        CardFooter { class: "bg-muted/50 pt-4 rounded-b-xl flex justify-end gap-2 w-full text-sm",
+                        CardFooter { class: "flex justify-end gap-2 w-full text-sm",
                             {
                                 let edit_record = record.clone();
                                 let delete_id = record.id.clone();
