@@ -147,10 +147,10 @@ pub fn Employees() -> Element {
                                 div { class: "flex justify-between items-center",
                                     div { class: "flex flex-col",
                                         span { class: "font-bold text-base", "{employee.name}" }
-                                        span { class: "text-xs text-gray-500 mt-1 uppercase tracking-wider", "{employee.role}" }
+                                        span { class: "text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider", "{employee.role}" }
                                     }
                                     div { class: "flex flex-col items-end",
-                                        div { class: "text-xs text-gray-500 mb-1", "Current Balance" }
+                                        div { class: "text-xs text-gray-500 dark:text-gray-400 mb-1", "Current Balance" }
                                         div {
                                             class: if employee.current_balance < 0.0 {
                                                 "font-bold text-lg text-red-500"

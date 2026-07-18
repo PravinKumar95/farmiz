@@ -132,27 +132,27 @@ pub fn Feed() -> Element {
                     Card { key: "{batch.id}",
                         CardHeader {
                             div { class: "flex justify-between items-center text-sm",
-                                span { class: "text-gray-500", "{batch.date}" }
+                                span { class: "text-gray-500 dark:text-gray-400", "{batch.date}" }
                                 span { class: "font-mono font-medium", "Batch: {batch.batch_id}" }
                             }
                         }
                         CardContent {
                             div { class: "flex flex-col gap-1",
                                 div { class: "font-bold text-lg", "{batch.feed_type}" }
-                                div { class: "text-sm text-gray-500 flex justify-between",
+                                div { class: "text-sm text-gray-500 dark:text-gray-400 flex justify-between",
                                     span { "Rate: ₹{batch.rate:.2}" }
-                                    span { class: "font-semibold text-primary", "₹ {batch.total_amount:.2}" }
+                                    span { class: "font-semibold text-blue-600 dark:text-blue-400", "₹ {batch.total_amount:.2}" }
                                 }
                             }
                         }
                         CardFooter { class: "flex flex-col gap-4 w-full",
                             div { class: "flex justify-between text-sm w-full",
                                 div { class: "flex flex-col",
-                                    span { class: "text-gray-500", "Payment" }
+                                    span { class: "text-gray-500 dark:text-gray-400", "Payment" }
                                     span { class: "font-medium text-green-600", "₹ {batch.payment:.2}" }
                                 }
                                 div { class: "flex flex-col items-end",
-                                    span { class: "text-gray-500", "Closing Balance" }
+                                    span { class: "text-gray-500 dark:text-gray-400", "Closing Balance" }
                                     span { class: "font-medium text-blue-600", "₹ {batch.closing_balance:.2}" }
                                 }
                             }

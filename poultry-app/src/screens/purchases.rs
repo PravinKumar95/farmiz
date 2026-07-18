@@ -151,12 +151,12 @@ pub fn Purchases() -> Element {
                     Card { key: "{purchase.id}",
                         CardHeader {
                             div { class: "flex justify-between items-center text-sm",
-                                span { class: "text-gray-500", "{purchase.date}" }
+                                span { class: "text-gray-500 dark:text-gray-400", "{purchase.date}" }
                                 div {
                                     class: if purchase.status == "PAID" {
-                                        "bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-semibold"
+                                        "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full text-xs font-semibold"
                                     } else {
-                                        "bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-semibold"
+                                        "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full text-xs font-semibold"
                                     },
                                     "{purchase.status}"
                                 }
@@ -165,7 +165,7 @@ pub fn Purchases() -> Element {
                         CardContent {
                             div { class: "flex flex-col gap-1",
                                 div { class: "font-bold text-lg", "{purchase.material_name}" }
-                                div { class: "text-sm text-gray-500 flex justify-between",
+                                div { class: "text-sm text-gray-500 dark:text-gray-400 flex justify-between",
                                     span { "{purchase.party_name}" }
                                     span { "{purchase.quantity_kg} KG @ ₹{purchase.rate_per_kg:.2}/KG" }
                                 }
@@ -174,11 +174,11 @@ pub fn Purchases() -> Element {
                         CardFooter { class: "flex flex-col gap-4 w-full",
                             div { class: "flex justify-between text-sm w-full",
                                 div { class: "flex flex-col",
-                                    span { class: "text-gray-500", "Advance" }
+                                    span { class: "text-gray-500 dark:text-gray-400", "Advance" }
                                     span { class: "font-medium text-green-600", "₹ {purchase.advance_paid:.2}" }
                                 }
                                 div { class: "flex flex-col items-end",
-                                    span { class: "text-gray-500", "Balance" }
+                                    span { class: "text-gray-500 dark:text-gray-400", "Balance" }
                                     span { class: "font-medium text-red-500", "₹ {purchase.balance:.2}" }
                                 }
                             }

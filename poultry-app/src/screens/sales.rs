@@ -214,14 +214,14 @@ pub fn Sales() -> Element {
                             Card { key: "{sale.id}",
                                 CardHeader {
                                     div { class: "flex justify-between items-center text-sm",
-                                        span { class: "text-gray-500", "{sale.date}" }
-                                        span { class: "font-semibold text-primary", "₹ {sale.total_amount:.2}" }
+                                        span { class: "text-gray-500 dark:text-gray-400", "{sale.date}" }
+                                        span { class: "font-semibold text-blue-600 dark:text-blue-400", "₹ {sale.total_amount:.2}" }
                                     }
                                 }
                                 CardContent {
                                     div { class: "flex flex-col gap-1",
                                         div { class: "font-bold text-lg", "{sale.party_name}" }
-                                        div { class: "text-sm text-gray-500 flex justify-between",
+                                        div { class: "text-sm text-gray-500 dark:text-gray-400 flex justify-between",
                                             span { "{sale.quantity_boxes} Boxes ({sale.total_eggs} eggs)" }
                                             span { "Size: {sale.size}" }
                                         }
@@ -230,11 +230,11 @@ pub fn Sales() -> Element {
                                 CardFooter { class: "flex flex-col gap-4 w-full",
                                     div { class: "flex justify-between text-sm w-full",
                                         div { class: "flex flex-col",
-                                            span { class: "text-gray-500", "Received" }
+                                            span { class: "text-gray-500 dark:text-gray-400", "Received" }
                                             span { class: "font-medium text-green-600", "₹ {sale.received_amount:.2}" }
                                         }
                                         div { class: "flex flex-col items-end",
-                                            span { class: "text-gray-500", "Balance" }
+                                            span { class: "text-gray-500 dark:text-gray-400", "Balance" }
                                             span { class: "font-medium text-red-500", "₹ {sale.balance:.2}" }
                                         }
                                     }
@@ -282,14 +282,14 @@ pub fn Sales() -> Element {
                             Card { key: "{sale.id}",
                                 CardHeader {
                                     div { class: "flex justify-between items-center text-sm",
-                                        span { class: "text-gray-500", "{sale.date}" }
-                                        span { class: "font-semibold text-primary", "₹ {sale.amount:.2}" }
+                                        span { class: "text-gray-500 dark:text-gray-400", "{sale.date}" }
+                                        span { class: "font-semibold text-blue-600 dark:text-blue-400", "₹ {sale.amount:.2}" }
                                     }
                                 }
                                 CardContent {
                                     div { class: "flex flex-col gap-1",
                                         div { class: "font-bold text-lg", "{sale.bakery_name}" }
-                                        div { class: "text-sm text-gray-500",
+                                        div { class: "text-sm text-gray-500 dark:text-gray-400",
                                             "{sale.trays_sold} Trays @ ₹{sale.rate:.2}/tray"
                                         }
                                     }
@@ -297,11 +297,11 @@ pub fn Sales() -> Element {
                                 CardFooter { class: "flex flex-col gap-4 w-full",
                                     div { class: "flex justify-between text-sm w-full",
                                         div { class: "flex flex-col",
-                                            span { class: "text-gray-500", "Received" }
+                                            span { class: "text-gray-500 dark:text-gray-400", "Received" }
                                             span { class: "font-medium text-green-600", "₹ {sale.payment_received:.2}" }
                                         }
                                         div { class: "flex flex-col items-end",
-                                            span { class: "text-gray-500", "Balance" }
+                                            span { class: "text-gray-500 dark:text-gray-400", "Balance" }
                                             span { class: "font-medium text-red-500", "₹ {sale.balance_amount:.2}" }
                                         }
                                     }

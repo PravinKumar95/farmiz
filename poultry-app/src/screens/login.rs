@@ -157,7 +157,7 @@ pub fn SignIn() -> Element {
                                 "Sign In"
                             }
                         }
-                        div { class: "text-sm text-center text-gray-500 w-full mt-2",
+                        div { class: "text-sm text-center text-gray-500 dark:text-gray-400 w-full mt-2",
                             "Don't have an account?"
                             Link {
                                 to: crate::routes::PublicRoute::SignUp,
@@ -338,7 +338,7 @@ pub fn SignUp() -> Element {
                 div { class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
                     div { class: "text-4xl mb-2", "✉️" }
                     h2 { class: "text-2xl font-bold", "Check Your Email" }
-                    p { class: "text-gray-600 mt-1", "We sent a verification code to:" }
+                    p { class: "text-gray-600 dark:text-gray-400 mt-1", "We sent a verification code to:" }
                     p { class: "font-semibold text-black mt-1", "{display_email}" }
 
                     form {
@@ -380,7 +380,7 @@ pub fn SignUp() -> Element {
                 div { class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
                     div { class: "text-4xl mb-2", "✉️" }
                     h2 { class: "text-2xl font-bold", "Check Your Email" }
-                    p { class: "text-gray-600 mt-1", "We sent a verification code to:" }
+                    p { class: "text-gray-600 dark:text-gray-400 mt-1", "We sent a verification code to:" }
                     p { class: "font-semibold text-black mt-1", "{display_email}" }
 
                     form {
@@ -422,7 +422,7 @@ pub fn SignUp() -> Element {
                 div { class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
                     div { class: "text-4xl mb-2", "✅" }
                     h2 { class: "text-2xl font-bold text-green-700", "Email Verified!" }
-                    p { class: "text-gray-600 mt-2",
+                    p { class: "text-gray-600 dark:text-gray-400 mt-2",
                         "Your account is ready. You can now sign in with your credentials."
                     }
                     div { class: "bg-green-50 border border-green-200 rounded-lg p-4 mt-4 text-sm text-green-800",
@@ -500,7 +500,7 @@ pub fn SignUp() -> Element {
                                     "Sign Up"
                                 }
                             }
-                            div { class: "text-sm text-center text-gray-500 w-full mt-2",
+                            div { class: "text-sm text-center text-gray-500 dark:text-gray-400 w-full mt-2",
                                 "Already have an account?"
                                 Link {
                                     to: crate::routes::PublicRoute::SignIn {

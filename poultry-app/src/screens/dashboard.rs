@@ -41,11 +41,11 @@ pub fn Dashboard() -> Element {
 
             // Welcome card
             Card {
-                class: "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200",
+                class: "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-900/40 dark:to-indigo-900/40 dark:border-blue-800",
                 CardContent {
                     class: "pt-6",
-                    p { class: "text-gray-600 text-sm", "Welcome back," }
-                    p { class: "text-lg font-semibold text-gray-900 mt-1", "{user_email}" }
+                    p { class: "text-gray-600 dark:text-gray-300 text-sm", "Welcome back," }
+                    p { class: "text-lg font-semibold text-gray-900 dark:text-gray-100 mt-1", "{user_email}" }
                 }
             }
 
@@ -55,29 +55,29 @@ pub fn Dashboard() -> Element {
                 Card {
                     CardContent {
                         class: "pt-6",
-                        p { class: "text-2xl sm:text-3xl font-bold text-green-600", "₹ {today_sales:.2}" }
-                        p { class: "text-sm text-gray-500 mt-1", "Today's Sales" }
+                        p { class: "text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-500", "₹ {today_sales:.2}" }
+                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Today's Sales" }
                     }
                 }
                 Card {
                     CardContent {
                         class: "pt-6",
-                        p { class: "text-2xl sm:text-3xl font-bold text-amber-600", "{eggs_sold}" }
-                        p { class: "text-sm text-gray-500 mt-1", "Eggs Sold Today" }
+                        p { class: "text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-500", "{eggs_sold}" }
+                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Eggs Sold Today" }
                     }
                 }
                 Card {
                     CardContent {
                         class: "pt-6",
-                        p { class: "text-2xl sm:text-3xl font-bold text-blue-600", "₹ {today_purchases:.2}" }
-                        p { class: "text-sm text-gray-500 mt-1", "Today's Purchases" }
+                        p { class: "text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-500", "₹ {today_purchases:.2}" }
+                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Today's Purchases" }
                     }
                 }
                 Card {
                     CardContent {
                         class: "pt-6",
-                        p { class: "text-2xl sm:text-3xl font-bold text-purple-600", "{active_parties}" }
-                        p { class: "text-sm text-gray-500 mt-1", "Active Parties" }
+                        p { class: "text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-500", "{active_parties}" }
+                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Active Parties" }
                     }
                 }
             }
@@ -88,7 +88,7 @@ pub fn Dashboard() -> Element {
                     CardTitle { "🚀 Getting Started" }
                 }
                 CardContent {
-                    p { class: "text-gray-600 text-sm",
+                    p { class: "text-gray-600 dark:text-gray-300 text-sm",
                         "Your account is set up and ready to go. Dashboard features are coming soon!"
                     }
                 }

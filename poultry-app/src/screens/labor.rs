@@ -119,18 +119,18 @@ pub fn Labor() -> Element {
                     Card { key: "{record.id}",
                         CardHeader {
                             div { class: "flex justify-between items-center text-sm",
-                                span { class: "text-gray-500", "{record.date}" }
-                                span { class: "font-semibold text-primary", "{record.employee_name}" }
+                                span { class: "text-gray-500 dark:text-gray-400", "{record.date}" }
+                                span { class: "font-semibold text-blue-600 dark:text-blue-400", "{record.employee_name}" }
                             }
                         }
                         CardContent {
                             div { class: "flex justify-between items-center",
                                 div { class: "flex flex-col gap-1",
-                                    span { class: "text-xs text-gray-500 uppercase tracking-wider", "Attendance" }
+                                    span { class: "text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider", "Attendance" }
                                     span { class: "font-medium text-lg", "{record.attendance} Days" }
                                 }
                                 div { class: "flex flex-col gap-1 items-end",
-                                    span { class: "text-xs text-gray-500 uppercase tracking-wider", "Advance Given" }
+                                    span { class: "text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider", "Advance Given" }
                                     span { class: "font-bold text-lg text-red-500", "₹ {record.advance_given:.2}" }
                                 }
                             }

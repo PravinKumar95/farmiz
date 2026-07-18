@@ -14,7 +14,7 @@ pub fn AuthenticatedLayout() -> Element {
         SidebarProvider {
             Sidebar {
                 SidebarHeader {
-                    div { class: " p-4 font-bold text-lg text-primary", "🐔 Farmiz App" }
+                    div { class: " p-4 font-bold text-lg text-blue-600 dark:text-blue-400", "🐔 Farmiz App" }
                 }
                 SidebarContent {
                     SidebarGroup {
@@ -80,11 +80,11 @@ pub fn AuthenticatedLayout() -> Element {
                     }
                 }
                 SidebarFooter {
-                    div { class: "p-4 text-xs text-gray-500", "Farmiz v0.1.0" }
+                    div { class: "p-4 text-xs text-gray-500 dark:text-gray-400", "Farmiz v0.1.0" }
                 }
             }
             SidebarInset {
-                header { class: "flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px]",
+                header { class: "flex h-14 items-center gap-4 border-b bg-white dark:bg-stone-900 px-4 lg:h-[60px]",
                     SidebarTrigger {}
                 }
                 main { class: "flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6", Outlet::<AuthenticatedRoute> {} }
