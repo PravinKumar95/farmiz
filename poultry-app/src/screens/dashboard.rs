@@ -16,6 +16,14 @@ pub fn Dashboard() -> Element {
         nav.replace(crate::routes::AuthenticatedRoute::Dashboard {});
         logout_action.0.call(());
     };
+
+    let stats_resource = crate::services::use_dashboard_stats();
+    let stats = stats_resource.cloned().unwrap_or(None);
+    let today_sales = stats.as_ref().map(|s| s.today_sales).unwrap_or(0.0);
+    let eggs_sold = stats.as_ref().map(|s| s.eggs_sold_today).unwrap_or(0);
+    let today_purchases = stats.as_ref().map(|s| s.today_purchases).unwrap_or(0.0);
+    let active_parties = stats.as_ref().map(|s| s.active_parties).unwrap_or(0);
+
     rsx! {
         div {
             class: "w-full flex flex-col gap-6 max-w-2xl mx-auto",
@@ -47,29 +55,29 @@ pub fn Dashboard() -> Element {
                 Card {
                     CardContent {
                         class: "pt-6",
-                        p { class: "text-2xl sm:text-3xl font-bold text-green-600", "—" }
-                        p { class: "text-sm text-gray-500 mt-1", "Active Flocks" }
+                        p { class: "text-2xl sm:text-3xl font-bold text-green-600", "₹ {today_sales:.2}" }
+                        p { class: "text-sm text-gray-500 mt-1", "Today's Sales" }
                     }
                 }
                 Card {
                     CardContent {
                         class: "pt-6",
-                        p { class: "text-2xl sm:text-3xl font-bold text-amber-600", "—" }
-                        p { class: "text-sm text-gray-500 mt-1", "Total Birds" }
+                        p { class: "text-2xl sm:text-3xl font-bold text-amber-600", "{eggs_sold}" }
+                        p { class: "text-sm text-gray-500 mt-1", "Eggs Sold Today" }
                     }
                 }
                 Card {
                     CardContent {
                         class: "pt-6",
-                        p { class: "text-2xl sm:text-3xl font-bold text-blue-600", "—" }
-                        p { class: "text-sm text-gray-500 mt-1", "Eggs Today" }
+                        p { class: "text-2xl sm:text-3xl font-bold text-blue-600", "₹ {today_purchases:.2}" }
+                        p { class: "text-sm text-gray-500 mt-1", "Today's Purchases" }
                     }
                 }
                 Card {
                     CardContent {
                         class: "pt-6",
-                        p { class: "text-2xl sm:text-3xl font-bold text-purple-600", "—" }
-                        p { class: "text-sm text-gray-500 mt-1", "Feed Stock (kg)" }
+                        p { class: "text-2xl sm:text-3xl font-bold text-purple-600", "{active_parties}" }
+                        p { class: "text-sm text-gray-500 mt-1", "Active Parties" }
                     }
                 }
             }

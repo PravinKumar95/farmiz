@@ -80,3 +80,20 @@ pub struct Party {
     pub current_balance: f64,
     pub created_at: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DashboardStats {
+    pub today_sales: f64,
+    pub eggs_sold_today: i32,
+    pub today_purchases: f64,
+    pub active_parties: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LedgerEntry {
+    pub date: String,
+    pub description: String,
+    pub charge: f64,
+    pub payment: f64,
+    pub created_at: Option<String>,
+}

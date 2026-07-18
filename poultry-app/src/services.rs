@@ -154,3 +154,24 @@ pub fn use_parties() -> Resource<Vec<Party>> {
         }
     })
 }
+
+pub fn use_dashboard_stats() -> Resource<Option<crate::models::DashboardStats>> {
+    let auth = use_auth();
+    use_resource(move || {
+        let auth = auth.clone();
+        async move {
+            auth.get::<crate::models::DashboardStats>("/api/dashboard/stats").await.ok()
+        }
+    })
+}
+
+pub fn use_party_ledger(party_id: String) -> Resource<Vec<crate::models::LedgerEntry>> {
+    let auth = use_auth();
+    use_resource(move || {
+        let auth = auth.clone();
+        let id = party_id.clone();
+        async move {
+            auth.get::<Vec<crate::models::LedgerEntry>>(&format!("/api/parties/{}/ledger", id)).await.unwrap_or_default()
+        }
+    })
+}

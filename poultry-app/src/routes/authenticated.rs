@@ -7,6 +7,7 @@ use crate::screens::purchases::Purchases;
 use crate::screens::feed::Feed;
 use crate::screens::labor::Labor;
 use crate::screens::parties::Parties;
+use crate::screens::party_detail::PartyDetail;
 
 #[derive(Clone, Debug, PartialEq, Routable)]
 pub enum AuthenticatedRoute {
@@ -25,6 +26,8 @@ pub enum AuthenticatedRoute {
     Labor {},
     #[route("/parties")]
     Parties {},
+    #[route("/parties/:id")]
+    PartyDetail { id: String },
     #[route("/:.._route")]
     PageNotFound { _route: Vec<String> },
 }

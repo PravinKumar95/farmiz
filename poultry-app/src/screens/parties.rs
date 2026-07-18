@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use dioxus_router::components::Link;
 use crate::components::button::Button;
 use crate::components::card::{Card, CardContent};
 use crate::components::input::Input;
@@ -122,22 +123,27 @@ pub fn Parties() -> Element {
 
             div { class: "flex flex-col gap-3 mt-4",
                 for party in parties.cloned().unwrap_or_default() {
-                    Card { key: "{party.id}",
-                        CardContent {
-                            div { class: "flex justify-between items-center pt-4",
-                                div { class: "flex flex-col",
-                                    span { class: "font-bold text-base", "{party.name}" }
-                                    span { class: "text-xs text-muted-foreground mt-1 uppercase tracking-wider", "{party.party_type}" }
-                                }
-                                div { class: "flex flex-col items-end",
-                                    div { class: "text-xs text-muted-foreground mb-1", "Current Balance" }
-                                    div {
-                                        class: if party.current_balance < 0.0 {
-                                            "font-bold text-lg text-red-500"
-                                        } else {
-                                            "font-bold text-lg text-green-600"
-                                        },
-                                        "₹ {party.current_balance.abs():.2}"
+                    Link {
+                        key: "{party.id}",
+                        to: crate::routes::AuthenticatedRoute::PartyDetail { id: party.id.clone() },
+                        class: "block transition-transform hover:scale-[1.01] hover:shadow-md rounded-xl",
+                        Card {
+                            CardContent {
+                                div { class: "flex justify-between items-center pt-4",
+                                    div { class: "flex flex-col",
+                                        span { class: "font-bold text-base", "{party.name}" }
+                                        span { class: "text-xs text-muted-foreground mt-1 uppercase tracking-wider", "{party.party_type}" }
+                                    }
+                                    div { class: "flex flex-col items-end",
+                                        div { class: "text-xs text-muted-foreground mb-1", "Current Balance" }
+                                        div {
+                                            class: if party.current_balance < 0.0 {
+                                                "font-bold text-lg text-red-500"
+                                            } else {
+                                                "font-bold text-lg text-green-600"
+                                            },
+                                            "₹ {party.current_balance.abs():.2}"
+                                        }
                                     }
                                 }
                             }

@@ -1,5 +1,5 @@
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
@@ -10,6 +10,23 @@ use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
 // --- MODELS ---
+
+#[derive(Serialize)]
+pub struct DashboardStats {
+    pub today_sales: f64,
+    pub eggs_sold_today: i32,
+    pub today_purchases: f64,
+    pub active_parties: i64,
+}
+
+#[derive(Serialize)]
+pub struct LedgerEntry {
+    pub date: String,
+    pub description: String,
+    pub charge: f64,
+    pub payment: f64,
+    pub created_at: Option<DateTime<Utc>>,
+}
 
 #[derive(Serialize, Deserialize, FromRow, Clone)]
 pub struct Party {
@@ -172,14 +189,44 @@ pub struct CreateLaborRecord {
 pub fn routes() -> Router<PgPool> {
     Router::new()
         .route("/parties", get(get_parties).post(create_party))
+        .route("/parties/:id/ledger", get(get_party_ledger))
         .route("/sales/egg", get(get_egg_sales).post(create_egg_sale))
         .route("/sales/broken", get(get_broken_sales).post(create_broken_sale))
         .route("/purchases", get(get_purchases).post(create_purchase))
         .route("/feed", get(get_feed_batches).post(create_feed_batch))
         .route("/labor", get(get_labor_records).post(create_labor_record))
+        .route("/dashboard/stats", get(get_dashboard_stats))
 }
 
 // --- HANDLERS ---
+
+async fn get_dashboard_stats(_user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<Json<DashboardStats>, (StatusCode, String)> {
+    let today = Utc::now().format("%Y-%m-%d").to_string();
+    
+    let standard_sales: Option<f64> = sqlx::query_scalar("SELECT SUM(total_amount) FROM egg_sales WHERE date = $1")
+        .bind(&today).fetch_one(&pool).await.unwrap_or(Some(0.0));
+        
+    let broken_sales: Option<f64> = sqlx::query_scalar("SELECT SUM(amount) FROM broken_egg_sales WHERE date = $1")
+        .bind(&today).fetch_one(&pool).await.unwrap_or(Some(0.0));
+        
+    let today_sales = standard_sales.unwrap_or(0.0) + broken_sales.unwrap_or(0.0);
+    
+    let eggs_sold: Option<i64> = sqlx::query_scalar("SELECT SUM(total_eggs) FROM egg_sales WHERE date = $1")
+        .bind(&today).fetch_one(&pool).await.unwrap_or(Some(0));
+        
+    let purchases: Option<f64> = sqlx::query_scalar("SELECT SUM(total_amount) FROM material_purchases WHERE date = $1")
+        .bind(&today).fetch_one(&pool).await.unwrap_or(Some(0.0));
+        
+    let active_parties: Option<i64> = sqlx::query_scalar("SELECT COUNT(*) FROM parties")
+        .fetch_one(&pool).await.unwrap_or(Some(0));
+        
+    Ok(Json(DashboardStats {
+        today_sales,
+        eggs_sold_today: eggs_sold.unwrap_or(0) as i32,
+        today_purchases: purchases.unwrap_or(0.0),
+        active_parties: active_parties.unwrap_or(0),
+    }))
+}
 
 async fn get_parties(_user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<Json<Vec<Party>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, Party>("SELECT * FROM parties ORDER BY created_at DESC")
@@ -204,6 +251,84 @@ async fn create_party(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(record))
+}
+
+async fn get_party_ledger(
+    Path(id): Path<Uuid>,
+    _user: crate::auth::AuthenticatedUser,
+    State(pool): State<PgPool>,
+) -> Result<Json<Vec<LedgerEntry>>, (StatusCode, String)> {
+    let party = sqlx::query_as::<_, Party>("SELECT * FROM parties WHERE id = $1")
+        .bind(id)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let mut entries = Vec::new();
+
+    let egg_sales = sqlx::query_as::<_, EggSale>("SELECT * FROM egg_sales WHERE party_name = $1")
+        .bind(&party.name)
+        .fetch_all(&pool)
+        .await
+        .unwrap_or_default();
+    for sale in egg_sales {
+        entries.push(LedgerEntry {
+            date: sale.date.clone(),
+            description: format!("Egg Sale ({} boxes)", sale.quantity_boxes),
+            charge: sale.total_amount,
+            payment: sale.received_amount,
+            created_at: sale.created_at,
+        });
+    }
+
+    let broken_sales = sqlx::query_as::<_, BrokenEggSale>("SELECT * FROM broken_egg_sales WHERE bakery_name = $1")
+        .bind(&party.name)
+        .fetch_all(&pool)
+        .await
+        .unwrap_or_default();
+    for sale in broken_sales {
+        entries.push(LedgerEntry {
+            date: sale.date.clone(),
+            description: format!("Broken Egg Sale ({} trays)", sale.trays_sold),
+            charge: sale.amount,
+            payment: sale.payment_received,
+            created_at: sale.created_at,
+        });
+    }
+
+    let purchases = sqlx::query_as::<_, MaterialPurchase>("SELECT * FROM material_purchases WHERE party_name = $1")
+        .bind(&party.name)
+        .fetch_all(&pool)
+        .await
+        .unwrap_or_default();
+    for p in purchases {
+        entries.push(LedgerEntry {
+            date: p.date.clone(),
+            description: format!("Purchase ({})", p.material_name),
+            charge: p.total_amount,
+            payment: p.advance_paid,
+            created_at: p.created_at,
+        });
+    }
+
+    let labor = sqlx::query_as::<_, LaborRecord>("SELECT * FROM labor_records WHERE employee_name = $1")
+        .bind(&party.name)
+        .fetch_all(&pool)
+        .await
+        .unwrap_or_default();
+    for l in labor {
+        entries.push(LedgerEntry {
+            date: l.date.clone(),
+            description: format!("Labor (Attendance: {})", l.attendance),
+            charge: 0.0,
+            payment: l.advance_given,
+            created_at: l.created_at,
+        });
+    }
+
+    entries.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+
+    Ok(Json(entries))
 }
 
 async fn get_egg_sales(_user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<Json<Vec<EggSale>>, (StatusCode, String)> {
