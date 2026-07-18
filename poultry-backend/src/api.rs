@@ -189,7 +189,7 @@ pub struct CreateLaborRecord {
 pub fn routes() -> Router<PgPool> {
     Router::new()
         .route("/parties", get(get_parties).post(create_party))
-        .route("/parties/:id/ledger", get(get_party_ledger))
+        .route("/parties/{id}/ledger", get(get_party_ledger))
         .route("/sales/egg", get(get_egg_sales).post(create_egg_sale))
         .route("/sales/broken", get(get_broken_sales).post(create_broken_sale))
         .route("/purchases", get(get_purchases).post(create_purchase))
