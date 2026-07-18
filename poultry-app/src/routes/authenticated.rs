@@ -8,6 +8,7 @@ use crate::screens::feed::Feed;
 use crate::screens::labor::Labor;
 use crate::screens::parties::Parties;
 use crate::screens::party_detail::PartyDetail;
+use crate::screens::employees::Employees;
 
 #[derive(Clone, Debug, PartialEq, Routable)]
 pub enum AuthenticatedRoute {
@@ -26,6 +27,8 @@ pub enum AuthenticatedRoute {
     Labor {},
     #[route("/parties")]
     Parties {},
+    #[route("/employees")]
+    Employees {},
     #[route("/parties/:id")]
     PartyDetail { id: String },
     #[route("/:.._route")]

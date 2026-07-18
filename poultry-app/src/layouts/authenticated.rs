@@ -64,6 +64,13 @@ pub fn AuthenticatedLayout() -> Element {
                                     }
                                 }
                                 SidebarMenuItem {
+                                    dioxus_router::components::Link { to: AuthenticatedRoute::Employees {},
+                                        SidebarMenuButton {
+                                            span { "👷 Employees" }
+                                        }
+                                    }
+                                }
+                                SidebarMenuItem {
                                     SidebarMenuButton {
                                         span { "⚙️ Settings" }
                                     }

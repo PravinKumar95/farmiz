@@ -8,16 +8,18 @@ use crate::components::input::Input;
 use crate::components::label::Label;
 use crate::services::*;
 use crate::models::{EggSale, BrokenEggSale};
+use crate::components::button::ButtonVariant;
 
 #[component]
 pub fn Sales() -> Element {
+    let mut parties = use_parties();
     let mut active_tab = use_signal(|| Some("standard".to_string()));
     let mut standard_sales = use_egg_sales();
     let mut broken_sales = use_broken_egg_sales();
     let api = crate::services::use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
-    // Form state shared
+    let mut form_id = use_signal(|| Option::<String>::None);
     let mut form_date = use_signal(|| String::new());
     let mut form_party = use_signal(|| String::new());
     let mut form_boxes = use_signal(|| String::new());
@@ -55,8 +57,8 @@ pub fn Sales() -> Element {
             let total_eggs = boxes * 210;
             let total_amount = (total_eggs as f64) * rate; // Simplified logic
             
-            let new_sale = EggSale {
-                id: String::new(),
+            let mut new_sale = EggSale {
+                id: form_id().unwrap_or_default(),
                 date,
                 party_name: party,
                 quantity_boxes: boxes,
@@ -73,9 +75,13 @@ pub fn Sales() -> Element {
             };
 
             spawn(async move {
-                match api.post("/api/sales/egg", &new_sale).await {
-                Ok(_) => {
-
+                let res = if let Some(id) = form_id() {
+                    api.put(&format!("/api/sales/egg/{}", id), &new_sale).await
+                } else {
+                    api.post("/api/sales/egg", &new_sale).await
+                };
+                match res {
+                    Ok(_) => {
                         is_sheet_open.set(false);
                         form_error.set(String::new());
                         standard_sales.restart();
@@ -99,8 +105,8 @@ pub fn Sales() -> Element {
             
             let total_amount = (trays as f64) * rate;
             
-            let new_sale = BrokenEggSale {
-                id: String::new(),
+            let mut new_sale = BrokenEggSale {
+                id: form_id().unwrap_or_default(),
                 date,
                 bakery_name: party,
                 trays_sold: trays,
@@ -114,9 +120,13 @@ pub fn Sales() -> Element {
             };
 
             spawn(async move {
-                match api.post("/api/sales/broken", &new_sale).await {
-                Ok(_) => {
-
+                let res = if let Some(id) = form_id() {
+                    api.put(&format!("/api/sales/broken/{}", id), &new_sale).await
+                } else {
+                    api.post("/api/sales/broken", &new_sale).await
+                };
+                match res {
+                    Ok(_) => {
                         is_sheet_open.set(false);
                         form_error.set(String::new());
                         broken_sales.restart();
@@ -129,10 +139,24 @@ pub fn Sales() -> Element {
 
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
+            datalist { id: "parties-list",
+                for party in parties.cloned().unwrap_or_default() {
+                    option { value: "{party.name}" }
+                }
+            }
+            
             div { class: "flex justify-between items-center",
                 h1 { class: "text-2xl font-bold tracking-tight", "Sales" }
                 Button { 
-                    onclick: move |_| is_sheet_open.set(true),
+                    onclick: move |_| {
+                        form_id.set(None);
+                        form_date.set(String::new());
+                        form_party.set(String::new());
+                        form_boxes.set(String::new());
+                        form_rate.set(String::new());
+                        form_received.set(String::new());
+                        is_sheet_open.set(true);
+                    },
                     "Add Sale" 
                 }
             }
@@ -154,7 +178,7 @@ pub fn Sales() -> Element {
                         }
                         div { class: "flex flex-col gap-2",
                             Label { html_for: "party", if active_tab() == Some("standard".to_string()) { "Party Name" } else { "Bakery Name" } }
-                            Input { value: "{form_party}", oninput: move |e: FormEvent| form_party.set(e.value()) }
+                            Input { list: "parties-list", value: "{form_party}", oninput: move |e: FormEvent| form_party.set(e.value()) }
                         }
                         div { class: "flex flex-col gap-2",
                             Label { html_for: "qty", if active_tab() == Some("standard".to_string()) { "Boxes" } else { "Trays" } }
@@ -203,14 +227,48 @@ pub fn Sales() -> Element {
                                         }
                                     }
                                 }
-                                CardFooter { class: "bg-muted/50 pt-4 rounded-b-xl flex justify-between text-sm",
-                                    div { class: "flex flex-col",
-                                        span { class: "text-muted-foreground", "Received" }
-                                        span { class: "font-medium text-green-600", "₹ {sale.received_amount:.2}" }
+                                CardFooter { class: "bg-muted/50 pt-4 rounded-b-xl flex flex-col gap-4",
+                                    div { class: "flex justify-between text-sm w-full",
+                                        div { class: "flex flex-col",
+                                            span { class: "text-muted-foreground", "Received" }
+                                            span { class: "font-medium text-green-600", "₹ {sale.received_amount:.2}" }
+                                        }
+                                        div { class: "flex flex-col items-end",
+                                            span { class: "text-muted-foreground", "Balance" }
+                                            span { class: "font-medium text-red-500", "₹ {sale.balance:.2}" }
+                                        }
                                     }
-                                    div { class: "flex flex-col items-end",
-                                        span { class: "text-muted-foreground", "Balance" }
-                                        span { class: "font-medium text-red-500", "₹ {sale.balance:.2}" }
+                                    div { class: "flex justify-end gap-2 w-full",
+                                        {
+                                            let edit_sale = sale.clone();
+                                            let delete_id = sale.id.clone();
+                                            rsx! {
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        form_id.set(Some(edit_sale.id.clone()));
+                                                        form_date.set(edit_sale.date.clone());
+                                                        form_party.set(edit_sale.party_name.clone());
+                                                        form_boxes.set(edit_sale.quantity_boxes.to_string());
+                                                        form_rate.set(edit_sale.gross_rate.to_string());
+                                                        form_received.set(edit_sale.received_amount.to_string());
+                                                        is_sheet_open.set(true);
+                                                    },
+                                                    "Edit"
+                                                }
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        let id = delete_id.clone();
+                                                        spawn(async move {
+                                                            let _ = api.delete(&format!("/api/sales/egg/{}", id)).await;
+                                                            standard_sales.restart();
+                                                        });
+                                                    },
+                                                    "Delete"
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -236,14 +294,48 @@ pub fn Sales() -> Element {
                                         }
                                     }
                                 }
-                                CardFooter { class: "bg-muted/50 pt-4 rounded-b-xl flex justify-between text-sm",
-                                    div { class: "flex flex-col",
-                                        span { class: "text-muted-foreground", "Received" }
-                                        span { class: "font-medium text-green-600", "₹ {sale.payment_received:.2}" }
+                                CardFooter { class: "bg-muted/50 pt-4 rounded-b-xl flex flex-col gap-4",
+                                    div { class: "flex justify-between text-sm w-full",
+                                        div { class: "flex flex-col",
+                                            span { class: "text-muted-foreground", "Received" }
+                                            span { class: "font-medium text-green-600", "₹ {sale.payment_received:.2}" }
+                                        }
+                                        div { class: "flex flex-col items-end",
+                                            span { class: "text-muted-foreground", "Balance" }
+                                            span { class: "font-medium text-red-500", "₹ {sale.balance_amount:.2}" }
+                                        }
                                     }
-                                    div { class: "flex flex-col items-end",
-                                        span { class: "text-muted-foreground", "Balance" }
-                                        span { class: "font-medium text-red-500", "₹ {sale.balance_amount:.2}" }
+                                    div { class: "flex justify-end gap-2 w-full",
+                                        {
+                                            let edit_sale = sale.clone();
+                                            let delete_id = sale.id.clone();
+                                            rsx! {
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        form_id.set(Some(edit_sale.id.clone()));
+                                                        form_date.set(edit_sale.date.clone());
+                                                        form_party.set(edit_sale.bakery_name.clone());
+                                                        form_boxes.set(edit_sale.trays_sold.to_string());
+                                                        form_rate.set(edit_sale.rate.to_string());
+                                                        form_received.set(edit_sale.payment_received.to_string());
+                                                        is_sheet_open.set(true);
+                                                    },
+                                                    "Edit"
+                                                }
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        let id = delete_id.clone();
+                                                        spawn(async move {
+                                                            let _ = api.delete(&format!("/api/sales/broken/{}", id)).await;
+                                                            broken_sales.restart();
+                                                        });
+                                                    },
+                                                    "Delete"
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

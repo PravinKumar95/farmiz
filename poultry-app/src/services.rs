@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_sdk::storage::{use_storage, LocalStorage};
 use crate::models::{
-    BrokenEggSale, EggSale, FeedBatch, LaborRecord, MaterialPurchase, Party,
+    BrokenEggSale, EggSale, FeedBatch, LaborRecord, MaterialPurchase, Party, Employee
 };
 
 const BACKEND_URL: &str = match option_env!("BACKEND_URL") {
@@ -91,6 +91,56 @@ impl AuthSession {
             Err(res.text().await.unwrap_or_else(|_| "API Error".to_string()))
         }
     }
+
+    pub async fn put<T: serde::Serialize>(&self, endpoint: &str, payload: &T) -> Result<(), String> {
+        let client = reqwest::Client::new();
+        let mut current_token = self.token.read().clone().unwrap_or_default();
+        
+        let mut res = client.put(format!("{BACKEND_URL}{endpoint}"))
+            .header("Authorization", format!("Bearer {}", current_token))
+            .json(payload)
+            .send().await.map_err(|e| e.to_string())?;
+            
+        if res.status() == 401 {
+            if let Ok(t) = self.refresh().await {
+                current_token = t;
+                res = client.put(format!("{BACKEND_URL}{endpoint}"))
+                    .header("Authorization", format!("Bearer {}", current_token))
+                    .json(payload)
+                    .send().await.map_err(|e| e.to_string())?;
+            }
+        }
+        
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(res.text().await.unwrap_or_else(|_| "API Error".to_string()))
+        }
+    }
+
+    pub async fn delete(&self, endpoint: &str) -> Result<(), String> {
+        let client = reqwest::Client::new();
+        let mut current_token = self.token.read().clone().unwrap_or_default();
+        
+        let mut res = client.delete(format!("{BACKEND_URL}{endpoint}"))
+            .header("Authorization", format!("Bearer {}", current_token))
+            .send().await.map_err(|e| e.to_string())?;
+            
+        if res.status() == 401 {
+            if let Ok(t) = self.refresh().await {
+                current_token = t;
+                res = client.delete(format!("{BACKEND_URL}{endpoint}"))
+                    .header("Authorization", format!("Bearer {}", current_token))
+                    .send().await.map_err(|e| e.to_string())?;
+            }
+        }
+        
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(res.text().await.unwrap_or_else(|_| "API Error".to_string()))
+        }
+    }
 }
 
 // Helpers for the `use_resource` hooks (since they run in components, they just use AuthSession)
@@ -151,6 +201,16 @@ pub fn use_parties() -> Resource<Vec<Party>> {
         let auth = auth.clone();
         async move {
             auth.get::<Vec<Party>>("/api/parties").await.unwrap_or_default()
+        }
+    })
+}
+
+pub fn use_employees() -> Resource<Vec<Employee>> {
+    let auth = use_auth();
+    use_resource(move || {
+        let auth = auth.clone();
+        async move {
+            auth.get::<Vec<Employee>>("/api/employees").await.unwrap_or_default()
         }
     })
 }

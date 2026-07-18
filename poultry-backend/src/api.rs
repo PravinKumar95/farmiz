@@ -37,6 +37,24 @@ pub struct Party {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Serialize, Deserialize, FromRow, Clone)]
+pub struct Employee {
+    pub id: Uuid,
+    pub name: String,
+    pub role: String,
+    pub daily_wage: f64,
+    pub current_balance: f64,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct CreateEmployee {
+    pub name: String,
+    pub role: String,
+    pub daily_wage: f64,
+    pub current_balance: f64,
+}
+
 #[derive(Deserialize, Clone)]
 pub struct CreateParty {
     pub name: String,
@@ -190,11 +208,18 @@ pub fn routes() -> Router<PgPool> {
     Router::new()
         .route("/parties", get(get_parties).post(create_party))
         .route("/parties/{id}/ledger", get(get_party_ledger))
+        .route("/employees", get(get_employees).post(create_employee))
+        .route("/employees/{id}", axum::routing::put(update_employee).delete(delete_employee))
         .route("/sales/egg", get(get_egg_sales).post(create_egg_sale))
+        .route("/sales/egg/{id}", axum::routing::put(update_egg_sale).delete(delete_egg_sale))
         .route("/sales/broken", get(get_broken_sales).post(create_broken_sale))
+        .route("/sales/broken/{id}", axum::routing::put(update_broken_sale).delete(delete_broken_sale))
         .route("/purchases", get(get_purchases).post(create_purchase))
-        .route("/feed", get(get_feed_batches).post(create_feed_batch))
+        .route("/purchases/{id}", axum::routing::put(update_purchase).delete(delete_purchase))
         .route("/labor", get(get_labor_records).post(create_labor_record))
+        .route("/labor/{id}", axum::routing::put(update_labor_record).delete(delete_labor_record))
+        .route("/feed", get(get_feed_batches).post(create_feed_batch))
+        .route("/feed/{id}", axum::routing::put(update_feed_batch).delete(delete_feed_batch))
         .route("/dashboard/stats", get(get_dashboard_stats))
 }
 
@@ -331,6 +356,36 @@ async fn get_party_ledger(
     Ok(Json(entries))
 }
 
+async fn get_employees(
+    _user: crate::auth::AuthenticatedUser,
+    State(pool): State<PgPool>,
+) -> Result<Json<Vec<Employee>>, (StatusCode, String)> {
+    let records = sqlx::query_as::<_, Employee>("SELECT * FROM employees ORDER BY created_at DESC")
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(records))
+}
+
+async fn create_employee(
+    _user: crate::auth::AuthenticatedUser,
+    State(pool): State<PgPool>,
+    Json(payload): Json<CreateEmployee>,
+) -> Result<Json<Employee>, (StatusCode, String)> {
+    let record = sqlx::query_as::<_, Employee>(
+        "INSERT INTO employees (name, role, daily_wage, current_balance) VALUES ($1, $2, $3, $4) RETURNING *"
+    )
+    .bind(&payload.name)
+    .bind(&payload.role)
+    .bind(payload.daily_wage)
+    .bind(payload.current_balance)
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(record))
+}
+
 async fn get_egg_sales(_user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<Json<Vec<EggSale>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, EggSale>("SELECT * FROM egg_sales ORDER BY created_at DESC")
         .fetch_all(&pool)
@@ -462,4 +517,72 @@ async fn create_labor_record(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(record))
+}
+
+// EDIT / DELETE endpoints
+
+async fn update_employee(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>, Json(payload): Json<Employee>) -> Result<Json<Employee>, (StatusCode, String)> {
+    let record = sqlx::query_as::<_, Employee>("UPDATE employees SET name=$1, role=$2, daily_wage=$3, current_balance=$4 WHERE id=$5 RETURNING *")
+        .bind(payload.name).bind(payload.role).bind(payload.daily_wage).bind(payload.current_balance).bind(id)
+        .fetch_one(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(record))
+}
+async fn delete_employee(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<StatusCode, (StatusCode, String)> {
+    sqlx::query("DELETE FROM employees WHERE id=$1").bind(id).execute(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn update_egg_sale(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>, Json(p): Json<EggSale>) -> Result<Json<EggSale>, (StatusCode, String)> {
+    let record = sqlx::query_as::<_, EggSale>("UPDATE egg_sales SET date=$1, party_name=$2, quantity_boxes=$3, total_eggs=$4, size=$5, gross_rate=$6, less_discount=$7, net_rate=$8, total_amount=$9, received_amount=$10, payment_mode=$11, balance=$12 WHERE id=$13 RETURNING *")
+        .bind(p.date).bind(p.party_name).bind(p.quantity_boxes).bind(p.total_eggs).bind(p.size).bind(p.gross_rate).bind(p.less_discount).bind(p.net_rate).bind(p.total_amount).bind(p.received_amount).bind(p.payment_mode).bind(p.balance).bind(id)
+        .fetch_one(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(record))
+}
+async fn delete_egg_sale(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<StatusCode, (StatusCode, String)> {
+    sqlx::query("DELETE FROM egg_sales WHERE id=$1").bind(id).execute(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn update_broken_sale(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>, Json(p): Json<BrokenEggSale>) -> Result<Json<BrokenEggSale>, (StatusCode, String)> {
+    let record = sqlx::query_as::<_, BrokenEggSale>("UPDATE broken_egg_sales SET date=$1, bakery_name=$2, trays_sold=$3, rate=$4, amount=$5, payment_received=$6, return_trays=$7, empty_trays_balance=$8, balance_amount=$9 WHERE id=$10 RETURNING *")
+        .bind(p.date).bind(p.bakery_name).bind(p.trays_sold).bind(p.rate).bind(p.amount).bind(p.payment_received).bind(p.return_trays).bind(p.empty_trays_balance).bind(p.balance_amount).bind(id)
+        .fetch_one(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(record))
+}
+async fn delete_broken_sale(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<StatusCode, (StatusCode, String)> {
+    sqlx::query("DELETE FROM broken_egg_sales WHERE id=$1").bind(id).execute(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn update_purchase(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>, Json(p): Json<MaterialPurchase>) -> Result<Json<MaterialPurchase>, (StatusCode, String)> {
+    let record = sqlx::query_as::<_, MaterialPurchase>("UPDATE material_purchases SET date=$1, party_name=$2, material_name=$3, quantity_kg=$4, rate_per_kg=$5, total_amount=$6, advance_paid=$7, status=$8, balance=$9 WHERE id=$10 RETURNING *")
+        .bind(p.date).bind(p.party_name).bind(p.material_name).bind(p.quantity_kg).bind(p.rate_per_kg).bind(p.total_amount).bind(p.advance_paid).bind(p.status).bind(p.balance).bind(id)
+        .fetch_one(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(record))
+}
+async fn delete_purchase(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<StatusCode, (StatusCode, String)> {
+    sqlx::query("DELETE FROM material_purchases WHERE id=$1").bind(id).execute(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn update_labor_record(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>, Json(p): Json<LaborRecord>) -> Result<Json<LaborRecord>, (StatusCode, String)> {
+    let record = sqlx::query_as::<_, LaborRecord>("UPDATE labor_records SET date=$1, employee_name=$2, attendance=$3, advance_given=$4 WHERE id=$5 RETURNING *")
+        .bind(p.date).bind(p.employee_name).bind(p.attendance).bind(p.advance_given).bind(id)
+        .fetch_one(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(record))
+}
+async fn delete_labor_record(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<StatusCode, (StatusCode, String)> {
+    sqlx::query("DELETE FROM labor_records WHERE id=$1").bind(id).execute(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn update_feed_batch(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>, Json(p): Json<FeedBatch>) -> Result<Json<FeedBatch>, (StatusCode, String)> {
+    let record = sqlx::query_as::<_, FeedBatch>("UPDATE feed_batches SET date=$1, batch_id=$2, feed_type=$3, rate=$4, total_amount=$5, payment=$6, opening_balance=$7, closing_balance=$8 WHERE id=$9 RETURNING *")
+        .bind(p.date).bind(p.batch_id).bind(p.feed_type).bind(p.rate).bind(p.total_amount).bind(p.payment).bind(p.opening_balance).bind(p.closing_balance).bind(id)
+        .fetch_one(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(record))
+}
+async fn delete_feed_batch(Path(id): Path<Uuid>, _user: crate::auth::AuthenticatedUser, State(pool): State<PgPool>) -> Result<StatusCode, (StatusCode, String)> {
+    sqlx::query("DELETE FROM feed_batches WHERE id=$1").bind(id).execute(&pool).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
 }
