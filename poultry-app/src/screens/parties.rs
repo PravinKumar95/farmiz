@@ -20,6 +20,9 @@ pub fn Parties() -> Element {
     let mut delete_id = use_signal(|| Option::<String>::None);
     let mut form_id = use_signal(|| Option::<String>::None);
 
+    let mut selected_tab = use_signal(|| "ALL".to_string());
+    let mut search_query = use_signal(String::new);
+
     let mut form_name = use_signal(String::new);
     let mut form_type = use_signal(String::new);
     let mut form_balance = use_signal(|| "0.0".to_string());
@@ -88,10 +91,51 @@ pub fn Parties() -> Element {
         }
     };
 
+    let party_list = parties.cloned().and_then(|r| r.ok()).unwrap_or_default();
+
+    // Compute Totals
+    let total_receivables: f64 = party_list
+        .iter()
+        .filter(|p| p.party_type == "CUSTOMER" || p.party_type == "BAKERY")
+        .map(|p| p.current_balance)
+        .filter(|b| *b > 0.0)
+        .sum();
+
+    let total_payables: f64 = party_list
+        .iter()
+        .filter(|p| p.party_type == "SUPPLIER" || p.party_type == "EMPLOYEE")
+        .map(|p| p.current_balance)
+        .filter(|b| *b > 0.0)
+        .sum();
+
+    // Filter list by selected tab & search query
+    let q = search_query().trim().to_lowercase();
+    let current_tab = selected_tab();
+    let filtered_list: Vec<_> = party_list
+        .into_iter()
+        .filter(|p| {
+            let matches_tab = if current_tab == "ALL" {
+                true
+            } else {
+                p.party_type == current_tab
+            };
+            let matches_search = if q.is_empty() {
+                true
+            } else {
+                p.name.to_lowercase().contains(&q) || p.party_type.to_lowercase().contains(&q)
+            };
+            matches_tab && matches_search
+        })
+        .collect();
+
     rsx! {
-        div { class: "flex flex-col gap-4 w-full max-w-4xl mx-auto pb-20",
+        div { class: "flex flex-col gap-4 w-full max-w-4xl mx-auto pb-20 p-4 md:p-6",
+            // Header Section
             div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Parties Directory" }
+                div {
+                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Parties & Accounts Ledger" }
+                    p { class: "text-xs text-gray-500 dark:text-gray-400 mt-1", "Manage customer receivables, supplier payables & ledger balances" }
+                }
                 Button {
                     onclick: move |_| {
                         form_id.set(None);
@@ -101,13 +145,67 @@ pub fn Parties() -> Element {
                         form_error.set(String::new());
                         is_sheet_open.set(true);
                     },
-                    "Add Party"
+                    "+ Add Party"
                 }
             }
 
+            // Financial Summary KPI Cards
+            div { class: "grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-2",
+                Card { class: "bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800",
+                    CardContent { class: "p-4",
+                        div { class: "flex justify-between items-start",
+                            div {
+                                p { class: "text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400", "Total Receivables (Due)" }
+                                p { class: "text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1", "₹ {total_receivables:.2}" }
+                            }
+                            span { class: "text-2xl", "📈" }
+                        }
+                        p { class: "text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-2", "Amount to collect from buyers & customers" }
+                    }
+                }
+                Card { class: "bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800",
+                    CardContent { class: "p-4",
+                        div { class: "flex justify-between items-start",
+                            div {
+                                p { class: "text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400", "Total Payables (Owed)" }
+                                p { class: "text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1", "₹ {total_payables:.2}" }
+                            }
+                            span { class: "text-2xl", "📉" }
+                        }
+                        p { class: "text-xs text-rose-600/80 dark:text-rose-400/80 mt-2", "Amount owed to suppliers & staff" }
+                    }
+                }
+            }
+
+            // Controls: Tabs & Search
+            div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mt-2",
+                div { class: "flex flex-wrap gap-1 p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium",
+                    for (tab_key, tab_label) in [("ALL", "All"), ("CUSTOMER", "Customers"), ("SUPPLIER", "Suppliers"), ("BAKERY", "Bakeries"), ("EMPLOYEE", "Employees")] {
+                        button {
+                            key: "{tab_key}",
+                            class: if selected_tab() == tab_key {
+                                "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all"
+                            } else {
+                                "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all"
+                            },
+                            onclick: move |_| selected_tab.set(tab_key.to_string()),
+                            "{tab_label}"
+                        }
+                    }
+                }
+                div { class: "w-full sm:w-64",
+                    Input {
+                        placeholder: "🔍 Search party...",
+                        value: "{search_query}",
+                        oninput: move |e: Event<FormData>| search_query.set(e.value())
+                    }
+                }
+            }
+
+            // Party List Table
             match parties.cloned() {
-                Some(Ok(list)) if !list.is_empty() => rsx! {
-                    Card { class: "mt-4",
+                Some(Ok(_)) if !filtered_list.is_empty() => rsx! {
+                    Card { class: "mt-2",
                         CardContent { class: "p-0 overflow-hidden rounded-xl",
                             div { class: "overflow-x-auto",
                                 table { class: "w-full text-sm text-left",
@@ -120,17 +218,30 @@ pub fn Parties() -> Element {
                                         }
                                     }
                                     tbody { class: "divide-y divide-border",
-                                        for party in list {
+                                        for party in filtered_list {
                                             tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800 transition-colors",
                                                 td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100",
                                                     Link {
                                                         to: crate::routes::AuthenticatedRoute::PartyDetail { id: party.id.clone() },
-                                                        class: "hover:underline text-blue-600 dark:text-blue-400 font-semibold",
-                                                        "{party.name}"
+                                                        class: "hover:underline text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1",
+                                                        "{party.name} 📖"
                                                     }
                                                 }
-                                                td { class: "px-6 py-4 text-xs font-semibold text-gray-600 dark:text-gray-300", "{party.party_type}" }
-                                                td { class: "px-6 py-4 text-right font-bold text-gray-900 dark:text-gray-100", "₹ {party.current_balance:.2}" }
+                                                td { class: "px-6 py-4 text-xs font-semibold",
+                                                    span {
+                                                        class: match party.party_type.as_str() {
+                                                            "CUSTOMER" => "px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300",
+                                                            "SUPPLIER" => "px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300",
+                                                            "BAKERY" => "px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300",
+                                                            _ => "px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
+                                                        },
+                                                        "{party.party_type}"
+                                                    }
+                                                }
+                                                td { class: "px-6 py-4 text-right font-bold",
+                                                    class: if party.current_balance > 0.0 { "text-emerald-600 dark:text-emerald-400" } else if party.current_balance < 0.0 { "text-rose-600 dark:text-rose-400" } else { "text-gray-500" },
+                                                    "₹ {party.current_balance:.2}"
+                                                }
                                                 td { class: "px-6 py-4 text-right flex items-center justify-end gap-2",
                                                     {
                                                         let p_edit = party.clone();
@@ -168,8 +279,8 @@ pub fn Parties() -> Element {
                 Some(Ok(_)) => rsx! {
                     EmptyState {
                         icon: "📒",
-                        title: "No Parties Registered",
-                        description: "No customers, suppliers, or bakeries registered yet."
+                        title: "No Parties Found",
+                        description: "No party records match your search or selected filter."
                     }
                 },
                 Some(Err(err)) => rsx! { ErrorState { message: err } },

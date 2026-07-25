@@ -10,18 +10,20 @@ use crate::components::input::Input;
 use crate::components::label::Label;
 use crate::components::month_filter::MonthFilter;
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
-use crate::models::LaborRecord;
+use crate::models::{LaborRecord, LaborPayrollSummary};
 use crate::services::*;
 
 #[component]
 pub fn Labor() -> Element {
     let mut records = use_labor_records();
+    let employees_res = use_employees();
     let api = use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
     let current_month_str = Utc::now().format("%Y-%m").to_string();
     let mut selected_month = use_signal(move || Some(current_month_str.clone()));
     let mut search_query = use_signal(String::new);
+    let mut view_mode = use_signal(|| "LOGS".to_string()); // "LOGS" or "SETTLEMENT"
 
     let mut delete_id = use_signal(|| Option::<String>::None);
     let mut form_id = use_signal(|| Option::<String>::None);
@@ -103,8 +105,10 @@ pub fn Labor() -> Element {
     };
 
     let rec_list = records.cloned().and_then(|r| r.ok()).unwrap_or_default();
+    let emp_list = employees_res.cloned().and_then(|r| r.ok()).unwrap_or_default();
+
     let q = search_query().trim().to_lowercase();
-    let filtered_records: Vec<_> = rec_list.into_iter().filter(|r| {
+    let filtered_records: Vec<_> = rec_list.iter().filter(|r| {
         let matches_month = if let Some(ref m) = selected_month() {
             r.date.starts_with(m)
         } else {
@@ -116,15 +120,59 @@ pub fn Labor() -> Element {
             r.employee_name.to_lowercase().contains(&q) || r.date.contains(&q)
         };
         matches_month && matches_search
-    }).collect();
+    }).cloned().collect();
+
+    // Calculate Payroll Summary per Employee
+    let mut payroll_summaries: Vec<LaborPayrollSummary> = Vec::new();
+    let mut processed_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for r in &filtered_records {
+        if processed_names.contains(&r.employee_name) {
+            continue;
+        }
+        processed_names.insert(r.employee_name.clone());
+
+        // Sum attendance and advances for this worker in filtered range
+        let worker_records: Vec<&LaborRecord> = filtered_records
+            .iter()
+            .filter(|rec| rec.employee_name == r.employee_name)
+            .collect();
+
+        let total_att: f64 = worker_records.iter().map(|rec| rec.attendance).sum();
+        let total_adv: f64 = worker_records.iter().map(|rec| rec.advance_given).sum();
+
+        // Match daily wage from employee directory or default 500
+        let daily_wage = emp_list
+            .iter()
+            .find(|e| e.name.to_lowercase() == r.employee_name.to_lowercase())
+            .map(|e| e.daily_wage)
+            .unwrap_or(500.0);
+
+        let total_earned = total_att * daily_wage;
+        let net_balance = total_earned - total_adv;
+
+        payroll_summaries.push(LaborPayrollSummary {
+            employee_id: r.employee_id.clone(),
+            employee_name: r.employee_name.clone(),
+            daily_wage,
+            total_attendance: total_att,
+            total_earned,
+            total_advance: total_adv,
+            opening_balance: 0.0,
+            net_balance,
+        });
+    }
 
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
 
-            // SECTION 1: FIXED HEADER — does NOT scroll
+            // FIXED HEADER
             div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex justify-between items-center",
-                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Labor & Attendance Log" }
+                    div {
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Labor & Attendance Management" }
+                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track daily attendance, cash advances & monthly wage settlements" }
+                    }
                     Button {
                         onclick: move |_| {
                             form_id.set(None);
@@ -136,69 +184,93 @@ pub fn Labor() -> Element {
                             form_error.set(String::new());
                             is_sheet_open.set(true);
                         },
-                        "Add Record"
+                        "+ Log Record"
+                    }
+                }
+
+                // Mode Toggle Bar (Logs vs Settlement) & Filters
+                div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-1",
+                    div { class: "flex p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start",
+                        button {
+                            class: if view_mode() == "LOGS" {
+                                "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all flex items-center gap-1"
+                            } else {
+                                "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1"
+                            },
+                            onclick: move |_| view_mode.set("LOGS".to_string()),
+                            "📋 Daily Logs"
+                        }
+                        button {
+                            class: if view_mode() == "SETTLEMENT" {
+                                "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all flex items-center gap-1"
+                            } else {
+                                "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1"
+                            },
+                            onclick: move |_| view_mode.set("SETTLEMENT".to_string()),
+                            "🧮 Monthly Payroll Settlement"
+                        }
+                    }
+
+                    div { class: "flex items-center gap-2",
+                        MonthFilter {
+                            selected: selected_month(),
+                            onchange: move |m| selected_month.set(m)
+                        }
                     }
                 }
 
                 Input {
-                    placeholder: "🔍 Search by employee name or date...",
+                    placeholder: "🔍 Search employee name or date...",
                     value: "{search_query}",
                     oninput: move |e: Event<FormData>| search_query.set(e.value())
                 }
-                MonthFilter {
-                    selected: selected_month(),
-                    onchange: move |m| selected_month.set(m)
-                }
             }
 
-            // SECTION 2: SCROLLABLE CONTENT
+            // SCROLLABLE CONTENT
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
-                    match records.cloned() {
-                        Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
-                            div { class: "flex flex-col gap-3 mt-2",
-                                for item in filtered_records {
-                                    Card { key: "{item.id}",
+                div { class: "flex flex-col gap-4 w-full max-w-3xl mx-auto pb-20",
+
+                    if view_mode() == "SETTLEMENT" {
+                        // PAYROLL SETTLEMENT VIEW
+                        if !payroll_summaries.is_empty() {
+                            div { class: "flex flex-col gap-4 mt-2",
+                                for summary in payroll_summaries {
+                                    Card { key: "{summary.employee_name}", class: "border-l-4 border-l-blue-500 dark:border-l-blue-400",
                                         CardHeader {
-                                            div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                                span { "{item.date}" }
-                                                span { "Attendance: {item.attendance} Day(s)" }
-                                            }
-                                        }
-                                        CardContent {
-                                            div { class: "flex flex-col gap-3",
-                                                div { class: "flex justify-between items-baseline",
-                                                    span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.employee_name}" }
-                                                    span { class: "text-base font-bold text-amber-600 dark:text-amber-400", "Advance: ₹{item.advance_given:.2}" }
+                                            div { class: "flex justify-between items-center",
+                                                div {
+                                                    h3 { class: "text-xl font-bold text-gray-900 dark:text-gray-100", "{summary.employee_name}" }
+                                                    p { class: "text-xs text-gray-500 dark:text-gray-400", "Daily Wage Rate: ₹{summary.daily_wage:.2}/day" }
+                                                }
+                                                span {
+                                                    class: if summary.net_balance < 0.0 {
+                                                        "px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                                                    } else {
+                                                        "px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                                    },
+                                                    if summary.net_balance < 0.0 { "Advance Overpayment" } else { "Payout Due" }
                                                 }
                                             }
                                         }
-                                        CardFooter {
-                                            div { class: "flex justify-end gap-2 w-full pt-1",
-                                                {
-                                                    let edit_item = item.clone();
-                                                    let del_id = item.id.clone();
-                                                    rsx! {
-                                                        Button {
-                                                            variant: ButtonVariant::Outline,
-                                                            onclick: move |_| {
-                                                                form_id.set(Some(edit_item.id.clone()));
-                                                                form_date.set(edit_item.date.clone());
-                                                                form_employee_name.set(edit_item.employee_name.clone());
-                                                                form_employee_id.set(edit_item.employee_id.clone());
-                                                                form_attendance.set(edit_item.attendance.to_string());
-                                                                form_advance.set(edit_item.advance_given.to_string());
-                                                                is_sheet_open.set(true);
-                                                            },
-                                                            "Edit"
-                                                        }
-                                                        Button {
-                                                            variant: ButtonVariant::Destructive,
-                                                            onclick: move |_| {
-                                                                delete_id.set(Some(del_id.clone()));
-                                                            },
-                                                            "Delete"
-                                                        }
+                                        CardContent {
+                                            div { class: "grid grid-cols-2 sm:grid-cols-4 gap-3 py-2 bg-stone-50 dark:bg-stone-800/50 rounded-lg p-3 border border-stone-200/60 dark:border-stone-700/60 text-sm",
+                                                div {
+                                                    p { class: "text-xs text-gray-500 dark:text-gray-400 font-medium", "Working Days" }
+                                                    p { class: "text-base font-bold text-gray-900 dark:text-gray-100 mt-0.5", "{summary.total_attendance} Days" }
+                                                }
+                                                div {
+                                                    p { class: "text-xs text-gray-500 dark:text-gray-400 font-medium", "Earned Amount" }
+                                                    p { class: "text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5", "₹{summary.total_earned:.2}" }
+                                                }
+                                                div {
+                                                    p { class: "text-xs text-gray-500 dark:text-gray-400 font-medium", "Total Advances" }
+                                                    p { class: "text-base font-bold text-amber-600 dark:text-amber-400 mt-0.5", "₹{summary.total_advance:.2}" }
+                                                }
+                                                div {
+                                                    p { class: "text-xs text-gray-500 dark:text-gray-400 font-medium", "Net Balance" }
+                                                    p {
+                                                        class: if summary.net_balance < 0.0 { "text-base font-bold text-rose-600 dark:text-rose-400 mt-0.5" } else { "text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5" },
+                                                        "₹{summary.net_balance:.2}"
                                                     }
                                                 }
                                             }
@@ -206,16 +278,78 @@ pub fn Labor() -> Element {
                                     }
                                 }
                             }
-                        },
-                        Some(Ok(_)) => rsx! {
+                        } else {
                             EmptyState {
-                                icon: "👥",
-                                title: "No Labor Records Found",
-                                description: "No labor/attendance records match your search criteria or date filter."
+                                icon: "🧮",
+                                title: "No Settlement Summaries",
+                                description: "No labor attendance records match your search or date filter to calculate payroll settlement."
                             }
-                        },
-                        Some(Err(err)) => rsx! { ErrorState { message: err } },
-                        None => rsx! { LoadingState {} }
+                        }
+                    } else {
+                        // DAILY LOGS VIEW
+                        match records.cloned() {
+                            Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
+                                div { class: "flex flex-col gap-3 mt-2",
+                                    for item in filtered_records {
+                                        Card { key: "{item.id}",
+                                            CardHeader {
+                                                div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                                    span { "🗓️ {item.date}" }
+                                                    span { class: "px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold", "Attendance: {item.attendance} Day(s)" }
+                                                }
+                                            }
+                                            CardContent {
+                                                div { class: "flex flex-col gap-3",
+                                                    div { class: "flex justify-between items-baseline",
+                                                        span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.employee_name}" }
+                                                        span { class: "text-base font-bold text-amber-600 dark:text-amber-400", "Advance: ₹{item.advance_given:.2}" }
+                                                    }
+                                                }
+                                            }
+                                            CardFooter {
+                                                div { class: "flex justify-end gap-2 w-full pt-1",
+                                                    {
+                                                        let edit_item = item.clone();
+                                                        let del_id = item.id.clone();
+                                                        rsx! {
+                                                            Button {
+                                                                variant: ButtonVariant::Outline,
+                                                                onclick: move |_| {
+                                                                    form_id.set(Some(edit_item.id.clone()));
+                                                                    form_date.set(edit_item.date.clone());
+                                                                    form_employee_name.set(edit_item.employee_name.clone());
+                                                                    form_employee_id.set(edit_item.employee_id.clone());
+                                                                    form_attendance.set(edit_item.attendance.to_string());
+                                                                    form_advance.set(edit_item.advance_given.to_string());
+                                                                    is_sheet_open.set(true);
+                                                                },
+                                                                "Edit"
+                                                            }
+                                                            Button {
+                                                                variant: ButtonVariant::Destructive,
+                                                                onclick: move |_| {
+                                                                    delete_id.set(Some(del_id.clone()));
+                                                                },
+                                                                "Delete"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            Some(Ok(_)) => rsx! {
+                                EmptyState {
+                                    icon: "👥",
+                                    title: "No Labor Records Found",
+                                    description: "No labor/attendance records match your search criteria or date filter."
+                                }
+                            },
+                            Some(Err(err)) => rsx! { ErrorState { message: err } },
+                            None => rsx! { LoadingState {} }
+                        }
                     }
 
                     ConfirmDialog {

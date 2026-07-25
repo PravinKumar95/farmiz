@@ -81,6 +81,18 @@ pub struct LaborRecord {
     pub created_at: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LaborPayrollSummary {
+    pub employee_id: Option<String>,
+    pub employee_name: String,
+    pub daily_wage: f64,
+    pub total_attendance: f64,
+    pub total_earned: f64,
+    pub total_advance: f64,
+    pub opening_balance: f64,
+    pub net_balance: f64,
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Employee {
     pub id: String,
