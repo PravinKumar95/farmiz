@@ -44,7 +44,7 @@ pub fn Feed() -> Element {
             return;
         }
         if batch_id.is_empty() {
-            form_error.set("Batch ID is required.".to_string());
+            form_error.set("Batch ID / Count is required.".to_string());
             return;
         }
 
@@ -64,10 +64,7 @@ pub fn Feed() -> Element {
         };
         let payment: f64 = match form_payment().parse() {
             Ok(p) => p,
-            Err(_) => {
-                form_error.set("Invalid payment amount.".to_string());
-                return;
-            }
+            Err(_) => 0.0,
         };
 
         let new_batch = FeedBatch {
@@ -131,37 +128,34 @@ pub fn Feed() -> Element {
         matches_month && matches_search
     }).collect();
 
-    // IMPORTANT: This component fills its parent flex container.
-    // Section 1 (shrink-0): Fixed header with title, search, month filter — NEVER scrolls.
-    // Section 2 (flex-1 overflow-y-auto): Scrollable card list — scrolls independently.
     rsx! {
-        // OUTER: fills parent, flex column, no overflow
         div { class: "flex flex-col h-full w-full min-h-0",
 
-            // ══════════════════════════════════════════════
             // SECTION 1: FIXED HEADER — does NOT scroll
-            // ══════════════════════════════════════════════
             div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex justify-between items-center",
-                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Feed Mill Batches" }
+                    div {
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Feed Mill Batches" }
+                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track feed production batches, rate calculations & mill payments" }
+                    }
                     Button {
                         onclick: move |_| {
                             form_id.set(None);
                             form_date.set(Utc::now().format("%Y-%m-%d").to_string());
                             form_batch_id.set(String::new());
-                            form_type.set(String::new());
-                            form_rate.set(String::new());
+                            form_type.set("LAYER".to_string());
+                            form_rate.set("110".to_string());
                             form_total.set(String::new());
-                            form_payment.set(String::new());
+                            form_payment.set("0.0".to_string());
                             form_error.set(String::new());
                             is_sheet_open.set(true);
                         },
-                        "Add Feed Batch"
+                        "+ Add Feed Batch"
                     }
                 }
 
                 Input {
-                    placeholder: "🔍 Search by batch ID, feed type, date...",
+                    placeholder: "🔍 Search by batch count, feed type, date...",
                     value: "{search_query}",
                     oninput: move |e: Event<FormData>| search_query.set(e.value())
                 }
@@ -171,9 +165,7 @@ pub fn Feed() -> Element {
                 }
             }
 
-            // ══════════════════════════════════════════════
             // SECTION 2: SCROLLABLE CARD LIST
-            // ══════════════════════════════════════════════
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
                 div { class: "flex flex-col gap-3 w-full max-w-2xl mx-auto pb-20",
                     match batches.cloned() {
@@ -182,30 +174,34 @@ pub fn Feed() -> Element {
                                 Card { key: "{item.id}",
                                     CardHeader {
                                         div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                            span { "{item.date}" }
-                                            span { "Batch: {item.batch_id}" }
+                                            span { "🗓️ {item.date}" }
+                                            span { class: "px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-semibold border border-amber-200 dark:border-amber-800", "Batches: {item.batch_id}" }
                                         }
                                     }
                                     CardContent {
                                         div { class: "flex flex-col gap-3",
                                             div { class: "flex justify-between items-baseline",
                                                 span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.feed_type}" }
-                                                span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {item.total_amount:.2}" }
+                                                span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "Total: ₹{item.total_amount:.2}" }
                                             }
-                                            div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                            div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
                                                 div { class: "flex flex-col",
-                                                    span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Payment" }
-                                                    span { class: "font-semibold text-green-600 dark:text-green-500", "₹{item.payment:.2}" }
+                                                    span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Rate per Batch" }
+                                                    span { class: "font-semibold text-stone-900 dark:text-stone-100", "₹{item.rate:.2}" }
+                                                }
+                                                div { class: "flex flex-col items-center",
+                                                    span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Payment Made" }
+                                                    span { class: "font-semibold text-emerald-600 dark:text-emerald-400", "₹{item.payment:.2}" }
                                                 }
                                                 div { class: "flex flex-col items-end",
                                                     span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Closing Balance" }
-                                                    span { class: "font-semibold text-red-500", "₹{item.closing_balance:.2}" }
+                                                    span { class: "font-semibold text-rose-600 dark:text-rose-400", "₹{item.closing_balance:.2}" }
                                                 }
                                             }
                                         }
                                     }
                                     CardFooter {
-                                        div { class: "flex justify-end gap-2 w-full pt-1",
+                                        div { class: "flex justify-end gap-2 w-full pt-1 border-t border-stone-100 dark:border-stone-800/60 mt-2",
                                             {
                                                 let edit_item = item.clone();
                                                 let del_id = item.id.clone();
@@ -272,17 +268,25 @@ pub fn Feed() -> Element {
                         }
                         div { class: "grid grid-cols-2 gap-4",
                             div { class: "flex flex-col gap-2",
-                                Label { html_for: "feed-batch", "Batch ID" }
+                                Label { html_for: "feed-batch", "Batches / Batch Count" }
                                 Input {
-                                    placeholder: "e.g. BATCH-001",
+                                    r#type: "number",
+                                    step: "0.5",
+                                    placeholder: "e.g. 7 or 13.5",
                                     value: "{form_batch_id}",
-                                    oninput: move |e: Event<FormData>| form_batch_id.set(e.value())
+                                    oninput: move |e: Event<FormData>| {
+                                        let val = e.value();
+                                        form_batch_id.set(val.clone());
+                                        if let (Ok(b), Ok(r)) = (val.parse::<f64>(), form_rate().parse::<f64>()) {
+                                            form_total.set(format!("{:.2}", b * r));
+                                        }
+                                    }
                                 }
                             }
                             div { class: "flex flex-col gap-2",
                                 Label { html_for: "feed-type", "Feed Type" }
                                 Input {
-                                    placeholder: "e.g. Layer Feed, Starter",
+                                    placeholder: "e.g. LAYER, CHICK",
                                     value: "{form_type}",
                                     oninput: move |e: Event<FormData>| form_type.set(e.value())
                                 }
@@ -290,25 +294,34 @@ pub fn Feed() -> Element {
                         }
                         div { class: "grid grid-cols-3 gap-4",
                             div { class: "flex flex-col gap-2",
-                                Label { html_for: "feed-rate", "Rate" }
+                                Label { html_for: "feed-rate", "Rate (₹)" }
                                 Input {
                                     r#type: "number",
+                                    placeholder: "e.g. 110 or 310",
                                     value: "{form_rate}",
-                                    oninput: move |e: Event<FormData>| form_rate.set(e.value())
+                                    oninput: move |e: Event<FormData>| {
+                                        let val = e.value();
+                                        form_rate.set(val.clone());
+                                        if let (Ok(b), Ok(r)) = (form_batch_id().parse::<f64>(), val.parse::<f64>()) {
+                                            form_total.set(format!("{:.2}", b * r));
+                                        }
+                                    }
                                 }
                             }
                             div { class: "flex flex-col gap-2",
-                                Label { html_for: "feed-total", "Total Amount" }
+                                Label { html_for: "feed-total", "Total Amount (₹)" }
                                 Input {
                                     r#type: "number",
+                                    placeholder: "Auto-calculated",
                                     value: "{form_total}",
                                     oninput: move |e: Event<FormData>| form_total.set(e.value())
                                 }
                             }
                             div { class: "flex flex-col gap-2",
-                                Label { html_for: "feed-payment", "Payment" }
+                                Label { html_for: "feed-payment", "Payment (₹)" }
                                 Input {
                                     r#type: "number",
+                                    placeholder: "e.g. 700",
                                     value: "{form_payment}",
                                     oninput: move |e: Event<FormData>| form_payment.set(e.value())
                                 }
