@@ -93,21 +93,6 @@ pub fn Parties() -> Element {
 
     let party_list = parties.cloned().and_then(|r| r.ok()).unwrap_or_default();
 
-    // Compute Totals
-    let total_receivables: f64 = party_list
-        .iter()
-        .filter(|p| p.party_type == "CUSTOMER" || p.party_type == "BAKERY")
-        .map(|p| p.current_balance)
-        .filter(|b| *b > 0.0)
-        .sum();
-
-    let total_payables: f64 = party_list
-        .iter()
-        .filter(|p| p.party_type == "SUPPLIER" || p.party_type == "EMPLOYEE")
-        .map(|p| p.current_balance)
-        .filter(|b| *b > 0.0)
-        .sum();
-
     // Filter list by selected tab & search query
     let q = search_query().trim().to_lowercase();
     let current_tab = selected_tab();
@@ -129,141 +114,120 @@ pub fn Parties() -> Element {
         .collect();
 
     rsx! {
-        div { class: "flex flex-col gap-4 w-full max-w-4xl mx-auto pb-20 p-4 md:p-6",
-            // Header Section
-            div { class: "flex justify-between items-center",
-                div {
-                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Parties & Accounts Ledger" }
-                    p { class: "text-xs text-gray-500 dark:text-gray-400 mt-1", "Manage customer receivables, supplier payables & ledger balances" }
-                }
-                Button {
-                    onclick: move |_| {
-                        form_id.set(None);
-                        form_name.set(String::new());
-                        form_type.set("CUSTOMER".to_string());
-                        form_balance.set("0.0".to_string());
-                        form_error.set(String::new());
-                        is_sheet_open.set(true);
-                    },
-                    "+ Add Party"
-                }
-            }
+        div { class: "flex flex-col h-full max-h-full w-full min-h-0 overflow-hidden",
 
-            // Financial Summary KPI Cards
-            div { class: "grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-2",
-                Card { class: "bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800",
-                    CardContent { class: "p-4",
-                        div { class: "flex justify-between items-start",
-                            div {
-                                p { class: "text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400", "Total Receivables (Due)" }
-                                p { class: "text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1", "₹ {total_receivables:.2}" }
+            // SECTION 1: FIXED HEADER — does NOT scroll
+            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
+                div { class: "flex justify-between items-center",
+                    div {
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Parties & Accounts Ledger" }
+                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Manage customer receivables, supplier payables & ledger balances" }
+                    }
+                    Button {
+                        onclick: move |_| {
+                            form_id.set(None);
+                            form_name.set(String::new());
+                            form_type.set("CUSTOMER".to_string());
+                            form_balance.set("0.0".to_string());
+                            form_error.set(String::new());
+                            is_sheet_open.set(true);
+                        },
+                        "+ Add Party"
+                    }
+                }
+
+                // Controls: Filter Tabs & Search Bar
+                div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-1",
+                    div { class: "flex flex-wrap gap-1 p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start",
+                        for (tab_key, tab_label) in [("ALL", "All"), ("CUSTOMER", "Customers"), ("SUPPLIER", "Suppliers"), ("BAKERY", "Bakeries"), ("EMPLOYEE", "Employees")] {
+                            button {
+                                key: "{tab_key}",
+                                class: if selected_tab() == tab_key {
+                                    "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all"
+                                } else {
+                                    "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all"
+                                },
+                                onclick: move |_| selected_tab.set(tab_key.to_string()),
+                                "{tab_label}"
                             }
-                            span { class: "text-2xl", "📈" }
                         }
-                        p { class: "text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-2", "Amount to collect from buyers & customers" }
                     }
-                }
-                Card { class: "bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800",
-                    CardContent { class: "p-4",
-                        div { class: "flex justify-between items-start",
-                            div {
-                                p { class: "text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400", "Total Payables (Owed)" }
-                                p { class: "text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1", "₹ {total_payables:.2}" }
-                            }
-                            span { class: "text-2xl", "📉" }
+                    div { class: "w-full sm:w-64",
+                        Input {
+                            placeholder: "🔍 Search party...",
+                            value: "{search_query}",
+                            oninput: move |e: Event<FormData>| search_query.set(e.value())
                         }
-                        p { class: "text-xs text-rose-600/80 dark:text-rose-400/80 mt-2", "Amount owed to suppliers & staff" }
                     }
                 }
             }
 
-            // Controls: Tabs & Search
-            div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mt-2",
-                div { class: "flex flex-wrap gap-1 p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium",
-                    for (tab_key, tab_label) in [("ALL", "All"), ("CUSTOMER", "Customers"), ("SUPPLIER", "Suppliers"), ("BAKERY", "Bakeries"), ("EMPLOYEE", "Employees")] {
-                        button {
-                            key: "{tab_key}",
-                            class: if selected_tab() == tab_key {
-                                "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all"
-                            } else {
-                                "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all"
-                            },
-                            onclick: move |_| selected_tab.set(tab_key.to_string()),
-                            "{tab_label}"
-                        }
-                    }
-                }
-                div { class: "w-full sm:w-64",
-                    Input {
-                        placeholder: "🔍 Search party...",
-                        value: "{search_query}",
-                        oninput: move |e: Event<FormData>| search_query.set(e.value())
-                    }
-                }
-            }
-
-            // Party List Table
-            match parties.cloned() {
-                Some(Ok(_)) if !filtered_list.is_empty() => rsx! {
-                    Card { class: "mt-2",
-                        CardContent { class: "p-0 overflow-hidden rounded-xl",
-                            div { class: "overflow-x-auto",
-                                table { class: "w-full text-sm text-left",
-                                    thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-border",
-                                        tr {
-                                            th { class: "px-6 py-3", "Party Name" }
-                                            th { class: "px-6 py-3", "Type" }
-                                            th { class: "px-6 py-3 text-right", "Current Balance" }
-                                            th { class: "px-6 py-3 text-right", "Actions" }
-                                        }
-                                    }
-                                    tbody { class: "divide-y divide-border",
-                                        for party in filtered_list {
-                                            tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800 transition-colors",
-                                                td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100",
-                                                    Link {
-                                                        to: crate::routes::AuthenticatedRoute::PartyDetail { id: party.id.clone() },
-                                                        class: "hover:underline text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1",
-                                                        "{party.name} 📖"
-                                                    }
+            // SECTION 2: SCROLLABLE CONTENT AREA
+            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
+                div { class: "flex flex-col gap-4 w-full max-w-4xl mx-auto pb-20",
+                    match parties.cloned() {
+                        Some(Ok(_)) if !filtered_list.is_empty() => rsx! {
+                            Card { class: "mt-2",
+                                CardContent { class: "p-0 rounded-xl",
+                                    div { class: "overflow-x-auto",
+                                        table { class: "w-full text-sm text-left",
+                                            thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-border",
+                                                tr {
+                                                    th { class: "px-6 py-3", "Party Name" }
+                                                    th { class: "px-6 py-3", "Type" }
+                                                    th { class: "px-6 py-3 text-right", "Current Balance" }
+                                                    th { class: "px-6 py-3 text-right", "Actions" }
                                                 }
-                                                td { class: "px-6 py-4 text-xs font-semibold",
-                                                    span {
-                                                        class: match party.party_type.as_str() {
-                                                            "CUSTOMER" => "px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300",
-                                                            "SUPPLIER" => "px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300",
-                                                            "BAKERY" => "px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300",
-                                                            _ => "px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
-                                                        },
-                                                        "{party.party_type}"
-                                                    }
-                                                }
-                                                td { class: "px-6 py-4 text-right font-bold",
-                                                    class: if party.current_balance > 0.0 { "text-emerald-600 dark:text-emerald-400" } else if party.current_balance < 0.0 { "text-rose-600 dark:text-rose-400" } else { "text-gray-500" },
-                                                    "₹ {party.current_balance:.2}"
-                                                }
-                                                td { class: "px-6 py-4 text-right flex items-center justify-end gap-2",
-                                                    {
-                                                        let p_edit = party.clone();
-                                                        let p_del_id = party.id.clone();
-                                                        rsx! {
-                                                            Button {
-                                                                variant: ButtonVariant::Outline,
-                                                                onclick: move |_| {
-                                                                    form_id.set(Some(p_edit.id.clone()));
-                                                                    form_name.set(p_edit.name.clone());
-                                                                    form_type.set(p_edit.party_type.clone());
-                                                                    form_balance.set(p_edit.current_balance.to_string());
-                                                                    is_sheet_open.set(true);
-                                                                },
-                                                                "Edit"
+                                            }
+                                            tbody { class: "divide-y divide-border",
+                                                for party in filtered_list {
+                                                    tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800 transition-colors",
+                                                        td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100",
+                                                            Link {
+                                                                to: crate::routes::AuthenticatedRoute::PartyDetail { id: party.id.clone() },
+                                                                class: "hover:underline text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1",
+                                                                "{party.name} 📖"
                                                             }
-                                                            Button {
-                                                                variant: ButtonVariant::Destructive,
-                                                                onclick: move |_| {
-                                                                    delete_id.set(Some(p_del_id.clone()));
+                                                        }
+                                                        td { class: "px-6 py-4 text-xs font-semibold",
+                                                            span {
+                                                                class: match party.party_type.as_str() {
+                                                                    "CUSTOMER" => "px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300",
+                                                                    "SUPPLIER" => "px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300",
+                                                                    "BAKERY" => "px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300",
+                                                                    _ => "px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
                                                                 },
-                                                                "Delete"
+                                                                "{party.party_type}"
+                                                            }
+                                                        }
+                                                        td { class: "px-6 py-4 text-right font-bold",
+                                                            class: if party.current_balance > 0.0 { "text-emerald-600 dark:text-emerald-400" } else if party.current_balance < 0.0 { "text-rose-600 dark:text-rose-400" } else { "text-gray-500" },
+                                                            "₹ {party.current_balance:.2}"
+                                                        }
+                                                        td { class: "px-6 py-4 text-right flex items-center justify-end gap-2",
+                                                            {
+                                                                let p_edit = party.clone();
+                                                                let p_del_id = party.id.clone();
+                                                                rsx! {
+                                                                    Button {
+                                                                        variant: ButtonVariant::Outline,
+                                                                        onclick: move |_| {
+                                                                            form_id.set(Some(p_edit.id.clone()));
+                                                                            form_name.set(p_edit.name.clone());
+                                                                            form_type.set(p_edit.party_type.clone());
+                                                                            form_balance.set(p_edit.current_balance.to_string());
+                                                                            is_sheet_open.set(true);
+                                                                        },
+                                                                        "Edit"
+                                                                    }
+                                                                    Button {
+                                                                        variant: ButtonVariant::Destructive,
+                                                                        onclick: move |_| {
+                                                                            delete_id.set(Some(p_del_id.clone()));
+                                                                        },
+                                                                        "Delete"
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -273,18 +237,26 @@ pub fn Parties() -> Element {
                                     }
                                 }
                             }
-                        }
+                        },
+                        Some(Ok(_)) => rsx! {
+                            EmptyState {
+                                icon: "📒",
+                                title: "No Parties Found",
+                                description: "No party records match your search or selected filter."
+                            }
+                        },
+                        Some(Err(err)) => rsx! { ErrorState { message: err } },
+                        None => rsx! { LoadingState {} }
                     }
-                },
-                Some(Ok(_)) => rsx! {
-                    EmptyState {
-                        icon: "📒",
-                        title: "No Parties Found",
-                        description: "No party records match your search or selected filter."
+
+                    ConfirmDialog {
+                        is_open: delete_id().is_some(),
+                        title: "Delete Party".to_string(),
+                        description: "Are you sure you want to delete this party? All associated transaction histories will be unlinked.".to_string(),
+                        onconfirm: confirm_delete,
+                        oncancel: move |_| delete_id.set(None)
                     }
-                },
-                Some(Err(err)) => rsx! { ErrorState { message: err } },
-                None => rsx! { LoadingState {} }
+                }
             }
 
             if is_sheet_open() {
@@ -340,14 +312,6 @@ pub fn Parties() -> Element {
                         }
                     }
                 }
-            }
-
-            ConfirmDialog {
-                is_open: delete_id().is_some(),
-                title: "Delete Party".to_string(),
-                description: "Are you sure you want to delete this party? All associated transaction histories will be unlinked.".to_string(),
-                onconfirm: confirm_delete,
-                oncancel: move |_| delete_id.set(None)
             }
         }
     }
