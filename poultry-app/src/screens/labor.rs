@@ -8,6 +8,7 @@ use crate::components::employee_select::EmployeeSelect;
 use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
+use crate::components::month_filter::MonthFilter;
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::LaborRecord;
 use crate::services::*;
@@ -17,6 +18,10 @@ pub fn Labor() -> Element {
     let mut records = use_labor_records();
     let api = use_auth();
     let mut is_sheet_open = use_signal(|| false);
+
+    let current_month_str = Utc::now().format("%Y-%m").to_string();
+    let mut selected_month = use_signal(move || Some(current_month_str.clone()));
+    let mut search_query = use_signal(String::new);
 
     let mut delete_id = use_signal(|| Option::<String>::None);
     let mut form_id = use_signal(|| Option::<String>::None);
@@ -97,29 +102,58 @@ pub fn Labor() -> Element {
         }
     };
 
+    let rec_list = records.cloned().and_then(|r| r.ok()).unwrap_or_default();
+    let q = search_query().trim().to_lowercase();
+    let filtered_records: Vec<_> = rec_list.into_iter().filter(|r| {
+        let matches_month = if let Some(ref m) = selected_month() {
+            r.date.starts_with(m)
+        } else {
+            true
+        };
+        let matches_search = if q.is_empty() {
+            true
+        } else {
+            r.employee_name.to_lowercase().contains(&q) || r.date.contains(&q)
+        };
+        matches_month && matches_search
+    }).collect();
+
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
-            div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Labor & Attendance Log" }
-                Button {
-                    onclick: move |_| {
-                        form_id.set(None);
-                        form_date.set(Utc::now().format("%Y-%m-%d").to_string());
-                        form_employee_name.set(String::new());
-                        form_employee_id.set(None);
-                        form_attendance.set("1.0".to_string());
-                        form_advance.set("0.0".to_string());
-                        form_error.set(String::new());
-                        is_sheet_open.set(true);
-                    },
-                    "Add Record"
+            // STICKY FILTER BAR AT TOP OF SCROLL CONTAINER
+            div { class: "sticky -top-4 md:-top-6 z-20 bg-white dark:bg-stone-900 -mt-4 -mx-4 px-4 pt-4 pb-3 md:-mt-6 md:-mx-6 md:px-6 md:pt-6 border-b border-stone-200/60 dark:border-stone-800 flex flex-col gap-3 shadow-xs",
+                div { class: "flex justify-between items-center",
+                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Labor & Attendance Log" }
+                    Button {
+                        onclick: move |_| {
+                            form_id.set(None);
+                            form_date.set(Utc::now().format("%Y-%m-%d").to_string());
+                            form_employee_name.set(String::new());
+                            form_employee_id.set(None);
+                            form_attendance.set("1.0".to_string());
+                            form_advance.set("0.0".to_string());
+                            form_error.set(String::new());
+                            is_sheet_open.set(true);
+                        },
+                        "Add Record"
+                    }
+                }
+
+                Input {
+                    placeholder: "🔍 Search by employee name or date...",
+                    value: "{search_query}",
+                    oninput: move |e: Event<FormData>| search_query.set(e.value())
+                }
+                MonthFilter {
+                    selected: selected_month(),
+                    onchange: move |m| selected_month.set(m)
                 }
             }
 
             match records.cloned() {
-                Some(Ok(items)) if !items.is_empty() => rsx! {
-                    div { class: "flex flex-col gap-3 mt-4",
-                        for item in items {
+                Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
+                    div { class: "flex flex-col gap-3 mt-2",
+                        for item in filtered_records {
                             Card { key: "{item.id}",
                                 CardHeader {
                                     div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
@@ -172,8 +206,8 @@ pub fn Labor() -> Element {
                 Some(Ok(_)) => rsx! {
                     EmptyState {
                         icon: "👥",
-                        title: "No Labor Records",
-                        description: "No labor/attendance records found. Click 'Add Record' above."
+                        title: "No Labor Records Found",
+                        description: "No labor/attendance records match your search criteria or date filter."
                     }
                 },
                 Some(Err(err)) => rsx! { ErrorState { message: err } },

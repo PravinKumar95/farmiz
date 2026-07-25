@@ -7,6 +7,7 @@ use crate::components::confirm_dialog::ConfirmDialog;
 use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
+use crate::components::month_filter::MonthFilter;
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::DailyProduction;
 use crate::services::*;
@@ -16,6 +17,10 @@ pub fn Production() -> Element {
     let mut logs = use_daily_production();
     let api = use_auth();
     let mut is_sheet_open = use_signal(|| false);
+
+    let current_month_str = Utc::now().format("%Y-%m").to_string();
+    let mut selected_month = use_signal(move || Some(current_month_str.clone()));
+    let mut search_query = use_signal(String::new);
 
     let mut delete_id = use_signal(|| Option::<String>::None);
     let mut form_id = use_signal(|| Option::<String>::None);
@@ -131,33 +136,62 @@ pub fn Production() -> Element {
     };
 
     let records_list = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
-    let total_good_today: i32 = records_list.iter().map(|r| r.egg_count_good).sum();
-    let total_damaged_today: i32 = records_list.iter().map(|r| r.egg_count_damaged).sum();
-    let total_mortality_today: i32 = records_list.iter().map(|r| r.mortality_count).sum();
-    let total_feed_today: f64 = records_list.iter().map(|r| r.feed_consumed_kg).sum();
+    let q = search_query().trim().to_lowercase();
+    let filtered_records: Vec<_> = records_list.into_iter().filter(|r| {
+        let matches_month = if let Some(ref m) = selected_month() {
+            r.date.starts_with(m)
+        } else {
+            true
+        };
+        let matches_search = if q.is_empty() {
+            true
+        } else {
+            r.shed_name.to_lowercase().contains(&q)
+                || r.date.contains(&q)
+                || r.notes.as_deref().unwrap_or("").to_lowercase().contains(&q)
+        };
+        matches_month && matches_search
+    }).collect();
+
+    let total_good_today: i32 = filtered_records.iter().map(|r| r.egg_count_good).sum();
+    let total_damaged_today: i32 = filtered_records.iter().map(|r| r.egg_count_damaged).sum();
+    let total_mortality_today: i32 = filtered_records.iter().map(|r| r.mortality_count).sum();
+    let total_feed_today: f64 = filtered_records.iter().map(|r| r.feed_consumed_kg).sum();
 
     rsx! {
         div { class: "flex flex-col gap-6 w-full max-w-6xl mx-auto pb-20",
-            div { class: "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
-                div {
-                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🥚 Daily Production & Flock Health Log" }
-                    p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Track daily egg collection, damaged eggs, mortality, and feed consumption per shed." }
+            div { class: "sticky top-0 z-10 bg-white dark:bg-stone-900 pt-1 pb-2 flex flex-col gap-3 -mx-4 px-4 sm:-mx-6 sm:px-6 border-b border-stone-200/60 dark:border-stone-800",
+                div { class: "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
+                    div {
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🥚 Daily Production & Flock Health Log" }
+                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Track daily egg collection, damaged eggs, mortality, and feed consumption per shed." }
+                    }
+                    Button {
+                        onclick: move |_| {
+                            form_id.set(None);
+                            form_date.set(Utc::now().format("%Y-%m-%d").to_string());
+                            form_shed.set(String::new());
+                            form_good.set("0".to_string());
+                            form_damaged.set("0".to_string());
+                            form_mortality.set("0".to_string());
+                            form_cull.set("0".to_string());
+                            form_feed.set("0.0".to_string());
+                            form_notes.set(String::new());
+                            form_error.set(String::new());
+                            is_sheet_open.set(true);
+                        },
+                        "+ Log Production"
+                    }
                 }
-                Button {
-                    onclick: move |_| {
-                        form_id.set(None);
-                        form_date.set(Utc::now().format("%Y-%m-%d").to_string());
-                        form_shed.set(String::new());
-                        form_good.set("0".to_string());
-                        form_damaged.set("0".to_string());
-                        form_mortality.set("0".to_string());
-                        form_cull.set("0".to_string());
-                        form_feed.set("0.0".to_string());
-                        form_notes.set(String::new());
-                        form_error.set(String::new());
-                        is_sheet_open.set(true);
-                    },
-                    "+ Log Production"
+
+                Input {
+                    placeholder: "🔍 Search by shed name, date, notes...",
+                    value: "{search_query}",
+                    oninput: move |e: Event<FormData>| search_query.set(e.value())
+                }
+                MonthFilter {
+                    selected: selected_month(),
+                    onchange: move |m| selected_month.set(m)
                 }
             }
 
@@ -189,7 +223,7 @@ pub fn Production() -> Element {
             }
 
             match logs.cloned() {
-                Some(Ok(items)) if !items.is_empty() => rsx! {
+                Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
                     Card {
                         div { class: "overflow-x-auto",
                             table { class: "w-full text-sm text-left",
@@ -205,7 +239,7 @@ pub fn Production() -> Element {
                                     }
                                 }
                                 tbody { class: "divide-y divide-border",
-                                    for item in items {
+                                    for item in filtered_records {
                                         tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800 transition-colors",
                                             td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100", "{item.date}" }
                                             td { class: "px-6 py-4 text-gray-600 dark:text-gray-300", "{item.shed_name}" }
@@ -255,7 +289,7 @@ pub fn Production() -> Element {
                     EmptyState {
                         icon: "🥚",
                         title: "No production records found",
-                        description: "Log your daily egg collection, mortality, and feed metrics."
+                        description: "No production logs match your search criteria or date filter."
                     }
                 },
                 Some(Err(err)) => rsx! {

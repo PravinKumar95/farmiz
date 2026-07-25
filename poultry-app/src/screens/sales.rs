@@ -7,6 +7,7 @@ use crate::components::confirm_dialog::ConfirmDialog;
 use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
+use crate::components::month_filter::MonthFilter;
 use crate::components::party_select::PartySelect;
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::components::tabs::{TabContent, TabList, TabTrigger, Tabs};
@@ -20,6 +21,10 @@ pub fn Sales() -> Element {
     let mut broken_sales = use_broken_egg_sales();
     let api = use_auth();
     let mut is_sheet_open = use_signal(|| false);
+
+    let current_month_str = Utc::now().format("%Y-%m").to_string();
+    let mut selected_month = use_signal(move || Some(current_month_str.clone()));
+    let mut search_query = use_signal(String::new);
 
     let mut delete_info = use_signal(|| Option::<(String, String)>::None);
 
@@ -182,23 +187,68 @@ pub fn Sales() -> Element {
         }
     };
 
+    let q = search_query().trim().to_lowercase();
+
+    let std_list = standard_sales.cloned().and_then(|r| r.ok()).unwrap_or_default();
+    let filtered_std: Vec<_> = std_list.into_iter().filter(|s| {
+        let matches_month = if let Some(ref m) = selected_month() {
+            s.date.starts_with(m)
+        } else {
+            true
+        };
+        let matches_search = if q.is_empty() {
+            true
+        } else {
+            s.party_name.to_lowercase().contains(&q) || s.date.contains(&q)
+        };
+        matches_month && matches_search
+    }).collect();
+
+    let broken_list = broken_sales.cloned().and_then(|r| r.ok()).unwrap_or_default();
+    let filtered_broken: Vec<_> = broken_list.into_iter().filter(|s| {
+        let matches_month = if let Some(ref m) = selected_month() {
+            s.date.starts_with(m)
+        } else {
+            true
+        };
+        let matches_search = if q.is_empty() {
+            true
+        } else {
+            s.bakery_name.to_lowercase().contains(&q) || s.date.contains(&q)
+        };
+        matches_month && matches_search
+    }).collect();
+
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
-            div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Sales" }
-                Button {
-                    onclick: move |_| {
-                        form_id.set(None);
-                        form_date.set(Utc::now().format("%Y-%m-%d").to_string());
-                        form_party_name.set(String::new());
-                        form_party_id.set(None);
-                        form_boxes.set(String::new());
-                        form_rate.set(String::new());
-                        form_received.set(String::new());
-                        form_error.set(String::new());
-                        is_sheet_open.set(true);
-                    },
-                    "Add Sale"
+            // STICKY FILTER BAR AT TOP OF SCROLL CONTAINER
+            div { class: "sticky -top-4 md:-top-6 z-20 bg-white dark:bg-stone-900 -mt-4 -mx-4 px-4 pt-4 pb-3 md:-mt-6 md:-mx-6 md:px-6 md:pt-6 border-b border-stone-200/60 dark:border-stone-800 flex flex-col gap-3 shadow-xs",
+                div { class: "flex justify-between items-center",
+                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Sales" }
+                    Button {
+                        onclick: move |_| {
+                            form_id.set(None);
+                            form_date.set(Utc::now().format("%Y-%m-%d").to_string());
+                            form_party_name.set(String::new());
+                            form_party_id.set(None);
+                            form_boxes.set(String::new());
+                            form_rate.set(String::new());
+                            form_received.set(String::new());
+                            form_error.set(String::new());
+                            is_sheet_open.set(true);
+                        },
+                        "Add Sale"
+                    }
+                }
+
+                Input {
+                    placeholder: "🔍 Search by party name or date...",
+                    value: "{search_query}",
+                    oninput: move |e: Event<FormData>| search_query.set(e.value())
+                }
+                MonthFilter {
+                    selected: selected_month(),
+                    onchange: move |m| selected_month.set(m)
                 }
             }
 
@@ -298,9 +348,9 @@ pub fn Sales() -> Element {
 
                 TabContent { value: "standard", index: 0usize,
                     match standard_sales.cloned() {
-                        Some(Ok(list)) if !list.is_empty() => rsx! {
+                        Some(Ok(_)) if !filtered_std.is_empty() => rsx! {
                             div { class: "flex flex-col gap-3 mt-4",
-                                for sale in list {
+                                for sale in filtered_std {
                                     Card { key: "{sale.id}",
                                         CardHeader {
                                             div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
@@ -368,8 +418,8 @@ pub fn Sales() -> Element {
                         Some(Ok(_)) => rsx! {
                             EmptyState {
                                 icon: "🥚",
-                                title: "No Standard Egg Sales",
-                                description: "No standard egg sales records found. Click 'Add Sale' above to record a sale."
+                                title: "No Standard Egg Sales Found",
+                                description: "No standard egg sales records match your search criteria or date filter."
                             }
                         },
                         Some(Err(err)) => rsx! {
@@ -381,9 +431,9 @@ pub fn Sales() -> Element {
 
                 TabContent { value: "broken", index: 1usize,
                     match broken_sales.cloned() {
-                        Some(Ok(list)) if !list.is_empty() => rsx! {
+                        Some(Ok(_)) if !filtered_broken.is_empty() => rsx! {
                             div { class: "flex flex-col gap-3 mt-4",
-                                for sale in list {
+                                for sale in filtered_broken {
                                     Card { key: "{sale.id}",
                                         CardHeader {
                                             div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
@@ -447,8 +497,8 @@ pub fn Sales() -> Element {
                         Some(Ok(_)) => rsx! {
                             EmptyState {
                                 icon: "🍳",
-                                title: "No Broken Egg Sales",
-                                description: "No broken egg sales records found. Click 'Add Sale' above to record a sale."
+                                title: "No Broken Egg Sales Found",
+                                description: "No broken egg sales records match your search criteria or date filter."
                             }
                         },
                         Some(Err(err)) => rsx! {

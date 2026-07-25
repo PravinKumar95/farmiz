@@ -90,11 +90,13 @@ pub fn AuthenticatedLayout() -> Element {
                     div { class: "p-4 text-xs text-gray-500 dark:text-gray-400", "Farmiz v0.1.0" }
                 }
             }
-            SidebarInset {
-                header { class: "flex h-14 items-center gap-4 border-b bg-white dark:bg-stone-900 px-4 lg:h-[60px]",
+            SidebarInset { class: "h-screen max-h-screen overflow-hidden flex flex-col",
+                header { class: "flex h-14 items-center gap-4 border-b bg-white dark:bg-stone-900 px-4 lg:h-[60px] shrink-0",
                     SidebarTrigger {}
                 }
-                main { class: "flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 text-gray-900 dark:text-gray-100", Outlet::<AuthenticatedRoute> {} }
+                main { class: "flex-1 overflow-y-auto p-4 md:p-6 text-gray-900 dark:text-gray-100 min-h-0",
+                    Outlet::<AuthenticatedRoute> {}
+                }
             }
         }
     }
