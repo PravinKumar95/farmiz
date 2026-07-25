@@ -31,7 +31,7 @@ pub fn Dashboard() -> Element {
             // Header
             div {
                 class: "w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
-                h1 { class: "text-2xl sm:text-3xl font-bold break-words", "🐔 Farmiz Dashboard" }
+                h1 { class: "text-2xl sm:text-3xl font-bold break-words text-gray-900 dark:text-gray-100", "🐔 Farmiz Dashboard" }
                 Button {
                     variant: ButtonVariant::Outline,
                     onclick: on_signout,
@@ -41,7 +41,7 @@ pub fn Dashboard() -> Element {
 
             // Welcome card
             Card {
-                class: "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-900/40 dark:to-indigo-900/40 dark:border-blue-800",
+                class: "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-stone-800/80 dark:to-stone-850/80 dark:border-stone-700",
                 CardContent {
                     class: "pt-6",
                     p { class: "text-gray-600 dark:text-gray-300 text-sm", "Welcome back," }

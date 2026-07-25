@@ -67,7 +67,7 @@ pub fn Labor() -> Element {
                 }
             }
             div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight", "Labor Management" }
+                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Labor Management" }
                 Button { 
                     onclick: move |_| {
                         form_id.set(None);

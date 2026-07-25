@@ -89,7 +89,7 @@ pub fn Purchases() -> Element {
                 }
             }
             div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight", "Material Purchases" }
+                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Material Purchases" }
                 Button { 
                     onclick: move |_| {
                         form_id.set(None);

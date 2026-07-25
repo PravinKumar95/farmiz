@@ -26,7 +26,7 @@ pub fn PartyDetail(id: String) -> Element {
                     onclick: move |_| { nav.go_back(); },
                     "← Back" 
                 }
-                h1 { class: "text-2xl font-bold tracking-tight", "{party_name} - Ledger" }
+                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "{party_name} - Ledger" }
             }
 
             Card { class: "mt-4",

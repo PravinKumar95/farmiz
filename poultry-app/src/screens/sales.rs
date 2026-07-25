@@ -146,7 +146,7 @@ pub fn Sales() -> Element {
             }
             
             div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight", "Sales" }
+                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Sales" }
                 Button { 
                     onclick: move |_| {
                         form_id.set(None);

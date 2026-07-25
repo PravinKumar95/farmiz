@@ -71,7 +71,7 @@ pub fn Parties() -> Element {
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
             div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight", "Parties Directory" }
+                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Parties Directory" }
                 Button { 
                     onclick: move |_| is_sheet_open.set(true),
                     "Add Party" 

@@ -68,3 +68,7 @@ html[data-theme="light"] [class~="dxc-system"] {
   --primary-info-color: var(--dark, var(--primary-color-5)) var(--light, var(--primary-color));
   --secondary-info-color: var(--dark, var(--primary-color-7)) var(--light, var(--secondary-color-3));
 }
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--secondary-color-1);
+}
