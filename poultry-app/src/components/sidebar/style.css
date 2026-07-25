@@ -278,6 +278,9 @@
   flex: 1 1 0%;
   flex-direction: column;
   background: var(--primary-color-1);
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 
 [data-variant="inset"]~.dx-sidebar-inset {

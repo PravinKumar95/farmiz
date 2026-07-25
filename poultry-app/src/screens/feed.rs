@@ -134,7 +134,7 @@ pub fn Feed() -> Element {
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
             // STICKY FILTER BAR AT TOP OF SCROLL CONTAINER
-            div { class: "sticky -top-4 md:-top-6 z-20 bg-white dark:bg-stone-900 -mt-4 -mx-4 px-4 pt-4 pb-3 md:-mt-6 md:-mx-6 md:px-6 md:pt-6 border-b border-stone-200/60 dark:border-stone-800 flex flex-col gap-3 shadow-xs",
+            div { class: "sticky top-0 z-20 bg-white dark:bg-stone-900 pt-2 pb-3 flex flex-col gap-3 border-b border-stone-200/60 dark:border-stone-800 shadow-xs",
                 div { class: "flex justify-between items-center",
                     h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Feed Mill Batches" }
                     Button {

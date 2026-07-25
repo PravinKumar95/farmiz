@@ -90,7 +90,7 @@ pub fn AuthenticatedLayout() -> Element {
                     div { class: "p-4 text-xs text-gray-500 dark:text-gray-400", "Farmiz v0.1.0" }
                 }
             }
-            SidebarInset { class: "h-screen max-h-screen overflow-hidden flex flex-col",
+            SidebarInset {
                 header { class: "flex h-14 items-center gap-4 border-b bg-white dark:bg-stone-900 px-4 lg:h-[60px] shrink-0",
                     SidebarTrigger {}
                 }
