@@ -159,8 +159,10 @@ pub fn Production() -> Element {
     let total_feed_today: f64 = filtered_records.iter().map(|r| r.feed_consumed_kg).sum();
 
     rsx! {
-        div { class: "flex flex-col gap-6 w-full max-w-6xl mx-auto pb-20",
-            div { class: "sticky top-0 z-10 bg-white dark:bg-stone-900 pt-1 pb-2 flex flex-col gap-3 -mx-4 px-4 sm:-mx-6 sm:px-6 border-b border-stone-200/60 dark:border-stone-800",
+        div { class: "flex flex-col h-full w-full min-h-0",
+
+            // SECTION 1: FIXED HEADER — does NOT scroll
+            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
                     div {
                         h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🥚 Daily Production & Flock Health Log" }
@@ -195,85 +197,91 @@ pub fn Production() -> Element {
                 }
             }
 
-            div { class: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full",
-                Card {
-                    CardContent {
-                        p { class: "text-2xl font-bold text-green-600 dark:text-green-400", "{total_good_today}" }
-                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Good Eggs Collected" }
-                    }
-                }
-                Card {
-                    CardContent {
-                        p { class: "text-2xl font-bold text-amber-600 dark:text-amber-400", "{total_damaged_today}" }
-                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Damaged / Crates Eggs" }
-                    }
-                }
-                Card {
-                    CardContent {
-                        p { class: "text-2xl font-bold text-red-600 dark:text-red-400", "{total_mortality_today}" }
-                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Total Mortality Count" }
-                    }
-                }
-                Card {
-                    CardContent {
-                        p { class: "text-2xl font-bold text-blue-600 dark:text-blue-400", "{total_feed_today:.1} kg" }
-                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Feed Consumed" }
-                    }
-                }
-            }
+            // SECTION 2: SCROLLABLE CONTENT
+            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
+                div { class: "flex flex-col gap-6 w-full max-w-6xl mx-auto pb-20",
 
-            match logs.cloned() {
-                Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
-                    Card {
-                        div { class: "overflow-x-auto",
-                            table { class: "w-full text-sm text-left",
-                                thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-border",
-                                    tr {
-                                        th { class: "px-6 py-3", "Date" }
-                                        th { class: "px-6 py-3", "Shed" }
-                                        th { class: "px-6 py-3 text-right", "Good Eggs" }
-                                        th { class: "px-6 py-3 text-right", "Damaged" }
-                                        th { class: "px-6 py-3 text-right", "Mortality" }
-                                        th { class: "px-6 py-3 text-right", "Feed (kg)" }
-                                        th { class: "px-6 py-3 text-right", "Actions" }
-                                    }
-                                }
-                                tbody { class: "divide-y divide-border",
-                                    for item in filtered_records {
-                                        tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800 transition-colors",
-                                            td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100", "{item.date}" }
-                                            td { class: "px-6 py-4 text-gray-600 dark:text-gray-300", "{item.shed_name}" }
-                                            td { class: "px-6 py-4 text-right font-semibold text-green-600 dark:text-green-400", "{item.egg_count_good}" }
-                                            td { class: "px-6 py-4 text-right text-amber-600 dark:text-amber-400", "{item.egg_count_damaged}" }
-                                            td { class: "px-6 py-4 text-right text-red-600 dark:text-red-400", "{item.mortality_count}" }
-                                            td { class: "px-6 py-4 text-right text-blue-600 dark:text-blue-400", "{item.feed_consumed_kg:.1}" }
-                                            td { class: "px-6 py-4 text-right flex items-center justify-end gap-2",
-                                                {
-                                                    let edit_item = item.clone();
-                                                    let del_id = item.id.clone();
-                                                    rsx! {
-                                                        Button {
-                                                            variant: ButtonVariant::Outline,
-                                                            onclick: move |_| {
-                                                                form_id.set(Some(edit_item.id.clone()));
-                                                                form_date.set(edit_item.date.clone());
-                                                                form_shed.set(edit_item.shed_name.clone());
-                                                                form_good.set(edit_item.egg_count_good.to_string());
-                                                                form_damaged.set(edit_item.egg_count_damaged.to_string());
-                                                                form_mortality.set(edit_item.mortality_count.to_string());
-                                                                form_cull.set(edit_item.cull_count.to_string());
-                                                                form_feed.set(edit_item.feed_consumed_kg.to_string());
-                                                                form_notes.set(edit_item.notes.clone().unwrap_or_default());
-                                                                is_sheet_open.set(true);
-                                                            },
-                                                            "Edit"
-                                                        }
-                                                        Button {
-                                                            variant: ButtonVariant::Destructive,
-                                                            onclick: move |_| {
-                                                                delete_id.set(Some(del_id.clone()));
-                                                            },
-                                                            "Delete"
+                    div { class: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full",
+                        Card {
+                            CardContent {
+                                p { class: "text-2xl font-bold text-green-600 dark:text-green-400", "{total_good_today}" }
+                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Good Eggs Collected" }
+                            }
+                        }
+                        Card {
+                            CardContent {
+                                p { class: "text-2xl font-bold text-amber-600 dark:text-amber-400", "{total_damaged_today}" }
+                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Damaged / Crates Eggs" }
+                            }
+                        }
+                        Card {
+                            CardContent {
+                                p { class: "text-2xl font-bold text-red-600 dark:text-red-400", "{total_mortality_today}" }
+                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Total Mortality Count" }
+                            }
+                        }
+                        Card {
+                            CardContent {
+                                p { class: "text-2xl font-bold text-blue-600 dark:text-blue-400", "{total_feed_today:.1} kg" }
+                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Feed Consumed" }
+                            }
+                        }
+                    }
+
+                    match logs.cloned() {
+                        Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
+                            Card {
+                                div { class: "overflow-x-auto",
+                                    table { class: "w-full text-sm text-left",
+                                        thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-border",
+                                            tr {
+                                                th { class: "px-6 py-3", "Date" }
+                                                th { class: "px-6 py-3", "Shed" }
+                                                th { class: "px-6 py-3 text-right", "Good Eggs" }
+                                                th { class: "px-6 py-3 text-right", "Damaged" }
+                                                th { class: "px-6 py-3 text-right", "Mortality" }
+                                                th { class: "px-6 py-3 text-right", "Feed (kg)" }
+                                                th { class: "px-6 py-3 text-right", "Actions" }
+                                            }
+                                        }
+                                        tbody { class: "divide-y divide-border",
+                                            for item in filtered_records {
+                                                tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800 transition-colors",
+                                                    td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100", "{item.date}" }
+                                                    td { class: "px-6 py-4 text-gray-600 dark:text-gray-300", "{item.shed_name}" }
+                                                    td { class: "px-6 py-4 text-right font-semibold text-green-600 dark:text-green-400", "{item.egg_count_good}" }
+                                                    td { class: "px-6 py-4 text-right text-amber-600 dark:text-amber-400", "{item.egg_count_damaged}" }
+                                                    td { class: "px-6 py-4 text-right text-red-600 dark:text-red-400", "{item.mortality_count}" }
+                                                    td { class: "px-6 py-4 text-right text-blue-600 dark:text-blue-400", "{item.feed_consumed_kg:.1}" }
+                                                    td { class: "px-6 py-4 text-right flex items-center justify-end gap-2",
+                                                        {
+                                                            let edit_item = item.clone();
+                                                            let del_id = item.id.clone();
+                                                            rsx! {
+                                                                Button {
+                                                                    variant: ButtonVariant::Outline,
+                                                                    onclick: move |_| {
+                                                                        form_id.set(Some(edit_item.id.clone()));
+                                                                        form_date.set(edit_item.date.clone());
+                                                                        form_shed.set(edit_item.shed_name.clone());
+                                                                        form_good.set(edit_item.egg_count_good.to_string());
+                                                                        form_damaged.set(edit_item.egg_count_damaged.to_string());
+                                                                        form_mortality.set(edit_item.mortality_count.to_string());
+                                                                        form_cull.set(edit_item.cull_count.to_string());
+                                                                        form_feed.set(edit_item.feed_consumed_kg.to_string());
+                                                                        form_notes.set(edit_item.notes.clone().unwrap_or_default());
+                                                                        is_sheet_open.set(true);
+                                                                    },
+                                                                    "Edit"
+                                                                }
+                                                                Button {
+                                                                    variant: ButtonVariant::Destructive,
+                                                                    onclick: move |_| {
+                                                                        delete_id.set(Some(del_id.clone()));
+                                                                    },
+                                                                    "Delete"
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -282,20 +290,28 @@ pub fn Production() -> Element {
                                     }
                                 }
                             }
-                        }
+                        },
+                        Some(Ok(_)) => rsx! {
+                            EmptyState {
+                                icon: "🥚",
+                                title: "No production records found",
+                                description: "No production logs match your search criteria or date filter."
+                            }
+                        },
+                        Some(Err(err)) => rsx! {
+                            ErrorState { message: err }
+                        },
+                        None => rsx! { LoadingState {} }
                     }
-                },
-                Some(Ok(_)) => rsx! {
-                    EmptyState {
-                        icon: "🥚",
-                        title: "No production records found",
-                        description: "No production logs match your search criteria or date filter."
+
+                    ConfirmDialog {
+                        is_open: delete_id().is_some(),
+                        title: "Delete Production Record".to_string(),
+                        description: "Are you sure you want to delete this production record? This action cannot be undone.".to_string(),
+                        onconfirm: confirm_delete,
+                        oncancel: move |_| delete_id.set(None)
                     }
-                },
-                Some(Err(err)) => rsx! {
-                    ErrorState { message: err }
-                },
-                None => rsx! { LoadingState {} }
+                }
             }
 
             if is_sheet_open() {
@@ -360,14 +376,6 @@ pub fn Production() -> Element {
                         }
                     }
                 }
-            }
-
-            ConfirmDialog {
-                is_open: delete_id().is_some(),
-                title: "Delete Production Record".to_string(),
-                description: "Are you sure you want to delete this production record? This action cannot be undone.".to_string(),
-                onconfirm: confirm_delete,
-                oncancel: move |_| delete_id.set(None)
             }
         }
     }
