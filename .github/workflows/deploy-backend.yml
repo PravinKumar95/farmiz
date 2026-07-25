@@ -1,0 +1,42 @@
+name: Deploy Backend to AWS Lambda
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "poultry-backend/**"
+      - ".github/workflows/deploy-backend.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    name: Build & Deploy Poultry Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Cargo Lambda
+        uses: cargo-lambda/cargo-lambda-action@v1
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Build Backend (ARM64 Release)
+        run: |
+          cargo lambda build --release --arm64 --package poultry-backend
+
+      - name: Deploy to AWS Lambda
+        working-directory: ./poultry-backend
+        run: |
+          cargo lambda deploy poultry-backend
