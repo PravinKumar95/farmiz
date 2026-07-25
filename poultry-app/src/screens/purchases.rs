@@ -150,8 +150,8 @@ pub fn Purchases() -> Element {
                 for purchase in purchases.cloned().unwrap_or_default() {
                     Card { key: "{purchase.id}",
                         CardHeader {
-                            div { class: "flex justify-between items-center text-sm",
-                                span { class: "text-gray-500 dark:text-gray-400", "{purchase.date}" }
+                            div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                span { "{purchase.date}" }
                                 div {
                                     class: if purchase.status == "PAID" {
                                         "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -163,26 +163,29 @@ pub fn Purchases() -> Element {
                             }
                         }
                         CardContent {
-                            div { class: "flex flex-col gap-1",
-                                div { class: "font-bold text-lg", "{purchase.material_name}" }
-                                div { class: "text-sm text-gray-500 dark:text-gray-400 flex justify-between",
-                                    span { "{purchase.party_name}" }
-                                    span { "{purchase.quantity_kg} KG @ ₹{purchase.rate_per_kg:.2}/KG" }
+                            div { class: "flex flex-col gap-3",
+                                div { class: "flex justify-between items-baseline",
+                                    span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{purchase.material_name}" }
+                                    span { class: "text-sm text-gray-500 dark:text-gray-400 font-medium", "{purchase.party_name}" }
+                                }
+                                div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                    div { class: "flex flex-col",
+                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity" }
+                                        span { class: "font-semibold text-gray-800 dark:text-gray-200", "{purchase.quantity_kg} KG @ ₹{purchase.rate_per_kg:.2}" }
+                                    }
+                                    div { class: "flex flex-col",
+                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance" }
+                                        span { class: "font-semibold text-green-600 dark:text-green-500", "₹{purchase.advance_paid:.2}" }
+                                    }
+                                    div { class: "flex flex-col items-end",
+                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
+                                        span { class: "font-semibold text-red-500", "₹{purchase.balance:.2}" }
+                                    }
                                 }
                             }
                         }
-                        CardFooter { class: "flex flex-col gap-4 w-full",
-                            div { class: "flex justify-between text-sm w-full",
-                                div { class: "flex flex-col",
-                                    span { class: "text-gray-500 dark:text-gray-400", "Advance" }
-                                    span { class: "font-medium text-green-600", "₹ {purchase.advance_paid:.2}" }
-                                }
-                                div { class: "flex flex-col items-end",
-                                    span { class: "text-gray-500 dark:text-gray-400", "Balance" }
-                                    span { class: "font-medium text-red-500", "₹ {purchase.balance:.2}" }
-                                }
-                            }
-                            div { class: "flex justify-end gap-2 w-full",
+                        CardFooter {
+                            div { class: "flex justify-end gap-2 w-full pt-1",
                                 {
                                     let edit_purchase = purchase.clone();
                                     let delete_id = purchase.id.clone();

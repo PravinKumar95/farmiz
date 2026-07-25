@@ -118,50 +118,57 @@ pub fn Labor() -> Element {
                 for record in records.cloned().unwrap_or_default() {
                     Card { key: "{record.id}",
                         CardHeader {
-                            div { class: "flex justify-between items-center text-sm",
-                                span { class: "text-gray-500 dark:text-gray-400", "{record.date}" }
-                                span { class: "font-semibold text-blue-600 dark:text-blue-400", "{record.employee_name}" }
+                            div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                span { "{record.date}" }
+                                span { class: "font-semibold text-blue-600 dark:text-blue-400", "Worker" }
                             }
                         }
                         CardContent {
-                            div { class: "flex justify-between items-center",
-                                div { class: "flex flex-col gap-1",
-                                    span { class: "text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider", "Attendance" }
-                                    span { class: "font-medium text-lg", "{record.attendance} Days" }
+                            div { class: "flex flex-col gap-3",
+                                div { class: "flex justify-between items-baseline",
+                                    span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{record.employee_name}" }
                                 }
-                                div { class: "flex flex-col gap-1 items-end",
-                                    span { class: "text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider", "Advance Given" }
-                                    span { class: "font-bold text-lg text-red-500", "₹ {record.advance_given:.2}" }
+                                div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                    div { class: "flex flex-col",
+                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Attendance" }
+                                        span { class: "font-semibold text-gray-800 dark:text-gray-200", "{record.attendance} Days" }
+                                    }
+                                    div { class: "flex flex-col items-end",
+                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance Given" }
+                                        span { class: "font-semibold text-red-500", "₹{record.advance_given:.2}" }
+                                    }
                                 }
                             }
                         }
-                        CardFooter { class: "flex justify-end gap-2 w-full text-sm",
-                            {
-                                let edit_record = record.clone();
-                                let delete_id = record.id.clone();
-                                rsx! {
-                                    Button {
-                                        variant: ButtonVariant::Outline,
-                                        onclick: move |_| {
-                                            form_id.set(Some(edit_record.id.clone()));
-                                            form_date.set(edit_record.date.clone());
-                                            form_employee.set(edit_record.employee_name.clone());
-                                            form_attendance.set(edit_record.attendance.to_string());
-                                            form_advance.set(edit_record.advance_given.to_string());
-                                            is_sheet_open.set(true);
-                                        },
-                                        "Edit"
-                                    }
-                                    Button {
-                                        variant: ButtonVariant::Outline,
-                                        onclick: move |_| {
-                                            let id = delete_id.clone();
-                                            spawn(async move {
-                                                let _ = api.delete(&format!("/api/labor/{}", id)).await;
-                                                records.restart();
-                                            });
-                                        },
-                                        "Delete"
+                        CardFooter {
+                            div { class: "flex justify-end gap-2 w-full pt-1",
+                                {
+                                    let edit_record = record.clone();
+                                    let delete_id = record.id.clone();
+                                    rsx! {
+                                        Button {
+                                            variant: ButtonVariant::Outline,
+                                            onclick: move |_| {
+                                                form_id.set(Some(edit_record.id.clone()));
+                                                form_date.set(edit_record.date.clone());
+                                                form_employee.set(edit_record.employee_name.clone());
+                                                form_attendance.set(edit_record.attendance.to_string());
+                                                form_advance.set(edit_record.advance_given.to_string());
+                                                is_sheet_open.set(true);
+                                            },
+                                            "Edit"
+                                        }
+                                        Button {
+                                            variant: ButtonVariant::Outline,
+                                            onclick: move |_| {
+                                                let id = delete_id.clone();
+                                                spawn(async move {
+                                                    let _ = api.delete(&format!("/api/labor/{}", id)).await;
+                                                    records.restart();
+                                                });
+                                            },
+                                            "Delete"
+                                        }
                                     }
                                 }
                             }

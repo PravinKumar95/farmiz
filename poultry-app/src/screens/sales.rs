@@ -213,32 +213,35 @@ pub fn Sales() -> Element {
                         for sale in standard_sales.cloned().unwrap_or_default() {
                             Card { key: "{sale.id}",
                                 CardHeader {
-                                    div { class: "flex justify-between items-center text-sm",
-                                        span { class: "text-gray-500 dark:text-gray-400", "{sale.date}" }
-                                        span { class: "font-semibold text-blue-600 dark:text-blue-400", "₹ {sale.total_amount:.2}" }
+                                    div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                        span { "{sale.date}" }
+                                        span { "Size: {sale.size}" }
                                     }
                                 }
                                 CardContent {
-                                    div { class: "flex flex-col gap-1",
-                                        div { class: "font-bold text-lg", "{sale.party_name}" }
-                                        div { class: "text-sm text-gray-500 dark:text-gray-400 flex justify-between",
-                                            span { "{sale.quantity_boxes} Boxes ({sale.total_eggs} eggs)" }
-                                            span { "Size: {sale.size}" }
+                                    div { class: "flex flex-col gap-3",
+                                        div { class: "flex justify-between items-baseline",
+                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{sale.party_name}" }
+                                            span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {sale.total_amount:.2}" }
+                                        }
+                                        div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                            div { class: "flex flex-col",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity" }
+                                                span { class: "font-semibold text-gray-800 dark:text-gray-200", "{sale.quantity_boxes} Boxes ({sale.total_eggs})" }
+                                            }
+                                            div { class: "flex flex-col",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Received" }
+                                                span { class: "font-semibold text-green-600 dark:text-green-500", "₹{sale.received_amount:.2}" }
+                                            }
+                                            div { class: "flex flex-col items-end",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
+                                                span { class: "font-semibold text-red-500", "₹{sale.balance:.2}" }
+                                            }
                                         }
                                     }
                                 }
-                                CardFooter { class: "flex flex-col gap-4 w-full",
-                                    div { class: "flex justify-between text-sm w-full",
-                                        div { class: "flex flex-col",
-                                            span { class: "text-gray-500 dark:text-gray-400", "Received" }
-                                            span { class: "font-medium text-green-600", "₹ {sale.received_amount:.2}" }
-                                        }
-                                        div { class: "flex flex-col items-end",
-                                            span { class: "text-gray-500 dark:text-gray-400", "Balance" }
-                                            span { class: "font-medium text-red-500", "₹ {sale.balance:.2}" }
-                                        }
-                                    }
-                                    div { class: "flex justify-end gap-2 w-full",
+                                CardFooter {
+                                    div { class: "flex justify-end gap-2 w-full pt-1",
                                         {
                                             let edit_sale = sale.clone();
                                             let delete_id = sale.id.clone();
@@ -281,31 +284,31 @@ pub fn Sales() -> Element {
                         for sale in broken_sales.cloned().unwrap_or_default() {
                             Card { key: "{sale.id}",
                                 CardHeader {
-                                    div { class: "flex justify-between items-center text-sm",
-                                        span { class: "text-gray-500 dark:text-gray-400", "{sale.date}" }
-                                        span { class: "font-semibold text-blue-600 dark:text-blue-400", "₹ {sale.amount:.2}" }
+                                    div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                        span { "{sale.date}" }
+                                        span { "{sale.trays_sold} Trays @ ₹{sale.rate:.2}" }
                                     }
                                 }
                                 CardContent {
-                                    div { class: "flex flex-col gap-1",
-                                        div { class: "font-bold text-lg", "{sale.bakery_name}" }
-                                        div { class: "text-sm text-gray-500 dark:text-gray-400",
-                                            "{sale.trays_sold} Trays @ ₹{sale.rate:.2}/tray"
+                                    div { class: "flex flex-col gap-3",
+                                        div { class: "flex justify-between items-baseline",
+                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{sale.bakery_name}" }
+                                            span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {sale.amount:.2}" }
+                                        }
+                                        div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                            div { class: "flex flex-col",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Received" }
+                                                span { class: "font-semibold text-green-600 dark:text-green-500", "₹{sale.payment_received:.2}" }
+                                            }
+                                            div { class: "flex flex-col items-end",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
+                                                span { class: "font-semibold text-red-500", "₹{sale.balance_amount:.2}" }
+                                            }
                                         }
                                     }
                                 }
-                                CardFooter { class: "flex flex-col gap-4 w-full",
-                                    div { class: "flex justify-between text-sm w-full",
-                                        div { class: "flex flex-col",
-                                            span { class: "text-gray-500 dark:text-gray-400", "Received" }
-                                            span { class: "font-medium text-green-600", "₹ {sale.payment_received:.2}" }
-                                        }
-                                        div { class: "flex flex-col items-end",
-                                            span { class: "text-gray-500 dark:text-gray-400", "Balance" }
-                                            span { class: "font-medium text-red-500", "₹ {sale.balance_amount:.2}" }
-                                        }
-                                    }
-                                    div { class: "flex justify-end gap-2 w-full",
+                                CardFooter {
+                                    div { class: "flex justify-end gap-2 w-full pt-1",
                                         {
                                             let edit_sale = sale.clone();
                                             let delete_id = sale.id.clone();

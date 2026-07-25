@@ -131,7 +131,7 @@ pub fn Parties() -> Element {
                             CardContent {
                                 div { class: "flex justify-between items-center",
                                     div { class: "flex flex-col",
-                                        span { class: "font-bold text-base", "{party.name}" }
+                                        span { class: "font-bold text-base text-gray-900 dark:text-gray-100", "{party.name}" }
                                         span { class: "text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider", "{party.party_type}" }
                                     }
                                     div { class: "flex flex-col items-end",
