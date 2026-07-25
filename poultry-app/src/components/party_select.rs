@@ -19,10 +19,17 @@ pub fn PartySelect(props: PartySelectProps) -> Element {
     let parties = parties_res.cloned().and_then(|r| r.ok()).unwrap_or_default();
 
     let filtered_parties: Vec<Party> = if let Some(ref f_type) = props.filter_type {
-        parties
-            .into_iter()
+        let matched: Vec<Party> = parties
+            .iter()
             .filter(|p| p.party_type.to_uppercase() == f_type.to_uppercase())
-            .collect()
+            .cloned()
+            .collect();
+        if matched.is_empty() {
+            // Fall back to showing all parties if no parties match the specific filter
+            parties
+        } else {
+            matched
+        }
     } else {
         parties
     };
