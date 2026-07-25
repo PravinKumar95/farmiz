@@ -131,10 +131,17 @@ pub fn Feed() -> Element {
         matches_month && matches_search
     }).collect();
 
+    // IMPORTANT: This component fills its parent flex container.
+    // Section 1 (shrink-0): Fixed header with title, search, month filter — NEVER scrolls.
+    // Section 2 (flex-1 overflow-y-auto): Scrollable card list — scrolls independently.
     rsx! {
-        div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20 relative",
-            // STICKY TOP FILTER BAR
-            div { class: "sticky top-0 z-20 bg-white dark:bg-stone-900 py-3 -mt-4 -mx-4 px-4 md:-mt-6 md:-mx-6 md:px-6 border-b border-stone-200/60 dark:border-stone-800 flex flex-col gap-3 shadow-xs",
+        // OUTER: fills parent, flex column, no overflow
+        div { class: "flex flex-col h-full w-full min-h-0",
+
+            // ══════════════════════════════════════════════
+            // SECTION 1: FIXED HEADER — does NOT scroll
+            // ══════════════════════════════════════════════
+            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex justify-between items-center",
                     h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Feed Mill Batches" }
                     Button {
@@ -164,80 +171,84 @@ pub fn Feed() -> Element {
                 }
             }
 
-            // CARDS LIST BODY (SCROLLS UNDERNEATH)
-            match batches.cloned() {
-                Some(Ok(_)) if !filtered_batches.is_empty() => rsx! {
-                    div { class: "flex flex-col gap-3 mt-2",
-                        for item in filtered_batches {
-                            Card { key: "{item.id}",
-                                CardHeader {
-                                    div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                        span { "{item.date}" }
-                                        span { "Batch: {item.batch_id}" }
-                                    }
-                                }
-                                CardContent {
-                                    div { class: "flex flex-col gap-3",
-                                        div { class: "flex justify-between items-baseline",
-                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.feed_type}" }
-                                            span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {item.total_amount:.2}" }
-                                        }
-                                        div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
-                                            div { class: "flex flex-col",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Payment" }
-                                                span { class: "font-semibold text-green-600 dark:text-green-500", "₹{item.payment:.2}" }
-                                            }
-                                            div { class: "flex flex-col items-end",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Closing Balance" }
-                                                span { class: "font-semibold text-red-500", "₹{item.closing_balance:.2}" }
-                                            }
+            // ══════════════════════════════════════════════
+            // SECTION 2: SCROLLABLE CARD LIST
+            // ══════════════════════════════════════════════
+            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
+                div { class: "flex flex-col gap-3 w-full max-w-2xl mx-auto pb-20",
+                    match batches.cloned() {
+                        Some(Ok(_)) if !filtered_batches.is_empty() => rsx! {
+                            for item in filtered_batches {
+                                Card { key: "{item.id}",
+                                    CardHeader {
+                                        div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                            span { "{item.date}" }
+                                            span { "Batch: {item.batch_id}" }
                                         }
                                     }
-                                }
-                                CardFooter {
-                                    div { class: "flex justify-end gap-2 w-full pt-1",
-                                        {
-                                            let edit_item = item.clone();
-                                            let del_id = item.id.clone();
-                                            rsx! {
-                                                Button {
-                                                    variant: ButtonVariant::Outline,
-                                                    onclick: move |_| {
-                                                        form_id.set(Some(edit_item.id.clone()));
-                                                        form_date.set(edit_item.date.clone());
-                                                        form_batch_id.set(edit_item.batch_id.clone());
-                                                        form_type.set(edit_item.feed_type.clone());
-                                                        form_rate.set(edit_item.rate.to_string());
-                                                        form_total.set(edit_item.total_amount.to_string());
-                                                        form_payment.set(edit_item.payment.to_string());
-                                                        is_sheet_open.set(true);
-                                                    },
-                                                    "Edit"
+                                    CardContent {
+                                        div { class: "flex flex-col gap-3",
+                                            div { class: "flex justify-between items-baseline",
+                                                span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.feed_type}" }
+                                                span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {item.total_amount:.2}" }
+                                            }
+                                            div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                                div { class: "flex flex-col",
+                                                    span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Payment" }
+                                                    span { class: "font-semibold text-green-600 dark:text-green-500", "₹{item.payment:.2}" }
                                                 }
-                                                Button {
-                                                    variant: ButtonVariant::Destructive,
-                                                    onclick: move |_| {
-                                                        delete_id.set(Some(del_id.clone()));
-                                                    },
-                                                    "Delete"
+                                                div { class: "flex flex-col items-end",
+                                                    span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Closing Balance" }
+                                                    span { class: "font-semibold text-red-500", "₹{item.closing_balance:.2}" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    CardFooter {
+                                        div { class: "flex justify-end gap-2 w-full pt-1",
+                                            {
+                                                let edit_item = item.clone();
+                                                let del_id = item.id.clone();
+                                                rsx! {
+                                                    Button {
+                                                        variant: ButtonVariant::Outline,
+                                                        onclick: move |_| {
+                                                            form_id.set(Some(edit_item.id.clone()));
+                                                            form_date.set(edit_item.date.clone());
+                                                            form_batch_id.set(edit_item.batch_id.clone());
+                                                            form_type.set(edit_item.feed_type.clone());
+                                                            form_rate.set(edit_item.rate.to_string());
+                                                            form_total.set(edit_item.total_amount.to_string());
+                                                            form_payment.set(edit_item.payment.to_string());
+                                                            is_sheet_open.set(true);
+                                                        },
+                                                        "Edit"
+                                                    }
+                                                    Button {
+                                                        variant: ButtonVariant::Destructive,
+                                                        onclick: move |_| {
+                                                            delete_id.set(Some(del_id.clone()));
+                                                        },
+                                                        "Delete"
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
+                        },
+                        Some(Ok(_)) => rsx! {
+                            EmptyState {
+                                icon: "🌾",
+                                title: "No Feed Batches Found",
+                                description: "No feed production batches match your search criteria or date filter."
+                            }
+                        },
+                        Some(Err(err)) => rsx! { ErrorState { message: err } },
+                        None => rsx! { LoadingState {} }
                     }
-                },
-                Some(Ok(_)) => rsx! {
-                    EmptyState {
-                        icon: "🌾",
-                        title: "No Feed Batches Found",
-                        description: "No feed production batches match your search criteria or date filter."
-                    }
-                },
-                Some(Err(err)) => rsx! { ErrorState { message: err } },
-                None => rsx! { LoadingState {} }
+                }
             }
 
             if is_sheet_open() {
