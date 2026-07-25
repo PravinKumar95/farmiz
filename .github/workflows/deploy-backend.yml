@@ -22,8 +22,11 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup Cargo Lambda
-        uses: cargo-lambda/cargo-lambda-action@v1
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+
+      - name: Install Cargo Lambda
+        run: cargo binstall cargo-lambda -y
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
