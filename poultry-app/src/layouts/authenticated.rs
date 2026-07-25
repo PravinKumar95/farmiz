@@ -29,6 +29,13 @@ pub fn AuthenticatedLayout() -> Element {
                                     }
                                 }
                                 SidebarMenuItem {
+                                    dioxus_router::components::Link { to: AuthenticatedRoute::Production {},
+                                        SidebarMenuButton {
+                                            span { "🥚 Production Log" }
+                                        }
+                                    }
+                                }
+                                SidebarMenuItem {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Sales {},
                                         SidebarMenuButton {
                                             span { "🥚 Sales" }

@@ -4,7 +4,7 @@
 
 # HTML title tag content
 title = "poultry-app"
-base_path = "farmiz"
+base_path = ""
 
 [ios]
 team_id = "P442DXTPTC"

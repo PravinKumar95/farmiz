@@ -5,6 +5,7 @@ pub struct EggSale {
     pub id: String,
     pub date: String,
     pub party_name: String,
+    pub party_id: Option<String>,
     pub quantity_boxes: i32,
     pub total_eggs: i32,
     pub size: String,
@@ -15,6 +16,7 @@ pub struct EggSale {
     pub received_amount: f64,
     pub payment_mode: String,
     pub balance: f64,
+    pub user_id: Option<String>,
     pub created_at: Option<String>,
 }
 
@@ -23,6 +25,7 @@ pub struct BrokenEggSale {
     pub id: String,
     pub date: String,
     pub bakery_name: String,
+    pub party_id: Option<String>,
     pub trays_sold: i32,
     pub rate: f64,
     pub amount: f64,
@@ -30,6 +33,7 @@ pub struct BrokenEggSale {
     pub return_trays: i32,
     pub empty_trays_balance: i32,
     pub balance_amount: f64,
+    pub user_id: Option<String>,
     pub created_at: Option<String>,
 }
 
@@ -39,12 +43,14 @@ pub struct MaterialPurchase {
     pub date: String,
     pub material_name: String,
     pub party_name: String,
+    pub party_id: Option<String>,
     pub quantity_kg: f64,
     pub rate_per_kg: f64,
     pub total_amount: f64,
     pub advance_paid: f64,
     pub status: String,
     pub balance: f64,
+    pub user_id: Option<String>,
     pub created_at: Option<String>,
 }
 
@@ -59,6 +65,7 @@ pub struct FeedBatch {
     pub payment: f64,
     pub opening_balance: f64,
     pub closing_balance: f64,
+    pub user_id: Option<String>,
     pub created_at: Option<String>,
 }
 
@@ -67,8 +74,10 @@ pub struct LaborRecord {
     pub id: String,
     pub date: String,
     pub employee_name: String,
+    pub employee_id: Option<String>,
     pub attendance: f64,
     pub advance_given: f64,
+    pub user_id: Option<String>,
     pub created_at: Option<String>,
 }
 
@@ -79,6 +88,7 @@ pub struct Employee {
     pub role: String,
     pub daily_wage: f64,
     pub current_balance: f64,
+    pub user_id: Option<String>,
     pub created_at: Option<String>,
 }
 
@@ -88,6 +98,22 @@ pub struct Party {
     pub name: String,
     pub party_type: String,
     pub current_balance: f64,
+    pub user_id: Option<String>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DailyProduction {
+    pub id: String,
+    pub date: String,
+    pub shed_name: String,
+    pub egg_count_good: i32,
+    pub egg_count_damaged: i32,
+    pub mortality_count: i32,
+    pub cull_count: i32,
+    pub feed_consumed_kg: f64,
+    pub notes: Option<String>,
+    pub user_id: Option<String>,
     pub created_at: Option<String>,
 }
 

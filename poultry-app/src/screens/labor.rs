@@ -1,45 +1,70 @@
 use dioxus::prelude::*;
+use chrono::Utc;
 
 use crate::components::button::{Button, ButtonVariant};
-use crate::components::card::{Card, CardContent, CardHeader, CardFooter};
-use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
+use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
+use crate::components::confirm_dialog::ConfirmDialog;
+use crate::components::employee_select::EmployeeSelect;
+use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::services::*;
+use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::LaborRecord;
-use crate::components::empty_state::{EmptyState, LoadingState, ErrorState};
+use crate::services::*;
 
 #[component]
 pub fn Labor() -> Element {
-    let employees = use_employees();
     let mut records = use_labor_records();
-    let api = crate::services::use_auth();
+    let api = use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
+    let mut delete_id = use_signal(|| Option::<String>::None);
     let mut form_id = use_signal(|| Option::<String>::None);
 
-    let mut form_date = use_signal(String::new);
-    let mut form_employee = use_signal(String::new);
-    let mut form_attendance = use_signal(String::new);
-    let mut form_advance = use_signal(String::new);
+    let today_str = Utc::now().format("%Y-%m-%d").to_string();
+    let mut form_date = use_signal(move || today_str.clone());
+    let mut form_employee_name = use_signal(String::new);
+    let mut form_employee_id = use_signal(|| Option::<String>::None);
+    let mut form_attendance = use_signal(|| "1.0".to_string());
+    let mut form_advance = use_signal(|| "0.0".to_string());
     let mut form_error = use_signal(String::new);
 
     let submit_handler = move |_| {
         let date = form_date().trim().to_string();
-        let employee = form_employee().trim().to_string();
-        
-        if date.is_empty() { form_error.set("Date required".to_string()); return; }
-        if employee.is_empty() { form_error.set("Employee name required".to_string()); return; }
-        
-        let attendance: f64 = match form_attendance().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid attendance".to_string()); return; } };
-        let advance: f64 = match form_advance().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid advance amount".to_string()); return; } };
-        
+        let employee = form_employee_name().trim().to_string();
+
+        if date.is_empty() {
+            form_error.set("Date required".to_string());
+            return;
+        }
+        if employee.is_empty() {
+            form_error.set("Employee selection required".to_string());
+            return;
+        }
+
+        let attendance: f64 = match form_attendance().parse() {
+            Ok(v) => v,
+            Err(_) => {
+                form_error.set("Invalid attendance".to_string());
+                return;
+            }
+        };
+        let advance: f64 = match form_advance().parse() {
+            Ok(v) => v,
+            Err(_) => {
+                form_error.set("Invalid advance amount".to_string());
+                return;
+            }
+        };
+
         let new_record = LaborRecord {
             id: form_id().unwrap_or_default(),
             date,
             employee_name: employee,
+            employee_id: form_employee_id(),
             attendance,
             advance_given: advance,
+            user_id: None,
             created_at: None,
         };
 
@@ -49,6 +74,7 @@ pub fn Labor() -> Element {
             } else {
                 api.post("/api/labor", &new_record).await
             };
+
             match res {
                 Ok(_) => {
                     is_sheet_open.set(false);
@@ -60,115 +86,78 @@ pub fn Labor() -> Element {
         });
     };
 
+    let confirm_delete = move |_| {
+        if let Some(id) = delete_id() {
+            spawn(async move {
+                if let Ok(_) = api.delete(&format!("/api/labor/{}", id)).await {
+                    delete_id.set(None);
+                    records.restart();
+                }
+            });
+        }
+    };
+
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
-            datalist { id: "employees-list",
-                for emp in employees.cloned().and_then(|r| r.ok()).unwrap_or_default() {
-                    option { value: "{emp.name}" }
-                }
-            }
             div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Labor Management" }
-                Button { 
+                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Labor & Attendance Log" }
+                Button {
                     onclick: move |_| {
                         form_id.set(None);
-                        form_date.set(String::new());
-                        form_employee.set(String::new());
-                        form_attendance.set(String::new());
-                        form_advance.set(String::new());
+                        form_date.set(Utc::now().format("%Y-%m-%d").to_string());
+                        form_employee_name.set(String::new());
+                        form_employee_id.set(None);
+                        form_attendance.set("1.0".to_string());
+                        form_advance.set("0.0".to_string());
+                        form_error.set(String::new());
                         is_sheet_open.set(true);
-                    }, 
-                    "Add Record" 
-                }
-            }
-
-            if is_sheet_open() {
-                Sheet {
-                    open: Some(is_sheet_open()),
-                    on_open_change: move |open| is_sheet_open.set(open),
-                    SheetHeader { SheetTitle { if form_id().is_some() { "Edit Labor Record" } else { "Add Labor Record" } } }
-                    div { class: "flex flex-col gap-4 px-6 py-4 overflow-y-auto max-h-[70vh]",
-                        if !form_error().is_empty() {
-                            div { class: "text-sm text-red-500 font-medium", "{form_error}" }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "date", "Date" }
-                            Input { value: "{form_date}", oninput: move |e: FormEvent| form_date.set(e.value()), placeholder: "YYYY-MM-DD" }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "emp", "Employee Name" }
-                            Input { list: "employees-list", value: "{form_employee}", oninput: move |e: FormEvent| form_employee.set(e.value()) }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "att", "Attendance (Days)" }
-                            Input { value: "{form_attendance}", oninput: move |e: FormEvent| form_attendance.set(e.value()), placeholder: "1.0" }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "adv", "Advance Given" }
-                            Input { value: "{form_advance}", oninput: move |e: FormEvent| form_advance.set(e.value()), placeholder: "0.00" }
-                        }
-                    }
-                    SheetFooter {
-                        Button { onclick: submit_handler, if form_id().is_some() { "Update Record" } else { "Save Record" } }
-                        Button { onclick: move |_| is_sheet_open.set(false), "Cancel" }
-                    }
+                    },
+                    "Add Record"
                 }
             }
 
             match records.cloned() {
-                Some(Ok(list)) if !list.is_empty() => rsx! {
+                Some(Ok(items)) if !items.is_empty() => rsx! {
                     div { class: "flex flex-col gap-3 mt-4",
-                        for record in list {
-                            Card { key: "{record.id}",
+                        for item in items {
+                            Card { key: "{item.id}",
                                 CardHeader {
                                     div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                        span { "{record.date}" }
-                                        span { class: "font-semibold text-blue-600 dark:text-blue-400", "Worker" }
+                                        span { "{item.date}" }
+                                        span { "Attendance: {item.attendance} Day(s)" }
                                     }
                                 }
                                 CardContent {
                                     div { class: "flex flex-col gap-3",
                                         div { class: "flex justify-between items-baseline",
-                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{record.employee_name}" }
-                                        }
-                                        div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
-                                            div { class: "flex flex-col",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Attendance" }
-                                                span { class: "font-semibold text-gray-800 dark:text-gray-200", "{record.attendance} Days" }
-                                            }
-                                            div { class: "flex flex-col items-end",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance Given" }
-                                                span { class: "font-semibold text-red-500", "₹{record.advance_given:.2}" }
-                                            }
+                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.employee_name}" }
+                                            span { class: "text-base font-bold text-amber-600 dark:text-amber-400", "Advance: ₹{item.advance_given:.2}" }
                                         }
                                     }
                                 }
                                 CardFooter {
                                     div { class: "flex justify-end gap-2 w-full pt-1",
                                         {
-                                            let edit_record = record.clone();
-                                            let delete_id = record.id.clone();
+                                            let edit_item = item.clone();
+                                            let del_id = item.id.clone();
                                             rsx! {
                                                 Button {
                                                     variant: ButtonVariant::Outline,
                                                     onclick: move |_| {
-                                                        form_id.set(Some(edit_record.id.clone()));
-                                                        form_date.set(edit_record.date.clone());
-                                                        form_employee.set(edit_record.employee_name.clone());
-                                                        form_attendance.set(edit_record.attendance.to_string());
-                                                        form_advance.set(edit_record.advance_given.to_string());
+                                                        form_id.set(Some(edit_item.id.clone()));
+                                                        form_date.set(edit_item.date.clone());
+                                                        form_employee_name.set(edit_item.employee_name.clone());
+                                                        form_employee_id.set(edit_item.employee_id.clone());
+                                                        form_attendance.set(edit_item.attendance.to_string());
+                                                        form_advance.set(edit_item.advance_given.to_string());
                                                         is_sheet_open.set(true);
                                                     },
                                                     "Edit"
                                                 }
                                                 Button {
-                                                    variant: ButtonVariant::Outline,
+                                                    variant: ButtonVariant::Destructive,
                                                     onclick: move |_| {
-                                                        let id = delete_id.clone();
-                                                        spawn(async move {
-                                                            let _ = api.delete(&format!("/api/labor/{}", id)).await;
-                                                            records.restart();
-                                                        });
+                                                        delete_id.set(Some(del_id.clone()));
                                                     },
                                                     "Delete"
                                                 }
@@ -184,18 +173,87 @@ pub fn Labor() -> Element {
                     EmptyState {
                         icon: "👥",
                         title: "No Labor Records",
-                        description: "No labor attendance or advance records found. Click 'Add Record' above to create one."
+                        description: "No labor/attendance records found. Click 'Add Record' above."
                     }
                 },
-                Some(Err(err)) => rsx! {
-                    ErrorState {
-                        message: err,
-                        on_retry: move |_| { records.restart(); }
+                Some(Err(err)) => rsx! { ErrorState { message: err } },
+                None => rsx! { LoadingState {} }
+            }
+
+            if is_sheet_open() {
+                Sheet {
+                    open: Some(is_sheet_open()),
+                    on_open_change: move |open| is_sheet_open.set(open),
+                    SheetHeader {
+                        SheetTitle { if form_id().is_some() { "Edit Labor Record" } else { "Log Labor & Advance" } }
                     }
-                },
-                None => rsx! {
-                    LoadingState {}
+                    div { class: "flex flex-col gap-4 py-4 px-6 overflow-y-auto max-h-[70vh]",
+                        if !form_error().is_empty() {
+                            div { class: "p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200", "{form_error}" }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "labor-date", "Date" }
+                            Input {
+                                r#type: "date",
+                                value: "{form_date}",
+                                oninput: move |e: Event<FormData>| form_date.set(e.value())
+                            }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "labor-emp", "Employee" }
+                            EmployeeSelect {
+                                value: form_employee_id().unwrap_or_else(|| form_employee_name()),
+                                onchange: move |(eid, ename): (String, String)| {
+                                    if !eid.is_empty() {
+                                        form_employee_id.set(Some(eid));
+                                    } else {
+                                        form_employee_id.set(None);
+                                    }
+                                    form_employee_name.set(ename);
+                                }
+                            }
+                        }
+                        div { class: "grid grid-cols-2 gap-4",
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "labor-att", "Attendance (Full/Half Day)" }
+                                Input {
+                                    r#type: "number",
+                                    step: "0.5",
+                                    value: "{form_attendance}",
+                                    oninput: move |e: Event<FormData>| form_attendance.set(e.value())
+                                }
+                            }
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "labor-adv", "Advance Given (₹)" }
+                                Input {
+                                    r#type: "number",
+                                    step: "1",
+                                    value: "{form_advance}",
+                                    oninput: move |e: Event<FormData>| form_advance.set(e.value())
+                                }
+                            }
+                        }
+                    }
+                    SheetFooter {
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            onclick: move |_| is_sheet_open.set(false),
+                            "Cancel"
+                        }
+                        Button {
+                            onclick: submit_handler,
+                            if form_id().is_some() { "Update Record" } else { "Save Record" }
+                        }
+                    }
                 }
+            }
+
+            ConfirmDialog {
+                is_open: delete_id().is_some(),
+                title: "Delete Labor Record".to_string(),
+                description: "Are you sure you want to delete this labor record? Employee balance will automatically update.".to_string(),
+                onconfirm: confirm_delete,
+                oncancel: move |_| delete_id.set(None)
             }
         }
     }

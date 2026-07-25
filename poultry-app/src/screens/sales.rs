@@ -1,28 +1,33 @@
 use dioxus::prelude::*;
+use chrono::Utc;
 
-use crate::components::button::Button;
+use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
-use crate::components::tabs::{TabContent, TabList, TabTrigger, Tabs};
-use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
+use crate::components::confirm_dialog::ConfirmDialog;
+use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
+use crate::components::party_select::PartySelect;
+use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
+use crate::components::tabs::{TabContent, TabList, TabTrigger, Tabs};
+use crate::models::{BrokenEggSale, EggSale};
 use crate::services::*;
-use crate::models::{EggSale, BrokenEggSale};
-use crate::components::button::ButtonVariant;
-use crate::components::empty_state::{EmptyState, LoadingState, ErrorState};
 
 #[component]
 pub fn Sales() -> Element {
-    let parties = use_parties();
     let mut active_tab = use_signal(|| Some("standard".to_string()));
     let mut standard_sales = use_egg_sales();
     let mut broken_sales = use_broken_egg_sales();
-    let api = crate::services::use_auth();
+    let api = use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
+    let mut delete_info = use_signal(|| Option::<(String, String)>::None);
+
     let mut form_id = use_signal(|| Option::<String>::None);
-    let mut form_date = use_signal(String::new);
-    let mut form_party = use_signal(String::new);
+    let today_str = Utc::now().format("%Y-%m-%d").to_string();
+    let mut form_date = use_signal(move || today_str.clone());
+    let mut form_party_name = use_signal(String::new);
+    let mut form_party_id = use_signal(|| Option::<String>::None);
     let mut form_boxes = use_signal(String::new);
     let mut form_rate = use_signal(String::new);
     let mut form_received = use_signal(String::new);
@@ -30,38 +35,48 @@ pub fn Sales() -> Element {
 
     let submit_handler = move |_| {
         let date = form_date().trim().to_string();
-        let party = form_party().trim().to_string();
-        
+        let party = form_party_name().trim().to_string();
+
         if date.is_empty() {
             form_error.set("Date is required.".to_string());
             return;
         }
         if party.len() < 2 {
-            form_error.set("Party name is required.".to_string());
+            form_error.set("Party is required.".to_string());
             return;
         }
-        
+
         if active_tab() == Some("standard".to_string()) {
             let boxes: i32 = match form_boxes().parse() {
                 Ok(b) => b,
-                Err(_) => { form_error.set("Invalid boxes count.".to_string()); return; }
+                Err(_) => {
+                    form_error.set("Invalid boxes count.".to_string());
+                    return;
+                }
             };
             let rate: f64 = match form_rate().parse() {
                 Ok(r) => r,
-                Err(_) => { form_error.set("Invalid rate.".to_string()); return; }
+                Err(_) => {
+                    form_error.set("Invalid rate.".to_string());
+                    return;
+                }
             };
             let received: f64 = match form_received().parse() {
                 Ok(r) => r,
-                Err(_) => { form_error.set("Invalid received amount.".to_string()); return; }
+                Err(_) => {
+                    form_error.set("Invalid received amount.".to_string());
+                    return;
+                }
             };
-            
+
             let total_eggs = boxes * 210;
-            let total_amount = (total_eggs as f64) * rate; // Simplified logic
-            
+            let total_amount = (total_eggs as f64) * rate;
+
             let new_sale = EggSale {
                 id: form_id().unwrap_or_default(),
                 date,
                 party_name: party,
+                party_id: form_party_id(),
                 quantity_boxes: boxes,
                 total_eggs,
                 size: "Mixed".to_string(),
@@ -72,6 +87,7 @@ pub fn Sales() -> Element {
                 received_amount: received,
                 payment_mode: "Cash".to_string(),
                 balance: total_amount - received,
+                user_id: None,
                 created_at: None,
             };
 
@@ -93,23 +109,33 @@ pub fn Sales() -> Element {
         } else {
             let trays: i32 = match form_boxes().parse() {
                 Ok(b) => b,
-                Err(_) => { form_error.set("Invalid trays count.".to_string()); return; }
+                Err(_) => {
+                    form_error.set("Invalid trays count.".to_string());
+                    return;
+                }
             };
             let rate: f64 = match form_rate().parse() {
                 Ok(r) => r,
-                Err(_) => { form_error.set("Invalid rate.".to_string()); return; }
+                Err(_) => {
+                    form_error.set("Invalid rate.".to_string());
+                    return;
+                }
             };
             let received: f64 = match form_received().parse() {
                 Ok(r) => r,
-                Err(_) => { form_error.set("Invalid received amount.".to_string()); return; }
+                Err(_) => {
+                    form_error.set("Invalid received amount.".to_string());
+                    return;
+                }
             };
-            
+
             let total_amount = (trays as f64) * rate;
-            
+
             let new_sale = BrokenEggSale {
                 id: form_id().unwrap_or_default(),
                 date,
                 bakery_name: party,
+                party_id: form_party_id(),
                 trays_sold: trays,
                 rate,
                 amount: total_amount,
@@ -117,6 +143,7 @@ pub fn Sales() -> Element {
                 return_trays: 0,
                 empty_trays_balance: 0,
                 balance_amount: total_amount - received,
+                user_id: None,
                 created_at: None,
             };
 
@@ -138,27 +165,40 @@ pub fn Sales() -> Element {
         }
     };
 
+    let confirm_delete = move |_| {
+        if let Some((id, s_type)) = delete_info() {
+            spawn(async move {
+                let endpoint = if s_type == "standard" {
+                    format!("/api/sales/egg/{}", id)
+                } else {
+                    format!("/api/sales/broken/{}", id)
+                };
+                if let Ok(_) = api.delete(&endpoint).await {
+                    delete_info.set(None);
+                    standard_sales.restart();
+                    broken_sales.restart();
+                }
+            });
+        }
+    };
+
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
-            datalist { id: "parties-list",
-                for party in parties.cloned().and_then(|r| r.ok()).unwrap_or_default() {
-                    option { value: "{party.name}" }
-                }
-            }
-            
             div { class: "flex justify-between items-center",
                 h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Sales" }
-                Button { 
+                Button {
                     onclick: move |_| {
                         form_id.set(None);
-                        form_date.set(String::new());
-                        form_party.set(String::new());
+                        form_date.set(Utc::now().format("%Y-%m-%d").to_string());
+                        form_party_name.set(String::new());
+                        form_party_id.set(None);
                         form_boxes.set(String::new());
                         form_rate.set(String::new());
                         form_received.set(String::new());
+                        form_error.set(String::new());
                         is_sheet_open.set(true);
                     },
-                    "Add Sale" 
+                    "Add Sale"
                 }
             }
 
@@ -167,36 +207,83 @@ pub fn Sales() -> Element {
                     open: Some(is_sheet_open()),
                     on_open_change: move |open| is_sheet_open.set(open),
                     SheetHeader {
-                        SheetTitle { if form_id().is_some() { "Edit Sale" } else if active_tab() == Some("standard".to_string()) { "Add Standard Egg Sale" } else { "Add Broken Egg Sale" } }
+                        SheetTitle {
+                            if form_id().is_some() {
+                                "Edit Sale"
+                            } else if active_tab() == Some("standard".to_string()) {
+                                "Add Standard Egg Sale"
+                            } else {
+                                "Add Broken Egg Sale"
+                            }
+                        }
                     }
-                    div { class: "flex flex-col gap-4 px-6 py-4 overflow-y-auto max-h-[70vh]",
+                    div { class: "flex flex-col gap-4 py-4 px-6 overflow-y-auto max-h-[70vh]",
                         if !form_error().is_empty() {
-                            div { class: "text-sm text-red-500 font-medium", "{form_error}" }
+                            div { class: "p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200", "{form_error}" }
                         }
                         div { class: "flex flex-col gap-2",
-                            Label { html_for: "date", "Date" }
-                            Input { value: "{form_date}", oninput: move |e: FormEvent| form_date.set(e.value()), placeholder: "YYYY-MM-DD" }
+                            Label { html_for: "sale-date", "Date" }
+                            Input {
+                                r#type: "date",
+                                value: "{form_date}",
+                                oninput: move |e: Event<FormData>| form_date.set(e.value())
+                            }
                         }
                         div { class: "flex flex-col gap-2",
-                            Label { html_for: "party", if active_tab() == Some("standard".to_string()) { "Party Name" } else { "Bakery Name" } }
-                            Input { list: "parties-list", value: "{form_party}", oninput: move |e: FormEvent| form_party.set(e.value()) }
+                            Label { html_for: "sale-party", if active_tab() == Some("standard".to_string()) { "Select Customer Party" } else { "Select Bakery Party" } }
+                            PartySelect {
+                                value: form_party_id().unwrap_or_else(|| form_party_name()),
+                                filter_type: if active_tab() == Some("standard".to_string()) { Some("CUSTOMER".to_string()) } else { Some("BAKERY".to_string()) },
+                                onchange: move |(pid, pname): (String, String)| {
+                                    if !pid.is_empty() {
+                                        form_party_id.set(Some(pid));
+                                    } else {
+                                        form_party_id.set(None);
+                                    }
+                                    form_party_name.set(pname);
+                                }
+                            }
                         }
                         div { class: "flex flex-col gap-2",
-                            Label { html_for: "qty", if active_tab() == Some("standard".to_string()) { "Boxes" } else { "Trays" } }
-                            Input { value: "{form_boxes}", oninput: move |e: FormEvent| form_boxes.set(e.value()), placeholder: "0" }
+                            Label { html_for: "sale-boxes", if active_tab() == Some("standard".to_string()) { "Boxes" } else { "Trays" } }
+                            Input {
+                                r#type: "number",
+                                value: "{form_boxes}",
+                                oninput: move |e: Event<FormData>| form_boxes.set(e.value()),
+                                placeholder: "0"
+                            }
                         }
                         div { class: "flex flex-col gap-2",
-                            Label { html_for: "rate", "Rate" }
-                            Input { value: "{form_rate}", oninput: move |e: FormEvent| form_rate.set(e.value()), placeholder: "0.00" }
+                            Label { html_for: "sale-rate", "Rate" }
+                            Input {
+                                r#type: "number",
+                                step: "0.01",
+                                value: "{form_rate}",
+                                oninput: move |e: Event<FormData>| form_rate.set(e.value()),
+                                placeholder: "0.00"
+                            }
                         }
                         div { class: "flex flex-col gap-2",
-                            Label { html_for: "received", "Received Amount" }
-                            Input { value: "{form_received}", oninput: move |e: FormEvent| form_received.set(e.value()), placeholder: "0.00" }
+                            Label { html_for: "sale-received", "Received Amount" }
+                            Input {
+                                r#type: "number",
+                                step: "0.01",
+                                value: "{form_received}",
+                                oninput: move |e: Event<FormData>| form_received.set(e.value()),
+                                placeholder: "0.00"
+                            }
                         }
                     }
                     SheetFooter {
-                        Button { onclick: submit_handler, if form_id().is_some() { "Update Sale" } else { "Save Sale" } }
-                        Button { onclick: move |_| is_sheet_open.set(false), "Cancel" }
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            onclick: move |_| is_sheet_open.set(false),
+                            "Cancel"
+                        }
+                        Button {
+                            onclick: submit_handler,
+                            if form_id().is_some() { "Update Sale" } else { "Save Sale" }
+                        }
                     }
                 }
             }
@@ -254,7 +341,8 @@ pub fn Sales() -> Element {
                                                             onclick: move |_| {
                                                                 form_id.set(Some(edit_sale.id.clone()));
                                                                 form_date.set(edit_sale.date.clone());
-                                                                form_party.set(edit_sale.party_name.clone());
+                                                                form_party_name.set(edit_sale.party_name.clone());
+                                                                form_party_id.set(edit_sale.party_id.clone());
                                                                 form_boxes.set(edit_sale.quantity_boxes.to_string());
                                                                 form_rate.set(edit_sale.gross_rate.to_string());
                                                                 form_received.set(edit_sale.received_amount.to_string());
@@ -263,13 +351,9 @@ pub fn Sales() -> Element {
                                                             "Edit"
                                                         }
                                                         Button {
-                                                            variant: ButtonVariant::Outline,
+                                                            variant: ButtonVariant::Destructive,
                                                             onclick: move |_| {
-                                                                let id = delete_id.clone();
-                                                                spawn(async move {
-                                                                    let _ = api.delete(&format!("/api/sales/egg/{}", id)).await;
-                                                                    standard_sales.restart();
-                                                                });
+                                                                delete_info.set(Some((delete_id.clone(), "standard".to_string())));
                                                             },
                                                             "Delete"
                                                         }
@@ -289,14 +373,9 @@ pub fn Sales() -> Element {
                             }
                         },
                         Some(Err(err)) => rsx! {
-                            ErrorState {
-                                message: err,
-                                on_retry: move |_| { standard_sales.restart(); }
-                            }
+                            ErrorState { message: err }
                         },
-                        None => rsx! {
-                            LoadingState {}
-                        }
+                        None => rsx! { LoadingState {} }
                     }
                 }
 
@@ -341,7 +420,8 @@ pub fn Sales() -> Element {
                                                             onclick: move |_| {
                                                                 form_id.set(Some(edit_sale.id.clone()));
                                                                 form_date.set(edit_sale.date.clone());
-                                                                form_party.set(edit_sale.bakery_name.clone());
+                                                                form_party_name.set(edit_sale.bakery_name.clone());
+                                                                form_party_id.set(edit_sale.party_id.clone());
                                                                 form_boxes.set(edit_sale.trays_sold.to_string());
                                                                 form_rate.set(edit_sale.rate.to_string());
                                                                 form_received.set(edit_sale.payment_received.to_string());
@@ -350,13 +430,9 @@ pub fn Sales() -> Element {
                                                             "Edit"
                                                         }
                                                         Button {
-                                                            variant: ButtonVariant::Outline,
+                                                            variant: ButtonVariant::Destructive,
                                                             onclick: move |_| {
-                                                                let id = delete_id.clone();
-                                                                spawn(async move {
-                                                                    let _ = api.delete(&format!("/api/sales/broken/{}", id)).await;
-                                                                    broken_sales.restart();
-                                                                });
+                                                                delete_info.set(Some((delete_id.clone(), "broken".to_string())));
                                                             },
                                                             "Delete"
                                                         }
@@ -376,16 +452,19 @@ pub fn Sales() -> Element {
                             }
                         },
                         Some(Err(err)) => rsx! {
-                            ErrorState {
-                                message: err,
-                                on_retry: move |_| { broken_sales.restart(); }
-                            }
+                            ErrorState { message: err }
                         },
-                        None => rsx! {
-                            LoadingState {}
-                        }
+                        None => rsx! { LoadingState {} }
                     }
                 }
+            }
+
+            ConfirmDialog {
+                is_open: delete_info().is_some(),
+                title: "Delete Sale Record".to_string(),
+                description: "Are you sure you want to delete this sale record? The party ledger balance will automatically update.".to_string(),
+                onconfirm: confirm_delete,
+                oncancel: move |_| delete_info.set(None)
             }
         }
     }

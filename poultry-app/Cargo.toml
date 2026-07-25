@@ -15,6 +15,7 @@ serde_json = "1.0.150"
 dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1", default-features = false }
 dirs = "6.0.0"
 dioxus-icons = { version = "0.1.0", default-features = false }
+chrono = { version = "0.4.40", features = ["serde"] }
 
 [features]
 default = ["web"]

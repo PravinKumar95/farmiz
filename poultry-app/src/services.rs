@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_sdk::storage::{use_storage, LocalStorage};
 use crate::models::{
-    BrokenEggSale, EggSale, FeedBatch, LaborRecord, MaterialPurchase, Party, Employee
+    BrokenEggSale, DailyProduction, EggSale, Employee, FeedBatch, LaborRecord, MaterialPurchase, Party,
 };
 
 const BACKEND_URL: &str = match option_env!("BACKEND_URL") {
@@ -285,3 +285,14 @@ pub fn use_party_ledger(party_id: String) -> Resource<Result<Vec<crate::models::
         }
     })
 }
+
+pub fn use_daily_production() -> Resource<Result<Vec<DailyProduction>, String>> {
+    let auth = use_auth();
+    use_resource(move || {
+        let auth = auth;
+        async move {
+            auth.get::<Vec<DailyProduction>>("/api/production").await
+        }
+    })
+}
+

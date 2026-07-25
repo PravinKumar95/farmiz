@@ -4680,6 +4680,7 @@ dependencies = [
 name = "poultry-app"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "dioxus",
  "dioxus-icons",
  "dioxus-primitives",

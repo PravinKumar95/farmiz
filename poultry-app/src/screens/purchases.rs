@@ -1,26 +1,31 @@
 use dioxus::prelude::*;
+use chrono::Utc;
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
-use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
+use crate::components::confirm_dialog::ConfirmDialog;
+use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::services::*;
+use crate::components::party_select::PartySelect;
+use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::MaterialPurchase;
-use crate::components::empty_state::{EmptyState, LoadingState, ErrorState};
+use crate::services::*;
 
 #[component]
 pub fn Purchases() -> Element {
-    let parties = use_parties();
     let mut purchases = use_material_purchases();
-    let api = crate::services::use_auth();
+    let api = use_auth();
     let mut is_sheet_open = use_signal(|| false);
 
+    let mut delete_id = use_signal(|| Option::<String>::None);
     let mut form_id = use_signal(|| Option::<String>::None);
 
-    let mut form_date = use_signal(String::new);
+    let today_str = Utc::now().format("%Y-%m-%d").to_string();
+    let mut form_date = use_signal(move || today_str.clone());
     let mut form_material = use_signal(String::new);
-    let mut form_party = use_signal(String::new);
+    let mut form_party_name = use_signal(String::new);
+    let mut form_party_id = use_signal(|| Option::<String>::None);
     let mut form_qty = use_signal(String::new);
     let mut form_rate = use_signal(String::new);
     let mut form_advance = use_signal(String::new);
@@ -29,48 +34,69 @@ pub fn Purchases() -> Element {
     let submit_handler = move |_| {
         let date = form_date().trim().to_string();
         let material = form_material().trim().to_string();
-        let party = form_party().trim().to_string();
-        
-        if date.is_empty() { form_error.set("Date required".to_string()); return; }
-        if material.is_empty() { form_error.set("Material required".to_string()); return; }
-        if party.is_empty() { form_error.set("Party required".to_string()); return; }
-        
+        let party = form_party_name().trim().to_string();
+
+        if date.is_empty() {
+            form_error.set("Date is required.".to_string());
+            return;
+        }
+        if material.is_empty() {
+            form_error.set("Material name is required.".to_string());
+            return;
+        }
+        if party.is_empty() {
+            form_error.set("Supplier party is required.".to_string());
+            return;
+        }
+
         let qty: f64 = match form_qty().parse() {
             Ok(v) => v,
-            Err(_) => { form_error.set("Invalid quantity".to_string()); return; }
+            Err(_) => {
+                form_error.set("Invalid quantity.".to_string());
+                return;
+            }
         };
         let rate: f64 = match form_rate().parse() {
             Ok(v) => v,
-            Err(_) => { form_error.set("Invalid rate".to_string()); return; }
+            Err(_) => {
+                form_error.set("Invalid rate.".to_string());
+                return;
+            }
         };
         let advance: f64 = match form_advance().parse() {
             Ok(v) => v,
-            Err(_) => { form_error.set("Invalid advance amount".to_string()); return; }
+            Err(_) => {
+                form_error.set("Invalid advance amount.".to_string());
+                return;
+            }
         };
-        
+
         let total_amount = qty * rate;
         let status = if advance >= total_amount { "PAID" } else { "PENDING" };
-        
-        let new_record = MaterialPurchase {
+
+        let record = MaterialPurchase {
             id: form_id().unwrap_or_default(),
             date,
             material_name: material,
             party_name: party,
+            party_id: form_party_id(),
             quantity_kg: qty,
             rate_per_kg: rate,
             total_amount,
             advance_paid: advance,
             status: status.to_string(),
             balance: total_amount - advance,
+            user_id: None,
             created_at: None,
         };
 
         spawn(async move {
             let res = if let Some(id) = form_id() {
-                api.put(&format!("/api/purchases/{}", id), &new_record).await
+                api.put(&format!("/api/purchases/{}", id), &record).await
             } else {
-                api.post("/api/purchases", &new_record).await
+                api.post("/api/purchases", &record).await
             };
+
             match res {
                 Ok(_) => {
                     is_sheet_open.set(false);
@@ -82,107 +108,70 @@ pub fn Purchases() -> Element {
         });
     };
 
+    let confirm_delete = move |_| {
+        if let Some(id) = delete_id() {
+            spawn(async move {
+                if let Ok(_) = api.delete(&format!("/api/purchases/{}", id)).await {
+                    delete_id.set(None);
+                    purchases.restart();
+                }
+            });
+        }
+    };
+
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
-            datalist { id: "parties-list",
-                for party in parties.cloned().and_then(|r| r.ok()).unwrap_or_default() {
-                    option { value: "{party.name}" }
-                }
-            }
             div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Material Purchases" }
-                Button { 
+                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Purchases" }
+                Button {
                     onclick: move |_| {
                         form_id.set(None);
-                        form_date.set(String::new());
+                        form_date.set(Utc::now().format("%Y-%m-%d").to_string());
                         form_material.set(String::new());
-                        form_party.set(String::new());
+                        form_party_name.set(String::new());
+                        form_party_id.set(None);
                         form_qty.set(String::new());
                         form_rate.set(String::new());
                         form_advance.set(String::new());
+                        form_error.set(String::new());
                         is_sheet_open.set(true);
                     },
-                    "Add Purchase" 
-                }
-            }
-
-            if is_sheet_open() {
-                Sheet {
-                    open: Some(is_sheet_open()),
-                    on_open_change: move |open| is_sheet_open.set(open),
-                    SheetHeader { SheetTitle { if form_id().is_some() { "Edit Material Purchase" } else { "Add Material Purchase" } } }
-                    div { class: "flex flex-col gap-4 px-6 py-4 overflow-y-auto max-h-[70vh]",
-                        if !form_error().is_empty() {
-                            div { class: "text-sm text-red-500 font-medium", "{form_error}" }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "date", "Date" }
-                            Input { value: "{form_date}", oninput: move |e: FormEvent| form_date.set(e.value()), placeholder: "YYYY-MM-DD" }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "material", "Material Name" }
-                            Input { value: "{form_material}", oninput: move |e: FormEvent| form_material.set(e.value()) }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "party", "Party Name" }
-                            Input { list: "parties-list", value: "{form_party}", oninput: move |e: FormEvent| form_party.set(e.value()) }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "qty", "Quantity (KG)" }
-                            Input { value: "{form_qty}", oninput: move |e: FormEvent| form_qty.set(e.value()), placeholder: "0.00" }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "rate", "Rate per KG" }
-                            Input { value: "{form_rate}", oninput: move |e: FormEvent| form_rate.set(e.value()), placeholder: "0.00" }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "advance", "Advance Paid" }
-                            Input { value: "{form_advance}", oninput: move |e: FormEvent| form_advance.set(e.value()), placeholder: "0.00" }
-                        }
-                    }
-                    SheetFooter {
-                        Button { onclick: submit_handler, if form_id().is_some() { "Update Purchase" } else { "Save Purchase" } }
-                        Button { onclick: move |_| is_sheet_open.set(false), "Cancel" }
-                    }
+                    "Add Purchase"
                 }
             }
 
             match purchases.cloned() {
-                Some(Ok(list)) if !list.is_empty() => rsx! {
+                Some(Ok(items)) if !items.is_empty() => rsx! {
                     div { class: "flex flex-col gap-3 mt-4",
-                        for purchase in list {
-                            Card { key: "{purchase.id}",
+                        for item in items {
+                            Card { key: "{item.id}",
                                 CardHeader {
                                     div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                        span { "{purchase.date}" }
-                                        div {
-                                            class: if purchase.status == "PAID" {
-                                                "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full text-xs font-semibold"
-                                            } else {
-                                                "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full text-xs font-semibold"
-                                            },
-                                            "{purchase.status}"
-                                        }
+                                        span { "{item.date}" }
+                                        span { class: if item.status == "PAID" { "text-green-600 dark:text-green-400 font-semibold" } else { "text-amber-600 dark:text-amber-400 font-semibold" }, "{item.status}" }
                                     }
                                 }
                                 CardContent {
                                     div { class: "flex flex-col gap-3",
                                         div { class: "flex justify-between items-baseline",
-                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{purchase.material_name}" }
-                                            span { class: "text-sm text-gray-500 dark:text-gray-400 font-medium", "{purchase.party_name}" }
+                                            div { class: "flex flex-col",
+                                                span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.material_name}" }
+                                                span { class: "text-xs text-gray-500 dark:text-gray-400", "Supplier: {item.party_name}" }
+                                            }
+                                            span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {item.total_amount:.2}" }
                                         }
                                         div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
                                             div { class: "flex flex-col",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity" }
-                                                span { class: "font-semibold text-gray-800 dark:text-gray-200", "{purchase.quantity_kg} KG @ ₹{purchase.rate_per_kg:.2}" }
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity (kg)" }
+                                                span { class: "font-semibold text-gray-800 dark:text-gray-200", "{item.quantity_kg:.1} kg @ ₹{item.rate_per_kg:.2}" }
                                             }
                                             div { class: "flex flex-col",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance" }
-                                                span { class: "font-semibold text-green-600 dark:text-green-500", "₹{purchase.advance_paid:.2}" }
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance Paid" }
+                                                span { class: "font-semibold text-green-600 dark:text-green-500", "₹{item.advance_paid:.2}" }
                                             }
                                             div { class: "flex flex-col items-end",
                                                 span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
-                                                span { class: "font-semibold text-red-500", "₹{purchase.balance:.2}" }
+                                                span { class: "font-semibold text-red-500", "₹{item.balance:.2}" }
                                             }
                                         }
                                     }
@@ -190,31 +179,28 @@ pub fn Purchases() -> Element {
                                 CardFooter {
                                     div { class: "flex justify-end gap-2 w-full pt-1",
                                         {
-                                            let edit_purchase = purchase.clone();
-                                            let delete_id = purchase.id.clone();
+                                            let edit_item = item.clone();
+                                            let del_id = item.id.clone();
                                             rsx! {
                                                 Button {
                                                     variant: ButtonVariant::Outline,
                                                     onclick: move |_| {
-                                                        form_id.set(Some(edit_purchase.id.clone()));
-                                                        form_date.set(edit_purchase.date.clone());
-                                                        form_material.set(edit_purchase.material_name.clone());
-                                                        form_party.set(edit_purchase.party_name.clone());
-                                                        form_qty.set(edit_purchase.quantity_kg.to_string());
-                                                        form_rate.set(edit_purchase.rate_per_kg.to_string());
-                                                        form_advance.set(edit_purchase.advance_paid.to_string());
+                                                        form_id.set(Some(edit_item.id.clone()));
+                                                        form_date.set(edit_item.date.clone());
+                                                        form_material.set(edit_item.material_name.clone());
+                                                        form_party_name.set(edit_item.party_name.clone());
+                                                        form_party_id.set(edit_item.party_id.clone());
+                                                        form_qty.set(edit_item.quantity_kg.to_string());
+                                                        form_rate.set(edit_item.rate_per_kg.to_string());
+                                                        form_advance.set(edit_item.advance_paid.to_string());
                                                         is_sheet_open.set(true);
                                                     },
                                                     "Edit"
                                                 }
                                                 Button {
-                                                    variant: ButtonVariant::Outline,
+                                                    variant: ButtonVariant::Destructive,
                                                     onclick: move |_| {
-                                                        let id = delete_id.clone();
-                                                        spawn(async move {
-                                                            let _ = api.delete(&format!("/api/purchases/{}", id)).await;
-                                                            purchases.restart();
-                                                        });
+                                                        delete_id.set(Some(del_id.clone()));
                                                     },
                                                     "Delete"
                                                 }
@@ -230,18 +216,108 @@ pub fn Purchases() -> Element {
                     EmptyState {
                         icon: "🛒",
                         title: "No Material Purchases",
-                        description: "No purchase records found. Click 'Add Material Purchase' above to add a new purchase."
+                        description: "No purchase records found. Click 'Add Purchase' above to log raw material purchases."
                     }
                 },
-                Some(Err(err)) => rsx! {
-                    ErrorState {
-                        message: err,
-                        on_retry: move |_| { purchases.restart(); }
+                Some(Err(err)) => rsx! { ErrorState { message: err } },
+                None => rsx! { LoadingState {} }
+            }
+
+            if is_sheet_open() {
+                Sheet {
+                    open: Some(is_sheet_open()),
+                    on_open_change: move |open| is_sheet_open.set(open),
+                    SheetHeader {
+                        SheetTitle { if form_id().is_some() { "Edit Purchase Record" } else { "Add Material Purchase" } }
                     }
-                },
-                None => rsx! {
-                    LoadingState {}
+                    div { class: "flex flex-col gap-4 py-4 px-6 overflow-y-auto max-h-[70vh]",
+                        if !form_error().is_empty() {
+                            div { class: "p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200", "{form_error}" }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "pur-date", "Date" }
+                            Input {
+                                r#type: "date",
+                                value: "{form_date}",
+                                oninput: move |e: Event<FormData>| form_date.set(e.value())
+                            }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "pur-material", "Material Name" }
+                            Input {
+                                placeholder: "e.g. Maize, Soya DOC, Medicine",
+                                value: "{form_material}",
+                                oninput: move |e: Event<FormData>| form_material.set(e.value())
+                            }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "pur-party", "Supplier Party" }
+                            PartySelect {
+                                value: form_party_id().unwrap_or_else(|| form_party_name()),
+                                filter_type: Some("SUPPLIER".to_string()),
+                                onchange: move |(pid, pname): (String, String)| {
+                                    if !pid.is_empty() {
+                                        form_party_id.set(Some(pid));
+                                    } else {
+                                        form_party_id.set(None);
+                                    }
+                                    form_party_name.set(pname);
+                                }
+                            }
+                        }
+                        div { class: "grid grid-cols-2 gap-4",
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "pur-qty", "Quantity (KG)" }
+                                Input {
+                                    r#type: "number",
+                                    step: "0.1",
+                                    value: "{form_qty}",
+                                    oninput: move |e: Event<FormData>| form_qty.set(e.value()),
+                                    placeholder: "0.0"
+                                }
+                            }
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "pur-rate", "Rate per KG" }
+                                Input {
+                                    r#type: "number",
+                                    step: "0.01",
+                                    value: "{form_rate}",
+                                    oninput: move |e: Event<FormData>| form_rate.set(e.value()),
+                                    placeholder: "0.00"
+                                }
+                            }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "pur-advance", "Advance Paid" }
+                            Input {
+                                r#type: "number",
+                                step: "0.01",
+                                value: "{form_advance}",
+                                oninput: move |e: Event<FormData>| form_advance.set(e.value()),
+                                placeholder: "0.00"
+                            }
+                        }
+                    }
+                    SheetFooter {
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            onclick: move |_| is_sheet_open.set(false),
+                            "Cancel"
+                        }
+                        Button {
+                            onclick: submit_handler,
+                            if form_id().is_some() { "Update Purchase" } else { "Save Purchase" }
+                        }
+                    }
                 }
+            }
+
+            ConfirmDialog {
+                is_open: delete_id().is_some(),
+                title: "Delete Purchase Record".to_string(),
+                description: "Are you sure you want to delete this purchase record? Supplier balance will automatically update.".to_string(),
+                onconfirm: confirm_delete,
+                oncancel: move |_| delete_id.set(None)
             }
         }
     }
