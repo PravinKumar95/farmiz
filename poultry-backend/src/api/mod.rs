@@ -11,7 +11,7 @@ pub mod purchases;
 pub mod sales;
 
 use axum::{
-    routing::{get, post, put},
+    routing::{get, put},
     Router,
 };
 use sqlx::PgPool;
