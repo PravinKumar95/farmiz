@@ -195,93 +195,93 @@ impl AuthSession {
 
 // Helpers for the `use_resource` hooks (since they run in components, they just use AuthSession)
 
-pub fn use_egg_sales() -> Resource<Vec<EggSale>> {
+pub fn use_egg_sales() -> Resource<Result<Vec<EggSale>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<EggSale>>("/api/sales/egg").await.unwrap_or_default()
+            auth.get::<Vec<EggSale>>("/api/sales/egg").await
         }
     })
 }
 
-pub fn use_broken_egg_sales() -> Resource<Vec<BrokenEggSale>> {
+pub fn use_broken_egg_sales() -> Resource<Result<Vec<BrokenEggSale>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<BrokenEggSale>>("/api/sales/broken").await.unwrap_or_default()
+            auth.get::<Vec<BrokenEggSale>>("/api/sales/broken").await
         }
     })
 }
 
-pub fn use_material_purchases() -> Resource<Vec<MaterialPurchase>> {
+pub fn use_material_purchases() -> Resource<Result<Vec<MaterialPurchase>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<MaterialPurchase>>("/api/purchases").await.unwrap_or_default()
+            auth.get::<Vec<MaterialPurchase>>("/api/purchases").await
         }
     })
 }
 
-pub fn use_feed_batches() -> Resource<Vec<FeedBatch>> {
+pub fn use_feed_batches() -> Resource<Result<Vec<FeedBatch>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<FeedBatch>>("/api/feed").await.unwrap_or_default()
+            auth.get::<Vec<FeedBatch>>("/api/feed").await
         }
     })
 }
 
-pub fn use_labor_records() -> Resource<Vec<LaborRecord>> {
+pub fn use_labor_records() -> Resource<Result<Vec<LaborRecord>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<LaborRecord>>("/api/labor").await.unwrap_or_default()
+            auth.get::<Vec<LaborRecord>>("/api/labor").await
         }
     })
 }
 
-pub fn use_parties() -> Resource<Vec<Party>> {
+pub fn use_parties() -> Resource<Result<Vec<Party>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<Party>>("/api/parties").await.unwrap_or_default()
+            auth.get::<Vec<Party>>("/api/parties").await
         }
     })
 }
 
-pub fn use_employees() -> Resource<Vec<Employee>> {
+pub fn use_employees() -> Resource<Result<Vec<Employee>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<Employee>>("/api/employees").await.unwrap_or_default()
+            auth.get::<Vec<Employee>>("/api/employees").await
         }
     })
 }
 
-pub fn use_dashboard_stats() -> Resource<Option<crate::models::DashboardStats>> {
+pub fn use_dashboard_stats() -> Resource<Result<crate::models::DashboardStats, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<crate::models::DashboardStats>("/api/dashboard/stats").await.ok()
+            auth.get::<crate::models::DashboardStats>("/api/dashboard/stats").await
         }
     })
 }
 
-pub fn use_party_ledger(party_id: String) -> Resource<Vec<crate::models::LedgerEntry>> {
+pub fn use_party_ledger(party_id: String) -> Resource<Result<Vec<crate::models::LedgerEntry>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         let id = party_id.clone();
         async move {
-            auth.get::<Vec<crate::models::LedgerEntry>>(&format!("/api/parties/{}/ledger", id)).await.unwrap_or_default()
+            auth.get::<Vec<crate::models::LedgerEntry>>(&format!("/api/parties/{}/ledger", id)).await
         }
     })
 }

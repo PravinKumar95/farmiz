@@ -5,6 +5,7 @@ use crate::components::card::{Card, CardContent, CardHeader, CardFooter};
 use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
 use crate::components::input::Input;
 use crate::components::label::Label;
+use crate::components::empty_state::{EmptyState, LoadingState, ErrorState};
 use crate::services::*;
 use crate::models::FeedBatch;
 
@@ -29,15 +30,29 @@ pub fn Feed() -> Element {
         let batch_id = form_batch_id().trim().to_string();
         let feed_type = form_type().trim().to_string();
         
-        if date.is_empty() { form_error.set("Date required".to_string()); return; }
-        if batch_id.is_empty() { form_error.set("Batch ID required".to_string()); return; }
-        if feed_type.is_empty() { form_error.set("Feed Type required".to_string()); return; }
+        if date.is_empty() {
+            form_error.set("Date is required.".to_string());
+            return;
+        }
+        if batch_id.is_empty() {
+            form_error.set("Batch ID is required.".to_string());
+            return;
+        }
         
-        let rate: f64 = match form_rate().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid rate".to_string()); return; } };
-        let total: f64 = match form_total().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid total amount".to_string()); return; } };
-        let payment: f64 = match form_payment().parse() { Ok(v) => v, Err(_) => { form_error.set("Invalid payment amount".to_string()); return; } };
+        let rate: f64 = match form_rate().parse() {
+            Ok(r) => r,
+            Err(_) => { form_error.set("Invalid rate.".to_string()); return; }
+        };
+        let total: f64 = match form_total().parse() {
+            Ok(t) => t,
+            Err(_) => { form_error.set("Invalid total amount.".to_string()); return; }
+        };
+        let payment: f64 = match form_payment().parse() {
+            Ok(p) => p,
+            Err(_) => { form_error.set("Invalid payment amount.".to_string()); return; }
+        };
         
-        let new_record = FeedBatch {
+        let new_batch = FeedBatch {
             id: form_id().unwrap_or_default(),
             date,
             batch_id,
@@ -52,9 +67,9 @@ pub fn Feed() -> Element {
 
         spawn(async move {
             let res = if let Some(id) = form_id() {
-                api.put(&format!("/api/feed/{}", id), &new_record).await
+                api.put(&format!("/api/feed/{}", id), &new_batch).await
             } else {
-                api.post("/api/feed", &new_record).await
+                api.post("/api/feed", &new_batch).await
             };
             match res {
                 Ok(_) => {
@@ -127,73 +142,93 @@ pub fn Feed() -> Element {
                 }
             }
 
-            div { class: "flex flex-col gap-3 mt-4",
-                for batch in batches.cloned().unwrap_or_default() {
-                    Card { key: "{batch.id}",
-                        CardHeader {
-                            div { class: "flex justify-between items-center",
-                                span { class: "text-xs text-gray-500 dark:text-gray-400 font-medium", "{batch.date}" }
-                                span { class: "px-2.5 py-0.5 rounded-full text-xs font-semibold bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700", "Batch #{batch.batch_id}" }
-                            }
-                        }
-                        CardContent {
-                            div { class: "flex flex-col gap-3",
-                                div { class: "flex justify-between items-baseline",
-                                    span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{batch.feed_type}" }
-                                    span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {batch.total_amount:.2}" }
-                                }
-                                div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
-                                    div { class: "flex flex-col",
-                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Rate" }
-                                        span { class: "font-semibold text-gray-800 dark:text-gray-200", "₹{batch.rate:.2}" }
-                                    }
-                                    div { class: "flex flex-col",
-                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Payment" }
-                                        span { class: "font-semibold text-green-600 dark:text-green-500", "₹{batch.payment:.2}" }
-                                    }
-                                    div { class: "flex flex-col items-end",
-                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Closing Bal." }
-                                        span { class: "font-semibold text-blue-600 dark:text-blue-400", "₹{batch.closing_balance:.2}" }
+            match batches.cloned() {
+                Some(Ok(list)) if !list.is_empty() => rsx! {
+                    div { class: "flex flex-col gap-3 mt-4",
+                        for batch in list {
+                            Card { key: "{batch.id}",
+                                CardHeader {
+                                    div { class: "flex justify-between items-center",
+                                        span { class: "text-xs text-gray-500 dark:text-gray-400 font-medium", "{batch.date}" }
+                                        span { class: "px-2.5 py-0.5 rounded-full text-xs font-semibold bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700", "Batch #{batch.batch_id}" }
                                     }
                                 }
-                            }
-                        }
-                        CardFooter {
-                            div { class: "flex justify-end gap-2 w-full pt-1",
-                                {
-                                    let edit_batch = batch.clone();
-                                    let delete_id = batch.id.clone();
-                                    rsx! {
-                                        Button {
-                                            variant: ButtonVariant::Outline,
-                                            onclick: move |_| {
-                                                form_id.set(Some(edit_batch.id.clone()));
-                                                form_date.set(edit_batch.date.clone());
-                                                form_batch_id.set(edit_batch.batch_id.clone());
-                                                form_type.set(edit_batch.feed_type.clone());
-                                                form_rate.set(edit_batch.rate.to_string());
-                                                form_total.set(edit_batch.total_amount.to_string());
-                                                form_payment.set(edit_batch.payment.to_string());
-                                                is_sheet_open.set(true);
-                                            },
-                                            "Edit"
+                                CardContent {
+                                    div { class: "flex flex-col gap-3",
+                                        div { class: "flex justify-between items-baseline",
+                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{batch.feed_type}" }
+                                            span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {batch.total_amount:.2}" }
                                         }
-                                        Button {
-                                            variant: ButtonVariant::Outline,
-                                            onclick: move |_| {
-                                                let id = delete_id.clone();
-                                                spawn(async move {
-                                                    let _ = api.delete(&format!("/api/feed/{}", id)).await;
-                                                    batches.restart();
-                                                });
-                                            },
-                                            "Delete"
+                                        div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                            div { class: "flex flex-col",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Rate" }
+                                                span { class: "font-semibold text-gray-800 dark:text-gray-200", "₹{batch.rate:.2}" }
+                                            }
+                                            div { class: "flex flex-col",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Payment" }
+                                                span { class: "font-semibold text-green-600 dark:text-green-500", "₹{batch.payment:.2}" }
+                                            }
+                                            div { class: "flex flex-col items-end",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Closing Bal." }
+                                                span { class: "font-semibold text-blue-600 dark:text-blue-400", "₹{batch.closing_balance:.2}" }
+                                            }
+                                        }
+                                    }
+                                }
+                                CardFooter {
+                                    div { class: "flex justify-end gap-2 w-full pt-1",
+                                        {
+                                            let edit_batch = batch.clone();
+                                            let delete_id = batch.id.clone();
+                                            rsx! {
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        form_id.set(Some(edit_batch.id.clone()));
+                                                        form_date.set(edit_batch.date.clone());
+                                                        form_batch_id.set(edit_batch.batch_id.clone());
+                                                        form_type.set(edit_batch.feed_type.clone());
+                                                        form_rate.set(edit_batch.rate.to_string());
+                                                        form_total.set(edit_batch.total_amount.to_string());
+                                                        form_payment.set(edit_batch.payment.to_string());
+                                                        is_sheet_open.set(true);
+                                                    },
+                                                    "Edit"
+                                                }
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        let id = delete_id.clone();
+                                                        spawn(async move {
+                                                            let _ = api.delete(&format!("/api/feed/{}", id)).await;
+                                                            batches.restart();
+                                                        });
+                                                    },
+                                                    "Delete"
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
+                },
+                Some(Ok(_)) => rsx! {
+                    EmptyState {
+                        icon: "🌾",
+                        title: "No Feed Batches",
+                        description: "No feed mill batches recorded yet. Click 'Add Feed Batch' above to record a new batch."
+                    }
+                },
+                Some(Err(err)) => rsx! {
+                    ErrorState {
+                        message: err,
+                        on_retry: move |_| { batches.restart(); }
+                    }
+                },
+                None => rsx! {
+                    LoadingState {}
                 }
             }
         }

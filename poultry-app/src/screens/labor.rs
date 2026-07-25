@@ -7,6 +7,7 @@ use crate::components::input::Input;
 use crate::components::label::Label;
 use crate::services::*;
 use crate::models::LaborRecord;
+use crate::components::empty_state::{EmptyState, LoadingState, ErrorState};
 
 #[component]
 pub fn Labor() -> Element {
@@ -62,7 +63,7 @@ pub fn Labor() -> Element {
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
             datalist { id: "employees-list",
-                for emp in employees.cloned().unwrap_or_default() {
+                for emp in employees.cloned().and_then(|r| r.ok()).unwrap_or_default() {
                     option { value: "{emp.name}" }
                 }
             }
@@ -114,66 +115,86 @@ pub fn Labor() -> Element {
                 }
             }
 
-            div { class: "flex flex-col gap-3 mt-4",
-                for record in records.cloned().unwrap_or_default() {
-                    Card { key: "{record.id}",
-                        CardHeader {
-                            div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                span { "{record.date}" }
-                                span { class: "font-semibold text-blue-600 dark:text-blue-400", "Worker" }
-                            }
-                        }
-                        CardContent {
-                            div { class: "flex flex-col gap-3",
-                                div { class: "flex justify-between items-baseline",
-                                    span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{record.employee_name}" }
-                                }
-                                div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
-                                    div { class: "flex flex-col",
-                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Attendance" }
-                                        span { class: "font-semibold text-gray-800 dark:text-gray-200", "{record.attendance} Days" }
-                                    }
-                                    div { class: "flex flex-col items-end",
-                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance Given" }
-                                        span { class: "font-semibold text-red-500", "₹{record.advance_given:.2}" }
+            match records.cloned() {
+                Some(Ok(list)) if !list.is_empty() => rsx! {
+                    div { class: "flex flex-col gap-3 mt-4",
+                        for record in list {
+                            Card { key: "{record.id}",
+                                CardHeader {
+                                    div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                        span { "{record.date}" }
+                                        span { class: "font-semibold text-blue-600 dark:text-blue-400", "Worker" }
                                     }
                                 }
-                            }
-                        }
-                        CardFooter {
-                            div { class: "flex justify-end gap-2 w-full pt-1",
-                                {
-                                    let edit_record = record.clone();
-                                    let delete_id = record.id.clone();
-                                    rsx! {
-                                        Button {
-                                            variant: ButtonVariant::Outline,
-                                            onclick: move |_| {
-                                                form_id.set(Some(edit_record.id.clone()));
-                                                form_date.set(edit_record.date.clone());
-                                                form_employee.set(edit_record.employee_name.clone());
-                                                form_attendance.set(edit_record.attendance.to_string());
-                                                form_advance.set(edit_record.advance_given.to_string());
-                                                is_sheet_open.set(true);
-                                            },
-                                            "Edit"
+                                CardContent {
+                                    div { class: "flex flex-col gap-3",
+                                        div { class: "flex justify-between items-baseline",
+                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{record.employee_name}" }
                                         }
-                                        Button {
-                                            variant: ButtonVariant::Outline,
-                                            onclick: move |_| {
-                                                let id = delete_id.clone();
-                                                spawn(async move {
-                                                    let _ = api.delete(&format!("/api/labor/{}", id)).await;
-                                                    records.restart();
-                                                });
-                                            },
-                                            "Delete"
+                                        div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                            div { class: "flex flex-col",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Attendance" }
+                                                span { class: "font-semibold text-gray-800 dark:text-gray-200", "{record.attendance} Days" }
+                                            }
+                                            div { class: "flex flex-col items-end",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance Given" }
+                                                span { class: "font-semibold text-red-500", "₹{record.advance_given:.2}" }
+                                            }
+                                        }
+                                    }
+                                }
+                                CardFooter {
+                                    div { class: "flex justify-end gap-2 w-full pt-1",
+                                        {
+                                            let edit_record = record.clone();
+                                            let delete_id = record.id.clone();
+                                            rsx! {
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        form_id.set(Some(edit_record.id.clone()));
+                                                        form_date.set(edit_record.date.clone());
+                                                        form_employee.set(edit_record.employee_name.clone());
+                                                        form_attendance.set(edit_record.attendance.to_string());
+                                                        form_advance.set(edit_record.advance_given.to_string());
+                                                        is_sheet_open.set(true);
+                                                    },
+                                                    "Edit"
+                                                }
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        let id = delete_id.clone();
+                                                        spawn(async move {
+                                                            let _ = api.delete(&format!("/api/labor/{}", id)).await;
+                                                            records.restart();
+                                                        });
+                                                    },
+                                                    "Delete"
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
+                },
+                Some(Ok(_)) => rsx! {
+                    EmptyState {
+                        icon: "👥",
+                        title: "No Labor Records",
+                        description: "No labor attendance or advance records found. Click 'Add Record' above to create one."
+                    }
+                },
+                Some(Err(err)) => rsx! {
+                    ErrorState {
+                        message: err,
+                        on_retry: move |_| { records.restart(); }
+                    }
+                },
+                None => rsx! {
+                    LoadingState {}
                 }
             }
         }

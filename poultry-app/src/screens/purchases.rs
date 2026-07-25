@@ -7,6 +7,7 @@ use crate::components::input::Input;
 use crate::components::label::Label;
 use crate::services::*;
 use crate::models::MaterialPurchase;
+use crate::components::empty_state::{EmptyState, LoadingState, ErrorState};
 
 #[component]
 pub fn Purchases() -> Element {
@@ -84,7 +85,7 @@ pub fn Purchases() -> Element {
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
             datalist { id: "parties-list",
-                for party in parties.cloned().unwrap_or_default() {
+                for party in parties.cloned().and_then(|r| r.ok()).unwrap_or_default() {
                     option { value: "{party.name}" }
                 }
             }
@@ -146,80 +147,100 @@ pub fn Purchases() -> Element {
                 }
             }
 
-            div { class: "flex flex-col gap-3 mt-4",
-                for purchase in purchases.cloned().unwrap_or_default() {
-                    Card { key: "{purchase.id}",
-                        CardHeader {
-                            div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                span { "{purchase.date}" }
-                                div {
-                                    class: if purchase.status == "PAID" {
-                                        "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full text-xs font-semibold"
-                                    } else {
-                                        "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full text-xs font-semibold"
-                                    },
-                                    "{purchase.status}"
-                                }
-                            }
-                        }
-                        CardContent {
-                            div { class: "flex flex-col gap-3",
-                                div { class: "flex justify-between items-baseline",
-                                    span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{purchase.material_name}" }
-                                    span { class: "text-sm text-gray-500 dark:text-gray-400 font-medium", "{purchase.party_name}" }
-                                }
-                                div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
-                                    div { class: "flex flex-col",
-                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity" }
-                                        span { class: "font-semibold text-gray-800 dark:text-gray-200", "{purchase.quantity_kg} KG @ ₹{purchase.rate_per_kg:.2}" }
-                                    }
-                                    div { class: "flex flex-col",
-                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance" }
-                                        span { class: "font-semibold text-green-600 dark:text-green-500", "₹{purchase.advance_paid:.2}" }
-                                    }
-                                    div { class: "flex flex-col items-end",
-                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
-                                        span { class: "font-semibold text-red-500", "₹{purchase.balance:.2}" }
-                                    }
-                                }
-                            }
-                        }
-                        CardFooter {
-                            div { class: "flex justify-end gap-2 w-full pt-1",
-                                {
-                                    let edit_purchase = purchase.clone();
-                                    let delete_id = purchase.id.clone();
-                                    rsx! {
-                                        Button {
-                                            variant: ButtonVariant::Outline,
-                                            onclick: move |_| {
-                                                form_id.set(Some(edit_purchase.id.clone()));
-                                                form_date.set(edit_purchase.date.clone());
-                                                form_material.set(edit_purchase.material_name.clone());
-                                                form_party.set(edit_purchase.party_name.clone());
-                                                form_qty.set(edit_purchase.quantity_kg.to_string());
-                                                form_rate.set(edit_purchase.rate_per_kg.to_string());
-                                                form_advance.set(edit_purchase.advance_paid.to_string());
-                                                is_sheet_open.set(true);
+            match purchases.cloned() {
+                Some(Ok(list)) if !list.is_empty() => rsx! {
+                    div { class: "flex flex-col gap-3 mt-4",
+                        for purchase in list {
+                            Card { key: "{purchase.id}",
+                                CardHeader {
+                                    div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                        span { "{purchase.date}" }
+                                        div {
+                                            class: if purchase.status == "PAID" {
+                                                "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full text-xs font-semibold"
+                                            } else {
+                                                "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full text-xs font-semibold"
                                             },
-                                            "Edit"
+                                            "{purchase.status}"
                                         }
-                                        Button {
-                                            variant: ButtonVariant::Outline,
-                                            onclick: move |_| {
-                                                let id = delete_id.clone();
-                                                spawn(async move {
-                                                    let _ = api.delete(&format!("/api/purchases/{}", id)).await;
-                                                    purchases.restart();
-                                                });
-                                            },
-                                            "Delete"
+                                    }
+                                }
+                                CardContent {
+                                    div { class: "flex flex-col gap-3",
+                                        div { class: "flex justify-between items-baseline",
+                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{purchase.material_name}" }
+                                            span { class: "text-sm text-gray-500 dark:text-gray-400 font-medium", "{purchase.party_name}" }
+                                        }
+                                        div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                            div { class: "flex flex-col",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity" }
+                                                span { class: "font-semibold text-gray-800 dark:text-gray-200", "{purchase.quantity_kg} KG @ ₹{purchase.rate_per_kg:.2}" }
+                                            }
+                                            div { class: "flex flex-col",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance" }
+                                                span { class: "font-semibold text-green-600 dark:text-green-500", "₹{purchase.advance_paid:.2}" }
+                                            }
+                                            div { class: "flex flex-col items-end",
+                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
+                                                span { class: "font-semibold text-red-500", "₹{purchase.balance:.2}" }
+                                            }
+                                        }
+                                    }
+                                }
+                                CardFooter {
+                                    div { class: "flex justify-end gap-2 w-full pt-1",
+                                        {
+                                            let edit_purchase = purchase.clone();
+                                            let delete_id = purchase.id.clone();
+                                            rsx! {
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        form_id.set(Some(edit_purchase.id.clone()));
+                                                        form_date.set(edit_purchase.date.clone());
+                                                        form_material.set(edit_purchase.material_name.clone());
+                                                        form_party.set(edit_purchase.party_name.clone());
+                                                        form_qty.set(edit_purchase.quantity_kg.to_string());
+                                                        form_rate.set(edit_purchase.rate_per_kg.to_string());
+                                                        form_advance.set(edit_purchase.advance_paid.to_string());
+                                                        is_sheet_open.set(true);
+                                                    },
+                                                    "Edit"
+                                                }
+                                                Button {
+                                                    variant: ButtonVariant::Outline,
+                                                    onclick: move |_| {
+                                                        let id = delete_id.clone();
+                                                        spawn(async move {
+                                                            let _ = api.delete(&format!("/api/purchases/{}", id)).await;
+                                                            purchases.restart();
+                                                        });
+                                                    },
+                                                    "Delete"
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
+                },
+                Some(Ok(_)) => rsx! {
+                    EmptyState {
+                        icon: "🛒",
+                        title: "No Material Purchases",
+                        description: "No purchase records found. Click 'Add Material Purchase' above to add a new purchase."
+                    }
+                },
+                Some(Err(err)) => rsx! {
+                    ErrorState {
+                        message: err,
+                        on_retry: move |_| { purchases.restart(); }
+                    }
+                },
+                None => rsx! {
+                    LoadingState {}
                 }
             }
         }

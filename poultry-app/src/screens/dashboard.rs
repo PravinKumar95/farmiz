@@ -18,7 +18,7 @@ pub fn Dashboard() -> Element {
     };
 
     let stats_resource = crate::services::use_dashboard_stats();
-    let stats = stats_resource.cloned().unwrap_or(None);
+    let stats = stats_resource.cloned().and_then(|r| r.ok());
     let today_sales = stats.as_ref().map(|s| s.today_sales).unwrap_or(0.0);
     let eggs_sold = stats.as_ref().map(|s| s.eggs_sold_today).unwrap_or(0);
     let today_purchases = stats.as_ref().map(|s| s.today_purchases).unwrap_or(0.0);

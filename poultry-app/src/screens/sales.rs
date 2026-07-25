@@ -9,6 +9,7 @@ use crate::components::label::Label;
 use crate::services::*;
 use crate::models::{EggSale, BrokenEggSale};
 use crate::components::button::ButtonVariant;
+use crate::components::empty_state::{EmptyState, LoadingState, ErrorState};
 
 #[component]
 pub fn Sales() -> Element {
@@ -140,7 +141,7 @@ pub fn Sales() -> Element {
     rsx! {
         div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
             datalist { id: "parties-list",
-                for party in parties.cloned().unwrap_or_default() {
+                for party in parties.cloned().and_then(|r| r.ok()).unwrap_or_default() {
                     option { value: "{party.name}" }
                 }
             }
@@ -209,139 +210,179 @@ pub fn Sales() -> Element {
                 }
 
                 TabContent { value: "standard", index: 0usize,
-                    div { class: "flex flex-col gap-3 mt-4",
-                        for sale in standard_sales.cloned().unwrap_or_default() {
-                            Card { key: "{sale.id}",
-                                CardHeader {
-                                    div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                        span { "{sale.date}" }
-                                        span { "Size: {sale.size}" }
-                                    }
-                                }
-                                CardContent {
-                                    div { class: "flex flex-col gap-3",
-                                        div { class: "flex justify-between items-baseline",
-                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{sale.party_name}" }
-                                            span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {sale.total_amount:.2}" }
-                                        }
-                                        div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
-                                            div { class: "flex flex-col",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity" }
-                                                span { class: "font-semibold text-gray-800 dark:text-gray-200", "{sale.quantity_boxes} Boxes ({sale.total_eggs})" }
-                                            }
-                                            div { class: "flex flex-col",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Received" }
-                                                span { class: "font-semibold text-green-600 dark:text-green-500", "₹{sale.received_amount:.2}" }
-                                            }
-                                            div { class: "flex flex-col items-end",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
-                                                span { class: "font-semibold text-red-500", "₹{sale.balance:.2}" }
+                    match standard_sales.cloned() {
+                        Some(Ok(list)) if !list.is_empty() => rsx! {
+                            div { class: "flex flex-col gap-3 mt-4",
+                                for sale in list {
+                                    Card { key: "{sale.id}",
+                                        CardHeader {
+                                            div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                                span { "{sale.date}" }
+                                                span { "Size: {sale.size}" }
                                             }
                                         }
-                                    }
-                                }
-                                CardFooter {
-                                    div { class: "flex justify-end gap-2 w-full pt-1",
-                                        {
-                                            let edit_sale = sale.clone();
-                                            let delete_id = sale.id.clone();
-                                            rsx! {
-                                                Button {
-                                                    variant: ButtonVariant::Outline,
-                                                    onclick: move |_| {
-                                                        form_id.set(Some(edit_sale.id.clone()));
-                                                        form_date.set(edit_sale.date.clone());
-                                                        form_party.set(edit_sale.party_name.clone());
-                                                        form_boxes.set(edit_sale.quantity_boxes.to_string());
-                                                        form_rate.set(edit_sale.gross_rate.to_string());
-                                                        form_received.set(edit_sale.received_amount.to_string());
-                                                        is_sheet_open.set(true);
-                                                    },
-                                                    "Edit"
+                                        CardContent {
+                                            div { class: "flex flex-col gap-3",
+                                                div { class: "flex justify-between items-baseline",
+                                                    span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{sale.party_name}" }
+                                                    span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {sale.total_amount:.2}" }
                                                 }
-                                                Button {
-                                                    variant: ButtonVariant::Outline,
-                                                    onclick: move |_| {
-                                                        let id = delete_id.clone();
-                                                        spawn(async move {
-                                                            let _ = api.delete(&format!("/api/sales/egg/{}", id)).await;
-                                                            standard_sales.restart();
-                                                        });
-                                                    },
-                                                    "Delete"
+                                                div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                                    div { class: "flex flex-col",
+                                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity" }
+                                                        span { class: "font-semibold text-gray-800 dark:text-gray-200", "{sale.quantity_boxes} Boxes ({sale.total_eggs})" }
+                                                    }
+                                                    div { class: "flex flex-col",
+                                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Received" }
+                                                        span { class: "font-semibold text-green-600 dark:text-green-500", "₹{sale.received_amount:.2}" }
+                                                    }
+                                                    div { class: "flex flex-col items-end",
+                                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
+                                                        span { class: "font-semibold text-red-500", "₹{sale.balance:.2}" }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        CardFooter {
+                                            div { class: "flex justify-end gap-2 w-full pt-1",
+                                                {
+                                                    let edit_sale = sale.clone();
+                                                    let delete_id = sale.id.clone();
+                                                    rsx! {
+                                                        Button {
+                                                            variant: ButtonVariant::Outline,
+                                                            onclick: move |_| {
+                                                                form_id.set(Some(edit_sale.id.clone()));
+                                                                form_date.set(edit_sale.date.clone());
+                                                                form_party.set(edit_sale.party_name.clone());
+                                                                form_boxes.set(edit_sale.quantity_boxes.to_string());
+                                                                form_rate.set(edit_sale.gross_rate.to_string());
+                                                                form_received.set(edit_sale.received_amount.to_string());
+                                                                is_sheet_open.set(true);
+                                                            },
+                                                            "Edit"
+                                                        }
+                                                        Button {
+                                                            variant: ButtonVariant::Outline,
+                                                            onclick: move |_| {
+                                                                let id = delete_id.clone();
+                                                                spawn(async move {
+                                                                    let _ = api.delete(&format!("/api/sales/egg/{}", id)).await;
+                                                                    standard_sales.restart();
+                                                                });
+                                                            },
+                                                            "Delete"
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
+                        },
+                        Some(Ok(_)) => rsx! {
+                            EmptyState {
+                                icon: "🥚",
+                                title: "No Standard Egg Sales",
+                                description: "No standard egg sales records found. Click 'Add Sale' above to record a sale."
+                            }
+                        },
+                        Some(Err(err)) => rsx! {
+                            ErrorState {
+                                message: err,
+                                on_retry: move |_| { standard_sales.restart(); }
+                            }
+                        },
+                        None => rsx! {
+                            LoadingState {}
                         }
                     }
                 }
 
                 TabContent { value: "broken", index: 1usize,
-                    div { class: "flex flex-col gap-3 mt-4",
-                        for sale in broken_sales.cloned().unwrap_or_default() {
-                            Card { key: "{sale.id}",
-                                CardHeader {
-                                    div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                        span { "{sale.date}" }
-                                        span { "{sale.trays_sold} Trays @ ₹{sale.rate:.2}" }
-                                    }
-                                }
-                                CardContent {
-                                    div { class: "flex flex-col gap-3",
-                                        div { class: "flex justify-between items-baseline",
-                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{sale.bakery_name}" }
-                                            span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {sale.amount:.2}" }
-                                        }
-                                        div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
-                                            div { class: "flex flex-col",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Received" }
-                                                span { class: "font-semibold text-green-600 dark:text-green-500", "₹{sale.payment_received:.2}" }
-                                            }
-                                            div { class: "flex flex-col items-end",
-                                                span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
-                                                span { class: "font-semibold text-red-500", "₹{sale.balance_amount:.2}" }
+                    match broken_sales.cloned() {
+                        Some(Ok(list)) if !list.is_empty() => rsx! {
+                            div { class: "flex flex-col gap-3 mt-4",
+                                for sale in list {
+                                    Card { key: "{sale.id}",
+                                        CardHeader {
+                                            div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                                span { "{sale.date}" }
+                                                span { "{sale.trays_sold} Trays @ ₹{sale.rate:.2}" }
                                             }
                                         }
-                                    }
-                                }
-                                CardFooter {
-                                    div { class: "flex justify-end gap-2 w-full pt-1",
-                                        {
-                                            let edit_sale = sale.clone();
-                                            let delete_id = sale.id.clone();
-                                            rsx! {
-                                                Button {
-                                                    variant: ButtonVariant::Outline,
-                                                    onclick: move |_| {
-                                                        form_id.set(Some(edit_sale.id.clone()));
-                                                        form_date.set(edit_sale.date.clone());
-                                                        form_party.set(edit_sale.bakery_name.clone());
-                                                        form_boxes.set(edit_sale.trays_sold.to_string());
-                                                        form_rate.set(edit_sale.rate.to_string());
-                                                        form_received.set(edit_sale.payment_received.to_string());
-                                                        is_sheet_open.set(true);
-                                                    },
-                                                    "Edit"
+                                        CardContent {
+                                            div { class: "flex flex-col gap-3",
+                                                div { class: "flex justify-between items-baseline",
+                                                    span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{sale.bakery_name}" }
+                                                    span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {sale.amount:.2}" }
                                                 }
-                                                Button {
-                                                    variant: ButtonVariant::Outline,
-                                                    onclick: move |_| {
-                                                        let id = delete_id.clone();
-                                                        spawn(async move {
-                                                            let _ = api.delete(&format!("/api/sales/broken/{}", id)).await;
-                                                            broken_sales.restart();
-                                                        });
-                                                    },
-                                                    "Delete"
+                                                div { class: "grid grid-cols-2 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                                    div { class: "flex flex-col",
+                                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Received" }
+                                                        span { class: "font-semibold text-green-600 dark:text-green-500", "₹{sale.payment_received:.2}" }
+                                                    }
+                                                    div { class: "flex flex-col items-end",
+                                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
+                                                        span { class: "font-semibold text-red-500", "₹{sale.balance_amount:.2}" }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        CardFooter {
+                                            div { class: "flex justify-end gap-2 w-full pt-1",
+                                                {
+                                                    let edit_sale = sale.clone();
+                                                    let delete_id = sale.id.clone();
+                                                    rsx! {
+                                                        Button {
+                                                            variant: ButtonVariant::Outline,
+                                                            onclick: move |_| {
+                                                                form_id.set(Some(edit_sale.id.clone()));
+                                                                form_date.set(edit_sale.date.clone());
+                                                                form_party.set(edit_sale.bakery_name.clone());
+                                                                form_boxes.set(edit_sale.trays_sold.to_string());
+                                                                form_rate.set(edit_sale.rate.to_string());
+                                                                form_received.set(edit_sale.payment_received.to_string());
+                                                                is_sheet_open.set(true);
+                                                            },
+                                                            "Edit"
+                                                        }
+                                                        Button {
+                                                            variant: ButtonVariant::Outline,
+                                                            onclick: move |_| {
+                                                                let id = delete_id.clone();
+                                                                spawn(async move {
+                                                                    let _ = api.delete(&format!("/api/sales/broken/{}", id)).await;
+                                                                    broken_sales.restart();
+                                                                });
+                                                            },
+                                                            "Delete"
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
+                        },
+                        Some(Ok(_)) => rsx! {
+                            EmptyState {
+                                icon: "🍳",
+                                title: "No Broken Egg Sales",
+                                description: "No broken egg sales records found. Click 'Add Sale' above to record a sale."
+                            }
+                        },
+                        Some(Err(err)) => rsx! {
+                            ErrorState {
+                                message: err,
+                                on_retry: move |_| { broken_sales.restart(); }
+                            }
+                        },
+                        None => rsx! {
+                            LoadingState {}
                         }
                     }
                 }

@@ -6,6 +6,7 @@ use crate::components::label::Label;
 use crate::components::sheet::{Sheet, SheetHeader, SheetTitle, SheetFooter};
 use crate::services::*;
 use crate::models::Employee;
+use crate::components::empty_state::{EmptyState, LoadingState, ErrorState};
 
 #[component]
 pub fn Employees() -> Element {
@@ -137,33 +138,53 @@ pub fn Employees() -> Element {
                 }
             }
 
-            div { class: "flex flex-col gap-3 mt-4",
-                for employee in employees.cloned().unwrap_or_default() {
-                    div {
-                        key: "{employee.id}",
-                        class: "block rounded-xl",
-                        Card {
-                            CardContent {
-                                div { class: "flex justify-between items-center",
-                                    div { class: "flex flex-col",
-                                        span { class: "font-bold text-base text-gray-900 dark:text-gray-100", "{employee.name}" }
-                                        span { class: "text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider", "{employee.role}" }
-                                    }
-                                    div { class: "flex flex-col items-end",
-                                        div { class: "text-xs text-gray-500 dark:text-gray-400 mb-1", "Current Balance" }
-                                        div {
-                                            class: if employee.current_balance < 0.0 {
-                                                "font-bold text-lg text-red-500"
-                                            } else {
-                                                "font-bold text-lg text-green-600"
-                                            },
-                                            "₹ {employee.current_balance.abs():.2}"
+            match employees.cloned() {
+                Some(Ok(list)) if !list.is_empty() => rsx! {
+                    div { class: "flex flex-col gap-3 mt-4",
+                        for employee in list {
+                            div {
+                                key: "{employee.id}",
+                                class: "block rounded-xl",
+                                Card {
+                                    CardContent {
+                                        div { class: "flex justify-between items-center",
+                                            div { class: "flex flex-col",
+                                                span { class: "font-bold text-base text-gray-900 dark:text-gray-100", "{employee.name}" }
+                                                span { class: "text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider", "{employee.role}" }
+                                            }
+                                            div { class: "flex flex-col items-end",
+                                                div { class: "text-xs text-gray-500 dark:text-gray-400 mb-1", "Current Balance" }
+                                                div {
+                                                    class: if employee.current_balance < 0.0 {
+                                                        "font-bold text-lg text-red-500"
+                                                    } else {
+                                                        "font-bold text-lg text-green-600"
+                                                    },
+                                                    "₹ {employee.current_balance.abs():.2}"
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
+                },
+                Some(Ok(_)) => rsx! {
+                    EmptyState {
+                        icon: "👷",
+                        title: "No Employees Found",
+                        description: "No employee records found. Click 'Add New Employee' above to add an employee."
+                    }
+                },
+                Some(Err(err)) => rsx! {
+                    ErrorState {
+                        message: err,
+                        on_retry: move |_| { employees.restart(); }
+                    }
+                },
+                None => rsx! {
+                    LoadingState {}
                 }
             }
         }
