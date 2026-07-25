@@ -90,8 +90,8 @@ pub fn Feed() -> Element {
                 Sheet {
                     open: Some(is_sheet_open()),
                     on_open_change: move |open| is_sheet_open.set(open),
-                    SheetHeader { SheetTitle { "Add Feed Batch" } }
-                    div { class: "flex flex-col gap-4 py-4 overflow-y-auto max-h-[70vh]",
+                    SheetHeader { SheetTitle { if form_id().is_some() { "Edit Feed Batch" } else { "Add Feed Batch" } } }
+                    div { class: "flex flex-col gap-4 px-6 py-4 overflow-y-auto max-h-[70vh]",
                         if !form_error().is_empty() {
                             div { class: "text-sm text-red-500 font-medium", "{form_error}" }
                         }
@@ -121,7 +121,7 @@ pub fn Feed() -> Element {
                         }
                     }
                     SheetFooter {
-                        Button { onclick: submit_handler, "Save Batch" }
+                        Button { onclick: submit_handler, if form_id().is_some() { "Update Batch" } else { "Save Batch" } }
                         Button { onclick: move |_| is_sheet_open.set(false), "Cancel" }
                     }
                 }
@@ -131,32 +131,35 @@ pub fn Feed() -> Element {
                 for batch in batches.cloned().unwrap_or_default() {
                     Card { key: "{batch.id}",
                         CardHeader {
-                            div { class: "flex justify-between items-center text-sm",
-                                span { class: "text-gray-500 dark:text-gray-400", "{batch.date}" }
-                                span { class: "font-mono font-medium", "Batch: {batch.batch_id}" }
+                            div { class: "flex justify-between items-center",
+                                span { class: "text-xs text-gray-500 dark:text-gray-400 font-medium", "{batch.date}" }
+                                span { class: "px-2.5 py-0.5 rounded-full text-xs font-semibold bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700", "Batch #{batch.batch_id}" }
                             }
                         }
                         CardContent {
-                            div { class: "flex flex-col gap-1",
-                                div { class: "font-bold text-lg", "{batch.feed_type}" }
-                                div { class: "text-sm text-gray-500 dark:text-gray-400 flex justify-between",
-                                    span { "Rate: ₹{batch.rate:.2}" }
-                                    span { class: "font-semibold text-blue-600 dark:text-blue-400", "₹ {batch.total_amount:.2}" }
+                            div { class: "flex flex-col gap-3",
+                                div { class: "flex justify-between items-baseline",
+                                    span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{batch.feed_type}" }
+                                    span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {batch.total_amount:.2}" }
+                                }
+                                div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                    div { class: "flex flex-col",
+                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Rate" }
+                                        span { class: "font-semibold text-gray-800 dark:text-gray-200", "₹{batch.rate:.2}" }
+                                    }
+                                    div { class: "flex flex-col",
+                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Payment" }
+                                        span { class: "font-semibold text-green-600 dark:text-green-500", "₹{batch.payment:.2}" }
+                                    }
+                                    div { class: "flex flex-col items-end",
+                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Closing Bal." }
+                                        span { class: "font-semibold text-blue-600 dark:text-blue-400", "₹{batch.closing_balance:.2}" }
+                                    }
                                 }
                             }
                         }
-                        CardFooter { class: "flex flex-col gap-4 w-full",
-                            div { class: "flex justify-between text-sm w-full",
-                                div { class: "flex flex-col",
-                                    span { class: "text-gray-500 dark:text-gray-400", "Payment" }
-                                    span { class: "font-medium text-green-600", "₹ {batch.payment:.2}" }
-                                }
-                                div { class: "flex flex-col items-end",
-                                    span { class: "text-gray-500 dark:text-gray-400", "Closing Balance" }
-                                    span { class: "font-medium text-blue-600", "₹ {batch.closing_balance:.2}" }
-                                }
-                            }
-                            div { class: "flex justify-end gap-2 w-full text-sm",
+                        CardFooter {
+                            div { class: "flex justify-end gap-2 w-full pt-1",
                                 {
                                     let edit_batch = batch.clone();
                                     let delete_id = batch.id.clone();

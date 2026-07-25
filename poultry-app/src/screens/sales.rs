@@ -166,9 +166,9 @@ pub fn Sales() -> Element {
                     open: Some(is_sheet_open()),
                     on_open_change: move |open| is_sheet_open.set(open),
                     SheetHeader {
-                        SheetTitle { if active_tab() == Some("standard".to_string()) { "Add Standard Egg Sale" } else { "Add Broken Egg Sale" } }
+                        SheetTitle { if form_id().is_some() { "Edit Sale" } else if active_tab() == Some("standard".to_string()) { "Add Standard Egg Sale" } else { "Add Broken Egg Sale" } }
                     }
-                    div { class: "flex flex-col gap-4 py-4 overflow-y-auto max-h-[70vh]",
+                    div { class: "flex flex-col gap-4 px-6 py-4 overflow-y-auto max-h-[70vh]",
                         if !form_error().is_empty() {
                             div { class: "text-sm text-red-500 font-medium", "{form_error}" }
                         }
@@ -194,7 +194,7 @@ pub fn Sales() -> Element {
                         }
                     }
                     SheetFooter {
-                        Button { onclick: submit_handler, "Save Sale" }
+                        Button { onclick: submit_handler, if form_id().is_some() { "Update Sale" } else { "Save Sale" } }
                         Button { onclick: move |_| is_sheet_open.set(false), "Cancel" }
                     }
                 }

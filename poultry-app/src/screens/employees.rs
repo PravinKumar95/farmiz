@@ -93,7 +93,7 @@ pub fn Employees() -> Element {
                     SheetHeader {
                         SheetTitle { "Add New Employee" }
                     }
-                    div { class: "flex flex-col gap-4 py-4",
+                    div { class: "flex flex-col gap-4 px-6 py-4",
                         if !form_error().is_empty() {
                             div { class: "text-sm text-red-500 font-medium", "{form_error}" }
                         }

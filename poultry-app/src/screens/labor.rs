@@ -85,8 +85,8 @@ pub fn Labor() -> Element {
                 Sheet {
                     open: Some(is_sheet_open()),
                     on_open_change: move |open| is_sheet_open.set(open),
-                    SheetHeader { SheetTitle { "Add Labor Record" } }
-                    div { class: "flex flex-col gap-4 py-4 overflow-y-auto max-h-[70vh]",
+                    SheetHeader { SheetTitle { if form_id().is_some() { "Edit Labor Record" } else { "Add Labor Record" } } }
+                    div { class: "flex flex-col gap-4 px-6 py-4 overflow-y-auto max-h-[70vh]",
                         if !form_error().is_empty() {
                             div { class: "text-sm text-red-500 font-medium", "{form_error}" }
                         }
@@ -108,7 +108,7 @@ pub fn Labor() -> Element {
                         }
                     }
                     SheetFooter {
-                        Button { onclick: submit_handler, "Save Record" }
+                        Button { onclick: submit_handler, if form_id().is_some() { "Update Record" } else { "Save Record" } }
                         Button { onclick: move |_| is_sheet_open.set(false), "Cancel" }
                     }
                 }
