@@ -14,7 +14,7 @@ pub async fn get_daily_production(
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<DailyProduction>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, DailyProduction>(
-        "SELECT * FROM daily_production WHERE user_id = $1 OR user_id IS NULL ORDER BY date DESC, created_at DESC",
+        "SELECT * FROM daily_production WHERE user_id = $1 ORDER BY date DESC, created_at DESC",
     )
     .bind(&user.user_id)
     .fetch_all(&pool)
@@ -59,7 +59,7 @@ pub async fn update_daily_production(
         r#"UPDATE daily_production SET 
             date=$1, shed_name=$2, egg_count_good=$3, egg_count_damaged=$4, mortality_count=$5, 
             cull_count=$6, feed_consumed_kg=$7, notes=$8 
-        WHERE id=$9 AND (user_id = $10 OR user_id IS NULL) RETURNING *"#,
+        WHERE id=$9 AND user_id = $10 RETURNING *"#,
     )
     .bind(p.date)
     .bind(p.shed_name)
@@ -83,7 +83,7 @@ pub async fn delete_daily_production(
     user: AuthenticatedUser,
     State(pool): State<PgPool>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    sqlx::query("DELETE FROM daily_production WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    sqlx::query("DELETE FROM daily_production WHERE id=$1 AND user_id = $2")
         .bind(id)
         .bind(&user.user_id)
         .execute(&pool)

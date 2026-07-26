@@ -14,7 +14,7 @@ pub async fn get_feed_batches(
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<FeedBatch>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, FeedBatch>(
-        "SELECT * FROM feed_batches WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC",
+        "SELECT * FROM feed_batches WHERE user_id = $1 ORDER BY created_at DESC",
     )
     .bind(&user.user_id)
     .fetch_all(&pool)
@@ -58,7 +58,7 @@ pub async fn update_feed_batch(
         r#"UPDATE feed_batches SET 
             date=$1, batch_id=$2, feed_type=$3, rate=$4, total_amount=$5, payment=$6, 
             opening_balance=$7, closing_balance=$8 
-        WHERE id=$9 AND (user_id = $10 OR user_id IS NULL) RETURNING *"#,
+        WHERE id=$9 AND user_id = $10 RETURNING *"#,
     )
     .bind(p.date)
     .bind(p.batch_id)
@@ -81,7 +81,7 @@ pub async fn delete_feed_batch(
     user: AuthenticatedUser,
     State(pool): State<PgPool>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    sqlx::query("DELETE FROM feed_batches WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    sqlx::query("DELETE FROM feed_batches WHERE id=$1 AND user_id = $2")
         .bind(id)
         .bind(&user.user_id)
         .execute(&pool)

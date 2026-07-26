@@ -17,7 +17,7 @@ pub async fn get_egg_sales(
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<EggSale>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, EggSale>(
-        "SELECT * FROM egg_sales WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC",
+        "SELECT * FROM egg_sales WHERE user_id = $1 ORDER BY created_at DESC",
     )
     .bind(&user.user_id)
     .fetch_all(&pool)
@@ -71,7 +71,7 @@ pub async fn update_egg_sale(
             date=$1, party_name=$2, party_id=$3, quantity_boxes=$4, total_eggs=$5, size=$6, 
             gross_rate=$7, less_discount=$8, net_rate=$9, total_amount=$10, received_amount=$11, 
             payment_mode=$12, balance=$13 
-        WHERE id=$14 AND (user_id = $15 OR user_id IS NULL) RETURNING *"#,
+        WHERE id=$14 AND user_id = $15 RETURNING *"#,
     )
     .bind(p.date)
     .bind(&p.party_name)
@@ -102,10 +102,10 @@ pub async fn delete_egg_sale(
     user: AuthenticatedUser,
     State(pool): State<PgPool>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let existing: Option<EggSale> = sqlx::query_as("SELECT * FROM egg_sales WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    let existing: Option<EggSale> = sqlx::query_as("SELECT * FROM egg_sales WHERE id=$1 AND user_id = $2")
         .bind(id).bind(&user.user_id).fetch_optional(&pool).await.unwrap_or(None);
 
-    sqlx::query("DELETE FROM egg_sales WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    sqlx::query("DELETE FROM egg_sales WHERE id=$1 AND user_id = $2")
         .bind(id)
         .bind(&user.user_id)
         .execute(&pool)
@@ -126,7 +126,7 @@ pub async fn get_broken_sales(
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<BrokenEggSale>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, BrokenEggSale>(
-        "SELECT * FROM broken_egg_sales WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC",
+        "SELECT * FROM broken_egg_sales WHERE user_id = $1 ORDER BY created_at DESC",
     )
     .bind(&user.user_id)
     .fetch_all(&pool)
@@ -175,7 +175,7 @@ pub async fn update_broken_sale(
         r#"UPDATE broken_egg_sales SET 
             date=$1, bakery_name=$2, party_id=$3, trays_sold=$4, rate=$5, amount=$6, 
             payment_received=$7, return_trays=$8, empty_trays_balance=$9, balance_amount=$10 
-        WHERE id=$11 AND (user_id = $12 OR user_id IS NULL) RETURNING *"#,
+        WHERE id=$11 AND user_id = $12 RETURNING *"#,
     )
     .bind(p.date)
     .bind(&p.bakery_name)
@@ -203,10 +203,10 @@ pub async fn delete_broken_sale(
     user: AuthenticatedUser,
     State(pool): State<PgPool>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let existing: Option<BrokenEggSale> = sqlx::query_as("SELECT * FROM broken_egg_sales WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    let existing: Option<BrokenEggSale> = sqlx::query_as("SELECT * FROM broken_egg_sales WHERE id=$1 AND user_id = $2")
         .bind(id).bind(&user.user_id).fetch_optional(&pool).await.unwrap_or(None);
 
-    sqlx::query("DELETE FROM broken_egg_sales WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    sqlx::query("DELETE FROM broken_egg_sales WHERE id=$1 AND user_id = $2")
         .bind(id)
         .bind(&user.user_id)
         .execute(&pool)

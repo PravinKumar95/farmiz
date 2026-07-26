@@ -15,7 +15,7 @@ pub async fn get_purchases(
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<MaterialPurchase>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, MaterialPurchase>(
-        "SELECT * FROM material_purchases WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC",
+        "SELECT * FROM material_purchases WHERE user_id = $1 ORDER BY created_at DESC",
     )
     .bind(&user.user_id)
     .fetch_all(&pool)
@@ -64,7 +64,7 @@ pub async fn update_purchase(
         r#"UPDATE material_purchases SET 
             date=$1, party_name=$2, party_id=$3, material_name=$4, quantity_kg=$5, 
             rate_per_kg=$6, total_amount=$7, advance_paid=$8, status=$9, balance=$10 
-        WHERE id=$11 AND (user_id = $12 OR user_id IS NULL) RETURNING *"#,
+        WHERE id=$11 AND user_id = $12 RETURNING *"#,
     )
     .bind(p.date)
     .bind(&p.party_name)
@@ -92,10 +92,10 @@ pub async fn delete_purchase(
     user: AuthenticatedUser,
     State(pool): State<PgPool>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let existing: Option<MaterialPurchase> = sqlx::query_as("SELECT * FROM material_purchases WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    let existing: Option<MaterialPurchase> = sqlx::query_as("SELECT * FROM material_purchases WHERE id=$1 AND user_id = $2")
         .bind(id).bind(&user.user_id).fetch_optional(&pool).await.unwrap_or(None);
 
-    sqlx::query("DELETE FROM material_purchases WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    sqlx::query("DELETE FROM material_purchases WHERE id=$1 AND user_id = $2")
         .bind(id)
         .bind(&user.user_id)
         .execute(&pool)

@@ -14,7 +14,7 @@ pub async fn get_party_ledger(
     user: AuthenticatedUser,
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<LedgerEntry>>, (StatusCode, String)> {
-    let party = sqlx::query_as::<_, Party>("SELECT * FROM parties WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)")
+    let party = sqlx::query_as::<_, Party>("SELECT * FROM parties WHERE id = $1 AND user_id = $2")
         .bind(id)
         .bind(&user.user_id)
         .fetch_one(&pool)
@@ -23,7 +23,7 @@ pub async fn get_party_ledger(
 
     let mut entries = Vec::new();
 
-    let egg_sales = sqlx::query_as::<_, EggSale>("SELECT * FROM egg_sales WHERE (party_id = $1 OR party_name = $2) AND (user_id = $3 OR user_id IS NULL)")
+    let egg_sales = sqlx::query_as::<_, EggSale>("SELECT * FROM egg_sales WHERE (party_id = $1 OR (party_id IS NULL AND party_name = $2)) AND user_id = $3")
         .bind(id)
         .bind(&party.name)
         .bind(&user.user_id)
@@ -40,7 +40,7 @@ pub async fn get_party_ledger(
         });
     }
 
-    let broken_sales = sqlx::query_as::<_, BrokenEggSale>("SELECT * FROM broken_egg_sales WHERE (party_id = $1 OR bakery_name = $2) AND (user_id = $3 OR user_id IS NULL)")
+    let broken_sales = sqlx::query_as::<_, BrokenEggSale>("SELECT * FROM broken_egg_sales WHERE (party_id = $1 OR (party_id IS NULL AND bakery_name = $2)) AND user_id = $3")
         .bind(id)
         .bind(&party.name)
         .bind(&user.user_id)
@@ -57,7 +57,7 @@ pub async fn get_party_ledger(
         });
     }
 
-    let purchases = sqlx::query_as::<_, MaterialPurchase>("SELECT * FROM material_purchases WHERE (party_id = $1 OR party_name = $2) AND (user_id = $3 OR user_id IS NULL)")
+    let purchases = sqlx::query_as::<_, MaterialPurchase>("SELECT * FROM material_purchases WHERE (party_id = $1 OR (party_id IS NULL AND party_name = $2)) AND user_id = $3")
         .bind(id)
         .bind(&party.name)
         .bind(&user.user_id)
@@ -74,7 +74,8 @@ pub async fn get_party_ledger(
         });
     }
 
-    let labor = sqlx::query_as::<_, LaborRecord>("SELECT * FROM labor_records WHERE employee_name = $1 AND (user_id = $2 OR user_id IS NULL)")
+    let labor = sqlx::query_as::<_, LaborRecord>("SELECT * FROM labor_records WHERE (employee_id = $1 OR (employee_id IS NULL AND employee_name = $2)) AND user_id = $3")
+        .bind(id)
         .bind(&party.name)
         .bind(&user.user_id)
         .fetch_all(&pool)

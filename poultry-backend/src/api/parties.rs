@@ -14,7 +14,7 @@ pub async fn get_parties(
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<Party>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, Party>(
-        "SELECT * FROM parties WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC",
+        "SELECT * FROM parties WHERE user_id = $1 ORDER BY created_at DESC",
     )
     .bind(&user.user_id)
     .fetch_all(&pool)
@@ -48,7 +48,7 @@ pub async fn update_party(
     Json(payload): Json<Party>,
 ) -> Result<Json<Party>, (StatusCode, String)> {
     let record = sqlx::query_as::<_, Party>(
-        "UPDATE parties SET name = $1, party_type = $2, current_balance = $3 WHERE id = $4 AND (user_id = $5 OR user_id IS NULL) RETURNING *",
+        "UPDATE parties SET name = $1, party_type = $2, current_balance = $3 WHERE id = $4 AND user_id = $5 RETURNING *",
     )
     .bind(&payload.name)
     .bind(&payload.party_type)
@@ -66,7 +66,7 @@ pub async fn delete_party(
     user: AuthenticatedUser,
     State(pool): State<PgPool>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    sqlx::query("DELETE FROM parties WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)")
+    sqlx::query("DELETE FROM parties WHERE id = $1 AND user_id = $2")
         .bind(id)
         .bind(&user.user_id)
         .execute(&pool)

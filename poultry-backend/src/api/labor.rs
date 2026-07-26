@@ -15,7 +15,7 @@ pub async fn get_labor_records(
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<LaborRecord>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, LaborRecord>(
-        "SELECT * FROM labor_records WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC",
+        "SELECT * FROM labor_records WHERE user_id = $1 ORDER BY created_at DESC",
     )
     .bind(&user.user_id)
     .fetch_all(&pool)
@@ -58,7 +58,7 @@ pub async fn update_labor_record(
     let record = sqlx::query_as::<_, LaborRecord>(
         r#"UPDATE labor_records SET 
             date=$1, employee_name=$2, employee_id=$3, attendance=$4, advance_given=$5 
-        WHERE id=$6 AND (user_id = $7 OR user_id IS NULL) RETURNING *"#,
+        WHERE id=$6 AND user_id = $7 RETURNING *"#,
     )
     .bind(p.date)
     .bind(&p.employee_name)
@@ -81,10 +81,10 @@ pub async fn delete_labor_record(
     user: AuthenticatedUser,
     State(pool): State<PgPool>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let existing: Option<LaborRecord> = sqlx::query_as("SELECT * FROM labor_records WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    let existing: Option<LaborRecord> = sqlx::query_as("SELECT * FROM labor_records WHERE id=$1 AND user_id = $2")
         .bind(id).bind(&user.user_id).fetch_optional(&pool).await.unwrap_or(None);
 
-    sqlx::query("DELETE FROM labor_records WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    sqlx::query("DELETE FROM labor_records WHERE id=$1 AND user_id = $2")
         .bind(id)
         .bind(&user.user_id)
         .execute(&pool)

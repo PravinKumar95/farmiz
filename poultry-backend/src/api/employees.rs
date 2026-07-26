@@ -14,7 +14,7 @@ pub async fn get_employees(
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<Employee>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, Employee>(
-        "SELECT * FROM employees WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC",
+        "SELECT * FROM employees WHERE user_id = $1 ORDER BY created_at DESC",
     )
     .bind(&user.user_id)
     .fetch_all(&pool)
@@ -49,7 +49,7 @@ pub async fn update_employee(
     Json(payload): Json<Employee>,
 ) -> Result<Json<Employee>, (StatusCode, String)> {
     let record = sqlx::query_as::<_, Employee>(
-        "UPDATE employees SET name=$1, role=$2, daily_wage=$3, current_balance=$4 WHERE id=$5 AND (user_id = $6 OR user_id IS NULL) RETURNING *",
+        "UPDATE employees SET name=$1, role=$2, daily_wage=$3, current_balance=$4 WHERE id=$5 AND user_id = $6 RETURNING *",
     )
     .bind(payload.name)
     .bind(payload.role)
@@ -68,7 +68,7 @@ pub async fn delete_employee(
     user: AuthenticatedUser,
     State(pool): State<PgPool>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    sqlx::query("DELETE FROM employees WHERE id=$1 AND (user_id = $2 OR user_id IS NULL)")
+    sqlx::query("DELETE FROM employees WHERE id=$1 AND user_id = $2")
         .bind(id)
         .bind(&user.user_id)
         .execute(&pool)
