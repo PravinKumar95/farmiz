@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use chrono::Utc;
+use crate::components::toast::{use_toast, ToastOptions};
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
@@ -16,6 +17,7 @@ use crate::services::*;
 pub fn Feed() -> Element {
     let mut batches = use_feed_batches();
     let api = use_auth();
+    let toast_api = use_toast();
     let mut is_sheet_open = use_signal(|| false);
 
     let current_month_str = Utc::now().format("%Y-%m").to_string();
@@ -77,6 +79,7 @@ pub fn Feed() -> Element {
         form_error.set(String::new());
         is_submitting.set(true);
 
+        let is_edit = form_id().is_some();
         let new_batch = FeedBatch {
             id: form_id().unwrap_or_default(),
             date,
@@ -105,8 +108,13 @@ pub fn Feed() -> Element {
                     is_sheet_open.set(false);
                     form_error.set(String::new());
                     batches.restart();
+                    let desc = if is_edit { "Feed batch updated successfully." } else { "Feed batch created successfully." };
+                    toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
                 }
-                Err(e) => form_error.set(e),
+                Err(e) => {
+                    form_error.set(e.clone());
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                }
             }
         });
     };
@@ -122,6 +130,9 @@ pub fn Feed() -> Element {
                 if let Ok(_) = res {
                     delete_id.set(None);
                     batches.restart();
+                    toast_api.success("Success".to_string(), ToastOptions::new().description("Feed batch deleted successfully."));
+                } else if let Err(e) = res {
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });

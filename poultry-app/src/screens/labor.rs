@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use chrono::Utc;
+use crate::components::toast::{use_toast, ToastOptions};
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
@@ -18,6 +19,7 @@ pub fn Labor() -> Element {
     let mut records = use_labor_records();
     let employees_res = use_employees();
     let api = use_auth();
+    let toast_api = use_toast();
     let mut is_sheet_open = use_signal(|| false);
 
     let current_month_str = Utc::now().format("%Y-%m").to_string();
@@ -74,6 +76,7 @@ pub fn Labor() -> Element {
         form_error.set(String::new());
         is_submitting.set(true);
 
+        let is_edit = form_id().is_some();
         let new_record = LaborRecord {
             id: form_id().unwrap_or_default(),
             date,
@@ -99,8 +102,13 @@ pub fn Labor() -> Element {
                     is_sheet_open.set(false);
                     form_error.set(String::new());
                     records.restart();
+                    let desc = if is_edit { "Labor record updated successfully." } else { "Labor record logged successfully." };
+                    toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
                 }
-                Err(e) => form_error.set(e),
+                Err(e) => {
+                    form_error.set(e.clone());
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                }
             }
         });
     };
@@ -116,6 +124,9 @@ pub fn Labor() -> Element {
                 if let Ok(_) = res {
                     delete_id.set(None);
                     records.restart();
+                    toast_api.success("Success".to_string(), ToastOptions::new().description("Labor record deleted successfully."));
+                } else if let Err(e) = res {
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });

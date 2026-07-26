@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use chrono::Utc;
+use crate::components::toast::{use_toast, ToastOptions};
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
@@ -20,6 +21,7 @@ pub fn Sales() -> Element {
     let mut standard_sales = use_egg_sales();
     let mut broken_sales = use_broken_egg_sales();
     let api = use_auth();
+    let toast_api = use_toast();
     let mut is_sheet_open = use_signal(|| false);
 
     let current_month_str = Utc::now().format("%Y-%m").to_string();
@@ -58,6 +60,7 @@ pub fn Sales() -> Element {
             return;
         }
 
+        let is_edit = form_id().is_some();
         if active_tab() == Some("standard".to_string()) {
             let boxes: i32 = match form_boxes().parse() {
                 Ok(b) => b,
@@ -118,8 +121,13 @@ pub fn Sales() -> Element {
                         is_sheet_open.set(false);
                         form_error.set(String::new());
                         standard_sales.restart();
+                        let desc = if is_edit { "Egg sale updated successfully." } else { "Egg sale created successfully." };
+                        toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
                     }
-                    Err(e) => form_error.set(e),
+                    Err(e) => {
+                        form_error.set(e.clone());
+                        toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    }
                 }
             });
         } else {
@@ -178,8 +186,13 @@ pub fn Sales() -> Element {
                         is_sheet_open.set(false);
                         form_error.set(String::new());
                         broken_sales.restart();
+                        let desc = if is_edit { "Broken egg sale updated successfully." } else { "Broken egg sale created successfully." };
+                        toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
                     }
-                    Err(e) => form_error.set(e),
+                    Err(e) => {
+                        form_error.set(e.clone());
+                        toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    }
                 }
             });
         }
@@ -202,6 +215,9 @@ pub fn Sales() -> Element {
                     delete_info.set(None);
                     standard_sales.restart();
                     broken_sales.restart();
+                    toast_api.success("Success".to_string(), ToastOptions::new().description("Sale record deleted successfully."));
+                } else if let Err(e) = res {
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });

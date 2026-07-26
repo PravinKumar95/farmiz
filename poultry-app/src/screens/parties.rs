@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_router::components::Link;
+use crate::components::toast::{use_toast, ToastOptions};
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent};
@@ -15,6 +16,7 @@ use crate::services::*;
 pub fn Parties() -> Element {
     let mut parties = use_parties();
     let api = use_auth();
+    let toast_api = use_toast();
     let mut is_sheet_open = use_signal(|| false);
 
     let mut delete_id = use_signal(|| Option::<String>::None);
@@ -60,6 +62,7 @@ pub fn Parties() -> Element {
         form_error.set(String::new());
         is_submitting.set(true);
 
+        let is_edit = form_id().is_some();
         let party = Party {
             id: form_id().unwrap_or_default(),
             name,
@@ -85,8 +88,13 @@ pub fn Parties() -> Element {
                     form_type.set(String::new());
                     form_balance.set("0.0".to_string());
                     parties.restart();
+                    let desc = if is_edit { "Party updated successfully." } else { "Party created successfully." };
+                    toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
                 }
-                Err(e) => form_error.set(e),
+                Err(e) => {
+                    form_error.set(e.clone());
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                }
             }
         });
     };
@@ -102,6 +110,9 @@ pub fn Parties() -> Element {
                 if let Ok(_) = res {
                     delete_id.set(None);
                     parties.restart();
+                    toast_api.success("Success".to_string(), ToastOptions::new().description("Party deleted successfully."));
+                } else if let Err(e) = res {
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });
