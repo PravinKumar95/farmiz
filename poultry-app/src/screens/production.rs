@@ -3,7 +3,7 @@ use chrono::Utc;
 use crate::components::toast::{use_toast, ToastOptions};
 
 use crate::components::button::{Button, ButtonVariant};
-use crate::components::card::{Card, CardContent};
+use crate::components::card::Card;
 use crate::components::confirm_dialog::ConfirmDialog;
 use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
@@ -182,11 +182,6 @@ pub fn Production() -> Element {
         matches_month && matches_search
     }).collect();
 
-    let total_good_today: i32 = filtered_records.iter().map(|r| r.egg_count_good).sum();
-    let total_damaged_today: i32 = filtered_records.iter().map(|r| r.egg_count_damaged).sum();
-    let total_mortality_today: i32 = filtered_records.iter().map(|r| r.mortality_count).sum();
-    let total_feed_today: f64 = filtered_records.iter().map(|r| r.feed_consumed_kg).sum();
-
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
 
@@ -229,33 +224,6 @@ pub fn Production() -> Element {
             // SECTION 2: SCROLLABLE CONTENT
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
                 div { class: "flex flex-col gap-6 w-full max-w-6xl mx-auto pb-20",
-
-                    div { class: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full",
-                        Card {
-                            CardContent {
-                                p { class: "text-2xl font-bold text-green-600 dark:text-green-400", "{total_good_today}" }
-                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Good Eggs Collected" }
-                            }
-                        }
-                        Card {
-                            CardContent {
-                                p { class: "text-2xl font-bold text-amber-600 dark:text-amber-400", "{total_damaged_today}" }
-                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Damaged / Crates Eggs" }
-                            }
-                        }
-                        Card {
-                            CardContent {
-                                p { class: "text-2xl font-bold text-red-600 dark:text-red-400", "{total_mortality_today}" }
-                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Total Mortality Count" }
-                            }
-                        }
-                        Card {
-                            CardContent {
-                                p { class: "text-2xl font-bold text-blue-600 dark:text-blue-400", "{total_feed_today:.1} kg" }
-                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Feed Consumed" }
-                            }
-                        }
-                    }
 
                     match logs.cloned() {
                         Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
