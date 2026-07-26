@@ -36,7 +36,14 @@ pub fn Labor() -> Element {
     let mut form_advance = use_signal(|| "0.0".to_string());
     let mut form_error = use_signal(String::new);
 
+    let mut is_submitting = use_signal(|| false);
+    let mut is_deleting = use_signal(|| false);
+
     let submit_handler = move |_| {
+        if is_submitting() {
+            return;
+        }
+
         let date = form_date().trim().to_string();
         let employee = form_employee_name().trim().to_string();
 
@@ -64,6 +71,9 @@ pub fn Labor() -> Element {
             }
         };
 
+        form_error.set(String::new());
+        is_submitting.set(true);
+
         let new_record = LaborRecord {
             id: form_id().unwrap_or_default(),
             date,
@@ -82,6 +92,8 @@ pub fn Labor() -> Element {
                 api.post("/api/labor", &new_record).await
             };
 
+            is_submitting.set(false);
+
             match res {
                 Ok(_) => {
                     is_sheet_open.set(false);
@@ -94,12 +106,18 @@ pub fn Labor() -> Element {
     };
 
     let confirm_delete = move |_| {
+        if is_deleting() {
+            return;
+        }
         if let Some(id) = delete_id() {
+            is_deleting.set(true);
             spawn(async move {
-                if let Ok(_) = api.delete(&format!("/api/labor/{}", id)).await {
+                let res = api.delete(&format!("/api/labor/{}", id)).await;
+                if let Ok(_) = res {
                     delete_id.set(None);
                     records.restart();
                 }
+                is_deleting.set(false);
             });
         }
     };
@@ -354,10 +372,15 @@ pub fn Labor() -> Element {
 
                     ConfirmDialog {
                         is_open: delete_id().is_some(),
+                        is_deleting: is_deleting(),
                         title: "Delete Labor Record".to_string(),
                         description: "Are you sure you want to delete this labor record? Employee balance will automatically update.".to_string(),
                         onconfirm: confirm_delete,
-                        oncancel: move |_| delete_id.set(None)
+                        oncancel: move |_| {
+                            if !is_deleting() {
+                                delete_id.set(None);
+                            }
+                        }
                     }
                 }
             }
@@ -419,10 +442,13 @@ pub fn Labor() -> Element {
                     SheetFooter {
                         Button {
                             variant: ButtonVariant::Outline,
+                            disabled: is_submitting(),
                             onclick: move |_| is_sheet_open.set(false),
                             "Cancel"
                         }
                         Button {
+                            disabled: is_submitting(),
+                            loading: is_submitting(),
                             onclick: submit_handler,
                             if form_id().is_some() { "Update Record" } else { "Save Record" }
                         }

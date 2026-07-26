@@ -37,7 +37,14 @@ pub fn Production() -> Element {
     let mut form_notes = use_signal(String::new);
     let mut form_error = use_signal(String::new);
 
+    let mut is_submitting = use_signal(|| false);
+    let mut is_deleting = use_signal(|| false);
+
     let submit_handler = move |_| {
+        if is_submitting() {
+            return;
+        }
+
         let date = form_date().trim().to_string();
         let shed_name = form_shed().trim().to_string();
 
@@ -92,6 +99,9 @@ pub fn Production() -> Element {
             Some(form_notes().trim().to_string())
         };
 
+        form_error.set(String::new());
+        is_submitting.set(true);
+
         let record = DailyProduction {
             id: form_id().unwrap_or_default(),
             date,
@@ -113,6 +123,8 @@ pub fn Production() -> Element {
                 api.post("/api/production", &record).await
             };
 
+            is_submitting.set(false);
+
             match res {
                 Ok(_) => {
                     is_sheet_open.set(false);
@@ -125,12 +137,18 @@ pub fn Production() -> Element {
     };
 
     let confirm_delete = move |_| {
+        if is_deleting() {
+            return;
+        }
         if let Some(id) = delete_id() {
+            is_deleting.set(true);
             spawn(async move {
-                if let Ok(_) = api.delete(&format!("/api/production/{}", id)).await {
+                let res = api.delete(&format!("/api/production/{}", id)).await;
+                if let Ok(_) = res {
                     delete_id.set(None);
                     logs.restart();
                 }
+                is_deleting.set(false);
             });
         }
     };
@@ -306,10 +324,15 @@ pub fn Production() -> Element {
 
                     ConfirmDialog {
                         is_open: delete_id().is_some(),
+                        is_deleting: is_deleting(),
                         title: "Delete Production Record".to_string(),
                         description: "Are you sure you want to delete this production record? This action cannot be undone.".to_string(),
                         onconfirm: confirm_delete,
-                        oncancel: move |_| delete_id.set(None)
+                        oncancel: move |_| {
+                            if !is_deleting() {
+                                delete_id.set(None);
+                            }
+                        }
                     }
                 }
             }
@@ -367,12 +390,15 @@ pub fn Production() -> Element {
                     SheetFooter {
                         Button {
                             variant: ButtonVariant::Outline,
+                            disabled: is_submitting(),
                             onclick: move |_| is_sheet_open.set(false),
                             "Cancel"
                         }
                         Button {
+                            disabled: is_submitting(),
+                            loading: is_submitting(),
                             onclick: submit_handler,
-                            "Save Record"
+                            if form_id().is_some() { "Update Record" } else { "Save Record" }
                         }
                     }
                 }

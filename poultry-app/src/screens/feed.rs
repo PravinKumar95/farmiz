@@ -34,7 +34,14 @@ pub fn Feed() -> Element {
     let mut form_payment = use_signal(String::new);
     let mut form_error = use_signal(String::new);
 
+    let mut is_submitting = use_signal(|| false);
+    let mut is_deleting = use_signal(|| false);
+
     let submit_handler = move |_| {
+        if is_submitting() {
+            return;
+        }
+
         let date = form_date().trim().to_string();
         let batch_id = form_batch_id().trim().to_string();
         let feed_type = form_type().trim().to_string();
@@ -67,6 +74,9 @@ pub fn Feed() -> Element {
             Err(_) => 0.0,
         };
 
+        form_error.set(String::new());
+        is_submitting.set(true);
+
         let new_batch = FeedBatch {
             id: form_id().unwrap_or_default(),
             date,
@@ -88,6 +98,8 @@ pub fn Feed() -> Element {
                 api.post("/api/feed", &new_batch).await
             };
 
+            is_submitting.set(false);
+
             match res {
                 Ok(_) => {
                     is_sheet_open.set(false);
@@ -100,12 +112,18 @@ pub fn Feed() -> Element {
     };
 
     let confirm_delete = move |_| {
+        if is_deleting() {
+            return;
+        }
         if let Some(id) = delete_id() {
+            is_deleting.set(true);
             spawn(async move {
-                if let Ok(_) = api.delete(&format!("/api/feed/{}", id)).await {
+                let res = api.delete(&format!("/api/feed/{}", id)).await;
+                if let Ok(_) = res {
                     delete_id.set(None);
                     batches.restart();
                 }
+                is_deleting.set(false);
             });
         }
     };
@@ -331,10 +349,13 @@ pub fn Feed() -> Element {
                     SheetFooter {
                         Button {
                             variant: ButtonVariant::Outline,
+                            disabled: is_submitting(),
                             onclick: move |_| is_sheet_open.set(false),
                             "Cancel"
                         }
                         Button {
+                            disabled: is_submitting(),
+                            loading: is_submitting(),
                             onclick: submit_handler,
                             if form_id().is_some() { "Update Batch" } else { "Save Batch" }
                         }
@@ -344,10 +365,15 @@ pub fn Feed() -> Element {
 
             ConfirmDialog {
                 is_open: delete_id().is_some(),
+                is_deleting: is_deleting(),
                 title: "Delete Feed Batch".to_string(),
                 description: "Are you sure you want to delete this feed batch record?".to_string(),
                 onconfirm: confirm_delete,
-                oncancel: move |_| delete_id.set(None)
+                oncancel: move |_| {
+                    if !is_deleting() {
+                        delete_id.set(None);
+                    }
+                }
             }
         }
     }

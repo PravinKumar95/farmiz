@@ -63,6 +63,8 @@ impl ButtonSize {
 pub fn Button(
     #[props(default)] variant: ButtonVariant,
     #[props(default)] size: ButtonSize,
+    #[props(default)] disabled: bool,
+    #[props(default)] loading: bool,
     #[props(extends=GlobalAttributes)]
     #[props(extends=button)]
     attributes: Vec<Attribute>,
@@ -72,36 +74,67 @@ pub fn Button(
     onkeydown: Option<EventHandler<KeyboardEvent>>,
     children: Element,
 ) -> Element {
+    let is_disabled = disabled || loading;
     let base = attributes!(button {
         class: Styles::dx_button,
         "data-style": variant.class(),
         "data-size": size.class(),
+        disabled: is_disabled,
     });
     let merged = merge_attributes(vec![base, attributes]);
 
     rsx! {
         button {
             onclick: move |event| {
-                if let Some(f) = &onclick {
-                    f.call(event);
+                if !is_disabled {
+                    if let Some(f) = &onclick {
+                        f.call(event);
+                    }
                 }
             },
             onmousedown: move |event| {
-                if let Some(f) = &onmousedown {
-                    f.call(event);
+                if !is_disabled {
+                    if let Some(f) = &onmousedown {
+                        f.call(event);
+                    }
                 }
             },
             onmouseup: move |event| {
-                if let Some(f) = &onmouseup {
-                    f.call(event);
+                if !is_disabled {
+                    if let Some(f) = &onmouseup {
+                        f.call(event);
+                    }
                 }
             },
             onkeydown: move |event| {
-                if let Some(f) = &onkeydown {
-                    f.call(event);
+                if !is_disabled {
+                    if let Some(f) = &onkeydown {
+                        f.call(event);
+                    }
                 }
             },
             ..merged,
+            if loading {
+                svg {
+                    class: "animate-spin h-4 w-4 shrink-0 mr-1.5",
+                    xmlns: "http://www.w3.org/2000/svg",
+                    fill: "none",
+                    view_box: "0 0 24 24",
+                    circle {
+                        class: "opacity-25",
+                        cx: "12",
+                        cy: "12",
+                        r: "10",
+                        stroke: "currentColor",
+                        stroke_width: "4",
+                    }
+                    path {
+                        class: "opacity-75",
+                        fill: "currentColor",
+                        d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z",
+                    }
+                }
+            }
             {children}
         }
     }

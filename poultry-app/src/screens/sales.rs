@@ -38,7 +38,14 @@ pub fn Sales() -> Element {
     let mut form_received = use_signal(String::new);
     let mut form_error = use_signal(String::new);
 
+    let mut is_submitting = use_signal(|| false);
+    let mut is_deleting = use_signal(|| false);
+
     let submit_handler = move |_| {
+        if is_submitting() {
+            return;
+        }
+
         let date = form_date().trim().to_string();
         let party = form_party_name().trim().to_string();
 
@@ -77,6 +84,9 @@ pub fn Sales() -> Element {
             let total_eggs = boxes * 210;
             let total_amount = (total_eggs as f64) * rate;
 
+            form_error.set(String::new());
+            is_submitting.set(true);
+
             let new_sale = EggSale {
                 id: form_id().unwrap_or_default(),
                 date,
@@ -102,6 +112,7 @@ pub fn Sales() -> Element {
                 } else {
                     api.post("/api/sales/egg", &new_sale).await
                 };
+                is_submitting.set(false);
                 match res {
                     Ok(_) => {
                         is_sheet_open.set(false);
@@ -136,6 +147,9 @@ pub fn Sales() -> Element {
 
             let total_amount = (trays as f64) * rate;
 
+            form_error.set(String::new());
+            is_submitting.set(true);
+
             let new_sale = BrokenEggSale {
                 id: form_id().unwrap_or_default(),
                 date,
@@ -158,6 +172,7 @@ pub fn Sales() -> Element {
                 } else {
                     api.post("/api/sales/broken", &new_sale).await
                 };
+                is_submitting.set(false);
                 match res {
                     Ok(_) => {
                         is_sheet_open.set(false);
@@ -171,18 +186,24 @@ pub fn Sales() -> Element {
     };
 
     let confirm_delete = move |_| {
+        if is_deleting() {
+            return;
+        }
         if let Some((id, s_type)) = delete_info() {
+            is_deleting.set(true);
             spawn(async move {
                 let endpoint = if s_type == "standard" {
                     format!("/api/sales/egg/{}", id)
                 } else {
                     format!("/api/sales/broken/{}", id)
                 };
-                if let Ok(_) = api.delete(&endpoint).await {
+                let res = api.delete(&endpoint).await;
+                if let Ok(_) = res {
                     delete_info.set(None);
                     standard_sales.restart();
                     broken_sales.restart();
                 }
+                is_deleting.set(false);
             });
         }
     };
@@ -430,10 +451,15 @@ pub fn Sales() -> Element {
 
                     ConfirmDialog {
                         is_open: delete_info().is_some(),
+                        is_deleting: is_deleting(),
                         title: "Delete Sale Record".to_string(),
                         description: "Are you sure you want to delete this sale record? The party ledger balance will automatically update.".to_string(),
                         onconfirm: confirm_delete,
-                        oncancel: move |_| delete_info.set(None)
+                        oncancel: move |_| {
+                            if !is_deleting() {
+                                delete_info.set(None);
+                            }
+                        }
                     }
                 }
             }
@@ -513,10 +539,13 @@ pub fn Sales() -> Element {
                     SheetFooter {
                         Button {
                             variant: ButtonVariant::Outline,
+                            disabled: is_submitting(),
                             onclick: move |_| is_sheet_open.set(false),
                             "Cancel"
                         }
                         Button {
+                            disabled: is_submitting(),
+                            loading: is_submitting(),
                             onclick: submit_handler,
                             if form_id().is_some() { "Update Sale" } else { "Save Sale" }
                         }

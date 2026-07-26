@@ -151,6 +151,7 @@ pub fn SignIn() -> Element {
                             r#type: "submit",
                             class: "w-full",
                             disabled: is_loading(),
+                            loading: is_loading(),
                             if is_loading() {
                                 "Signing in..."
                             } else {
@@ -494,6 +495,7 @@ pub fn SignUp() -> Element {
                                 r#type: "submit",
                                 class: "w-full",
                                 disabled: is_loading,
+                                loading: is_loading,
                                 if is_loading {
                                     "Creating account..."
                                 } else {

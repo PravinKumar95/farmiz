@@ -25,7 +25,14 @@ pub fn Employees() -> Element {
     let mut form_balance = use_signal(|| "0.0".to_string());
     let mut form_error = use_signal(String::new);
 
+    let mut is_submitting = use_signal(|| false);
+    let mut is_deleting = use_signal(|| false);
+
     let submit_handler = move |_| {
+        if is_submitting() {
+            return;
+        }
+
         let name = form_name().trim().to_string();
         let role = form_role().trim().to_string();
         let wage_str = form_wage().trim().to_string();
@@ -55,6 +62,8 @@ pub fn Employees() -> Element {
         };
 
         form_error.set(String::new());
+        is_submitting.set(true);
+
         let new_employee = Employee {
             id: form_id().unwrap_or_default(),
             name,
@@ -72,6 +81,8 @@ pub fn Employees() -> Element {
                 api.post("/api/employees", &new_employee).await
             };
 
+            is_submitting.set(false);
+
             match res {
                 Ok(_) => {
                     is_sheet_open.set(false);
@@ -87,12 +98,18 @@ pub fn Employees() -> Element {
     };
 
     let confirm_delete = move |_| {
+        if is_deleting() {
+            return;
+        }
         if let Some(id) = delete_id() {
+            is_deleting.set(true);
             spawn(async move {
-                if let Ok(_) = api.delete(&format!("/api/employees/{}", id)).await {
+                let res = api.delete(&format!("/api/employees/{}", id)).await;
+                if let Ok(_) = res {
                     delete_id.set(None);
                     employees.restart();
                 }
+                is_deleting.set(false);
             });
         }
     };
@@ -234,10 +251,13 @@ pub fn Employees() -> Element {
                     SheetFooter {
                         Button {
                             variant: ButtonVariant::Outline,
+                            disabled: is_submitting(),
                             onclick: move |_| is_sheet_open.set(false),
                             "Cancel"
                         }
                         Button {
+                            disabled: is_submitting(),
+                            loading: is_submitting(),
                             onclick: submit_handler,
                             if form_id().is_some() { "Update Employee" } else { "Save Employee" }
                         }
@@ -247,10 +267,15 @@ pub fn Employees() -> Element {
 
             ConfirmDialog {
                 is_open: delete_id().is_some(),
+                is_deleting: is_deleting(),
                 title: "Delete Employee".to_string(),
                 description: "Are you sure you want to delete this employee? Record will be permanently removed.".to_string(),
                 onconfirm: confirm_delete,
-                oncancel: move |_| delete_id.set(None)
+                oncancel: move |_| {
+                    if !is_deleting() {
+                        delete_id.set(None);
+                    }
+                }
             }
         }
     }

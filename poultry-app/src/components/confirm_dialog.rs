@@ -4,6 +4,8 @@ use crate::components::button::{Button, ButtonVariant};
 #[derive(Props, Clone, PartialEq)]
 pub struct ConfirmDialogProps {
     pub is_open: bool,
+    #[props(default)]
+    pub is_deleting: bool,
     pub title: String,
     pub description: String,
     pub onconfirm: EventHandler<()>,
@@ -24,11 +26,14 @@ pub fn ConfirmDialog(props: ConfirmDialogProps) -> Element {
                 div { class: "flex items-center justify-end gap-3 mt-4",
                     Button {
                         variant: ButtonVariant::Outline,
+                        disabled: props.is_deleting,
                         onclick: move |_| props.oncancel.call(()),
                         "Cancel"
                     }
                     Button {
                         variant: ButtonVariant::Destructive,
+                        disabled: props.is_deleting,
+                        loading: props.is_deleting,
                         onclick: move |_| props.onconfirm.call(()),
                         "Delete"
                     }
