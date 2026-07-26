@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_router::components::Outlet;
 
+use crate::components::button::{Button, ButtonVariant};
 use crate::components::sidebar::{
     Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
     SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider,
@@ -21,6 +22,12 @@ pub fn AuthenticatedLayout() -> Element {
     let ledger_lbl = tr("ledger");
     let employees_lbl = tr("employees");
     let settings_lbl = tr("settings");
+    let signout_lbl = tr("sign-out");
+
+    let logout_action = use_context::<crate::LogoutAction>();
+    let on_signout = move |_| {
+        logout_action.0.call(());
+    };
 
     rsx! {
         SidebarProvider {
@@ -99,7 +106,15 @@ pub fn AuthenticatedLayout() -> Element {
                     }
                 }
                 SidebarFooter {
-                    div { class: "p-4 text-xs text-gray-500 dark:text-gray-400", "Farmiz v0.1.0" }
+                    div { class: "p-4 flex flex-col gap-3 border-t border-stone-200/60 dark:border-stone-800",
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            onclick: on_signout,
+                            class: "w-full flex items-center justify-center gap-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30",
+                            "🚪 {signout_lbl}"
+                        }
+                        div { class: "text-xs text-gray-500 dark:text-gray-400 text-center", "Farmiz v0.1.0" }
+                    }
                 }
             }
             SidebarInset {
