@@ -1,5 +1,6 @@
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardHeader, CardTitle};
+use crate::i18n::tr;
 use dioxus::prelude::*;
 
 #[component]
@@ -24,18 +25,21 @@ pub fn Dashboard() -> Element {
     let today_purchases = stats.as_ref().map(|s| s.today_purchases).unwrap_or(0.0);
     let active_parties = stats.as_ref().map(|s| s.active_parties).unwrap_or(0);
 
+    let dash_title = tr("dashboard");
+    let signout_lbl = tr("sign-out");
+
     rsx! {
         div {
-            class: "w-full flex flex-col gap-6 max-w-2xl mx-auto",
+            class: "w-full flex flex-col gap-6 max-w-2xl mx-auto p-4 md:p-6",
 
             // Header
             div {
                 class: "w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
-                h1 { class: "text-2xl sm:text-3xl font-bold break-words text-gray-900 dark:text-gray-100", "🐔 Farmiz Dashboard" }
+                h1 { class: "text-2xl sm:text-3xl font-bold break-words text-gray-900 dark:text-gray-100", "🏠 {dash_title}" }
                 Button {
                     variant: ButtonVariant::Outline,
                     onclick: on_signout,
-                    "Sign Out"
+                    "{signout_lbl}"
                 }
             }
 

@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_router::components::Link;
 use crate::components::toast::{use_toast, ToastOptions};
+use crate::i18n::tr;
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent};
@@ -89,11 +90,11 @@ pub fn Parties() -> Element {
                     form_balance.set("0.0".to_string());
                     parties.restart();
                     let desc = if is_edit { "Party updated successfully." } else { "Party created successfully." };
-                    toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
+                    toast_api.success(tr("success"), ToastOptions::new().description(desc));
                 }
                 Err(e) => {
                     form_error.set(e.clone());
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
             }
         });
@@ -110,9 +111,9 @@ pub fn Parties() -> Element {
                 if let Ok(_) = res {
                     delete_id.set(None);
                     parties.restart();
-                    toast_api.success("Success".to_string(), ToastOptions::new().description("Party deleted successfully."));
+                    toast_api.success(tr("success"), ToastOptions::new().description("Party deleted successfully."));
                 } else if let Err(e) = res {
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });
@@ -141,6 +142,10 @@ pub fn Parties() -> Element {
         })
         .collect();
 
+    let title_str = tr("ledger");
+    let add_btn_str = tr("add-party");
+    let search_ph = tr("search-placeholder");
+
     rsx! {
         div { class: "flex flex-col h-full max-h-full w-full min-h-0 overflow-hidden",
 
@@ -148,7 +153,7 @@ pub fn Parties() -> Element {
             div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex justify-between items-center",
                     div {
-                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Parties & Accounts Ledger" }
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "📒 {title_str}" }
                         p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Manage customer receivables, supplier payables & ledger balances" }
                     }
                     Button {
@@ -160,7 +165,7 @@ pub fn Parties() -> Element {
                             form_error.set(String::new());
                             is_sheet_open.set(true);
                         },
-                        "+ Add Party"
+                        "+ {add_btn_str}"
                     }
                 }
 
@@ -182,7 +187,7 @@ pub fn Parties() -> Element {
                     }
                     div { class: "w-full sm:w-64",
                         Input {
-                            placeholder: "🔍 Search party...",
+                            placeholder: "{search_ph}",
                             value: "{search_query}",
                             oninput: move |e: Event<FormData>| search_query.set(e.value())
                         }

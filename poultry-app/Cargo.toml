@@ -16,6 +16,8 @@ dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version 
 dirs = "6.0.0"
 dioxus-icons = { version = "0.1.0", default-features = false }
 chrono = { version = "0.4.40", features = ["serde"] }
+dioxus-i18n = "0.5.1"
+unic-langid = "0.9.6"
 
 [features]
 default = ["web"]

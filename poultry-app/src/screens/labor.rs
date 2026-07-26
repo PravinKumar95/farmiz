@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use chrono::Utc;
 use crate::components::toast::{use_toast, ToastOptions};
+use crate::i18n::tr;
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
@@ -103,11 +104,11 @@ pub fn Labor() -> Element {
                     form_error.set(String::new());
                     records.restart();
                     let desc = if is_edit { "Labor record updated successfully." } else { "Labor record logged successfully." };
-                    toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
+                    toast_api.success(tr("success"), ToastOptions::new().description(desc));
                 }
                 Err(e) => {
                     form_error.set(e.clone());
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
             }
         });
@@ -124,9 +125,9 @@ pub fn Labor() -> Element {
                 if let Ok(_) = res {
                     delete_id.set(None);
                     records.restart();
-                    toast_api.success("Success".to_string(), ToastOptions::new().description("Labor record deleted successfully."));
+                    toast_api.success(tr("success"), ToastOptions::new().description("Labor record deleted successfully."));
                 } else if let Err(e) = res {
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });
@@ -137,7 +138,7 @@ pub fn Labor() -> Element {
     let emp_list = employees_res.cloned().and_then(|r| r.ok()).unwrap_or_default();
 
     let q = search_query().trim().to_lowercase();
-    let filtered_records: Vec<_> = rec_list.iter().filter(|r| {
+    let filtered_records: Vec<_> = rec_list.into_iter().filter(|r| {
         let matches_month = if let Some(ref m) = selected_month() {
             r.date.starts_with(m)
         } else {
@@ -149,11 +150,11 @@ pub fn Labor() -> Element {
             r.employee_name.to_lowercase().contains(&q) || r.date.contains(&q)
         };
         matches_month && matches_search
-    }).cloned().collect();
+    }).collect();
 
-    // Calculate Payroll Summary per Employee
+    // Group & calculate payroll summary per worker for Settlement view
     let mut payroll_summaries: Vec<LaborPayrollSummary> = Vec::new();
-    let mut processed_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut processed_names = std::collections::HashSet::new();
 
     for r in &filtered_records {
         if processed_names.contains(&r.employee_name) {
@@ -192,6 +193,9 @@ pub fn Labor() -> Element {
         });
     }
 
+    let title_str = tr("labor");
+    let log_btn_str = tr("log-labor");
+
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
 
@@ -199,7 +203,7 @@ pub fn Labor() -> Element {
             div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex justify-between items-center",
                     div {
-                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Labor & Attendance Management" }
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "👥 {title_str}" }
                         p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track daily attendance, cash advances & monthly wage settlements" }
                     }
                     Button {
@@ -213,7 +217,7 @@ pub fn Labor() -> Element {
                             form_error.set(String::new());
                             is_sheet_open.set(true);
                         },
-                        "+ Log Record"
+                        "+ {log_btn_str}"
                     }
                 }
 

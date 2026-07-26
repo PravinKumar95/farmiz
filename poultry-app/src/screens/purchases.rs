@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use chrono::Utc;
 use crate::components::toast::{use_toast, ToastOptions};
+use crate::i18n::tr;
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
@@ -123,11 +124,11 @@ pub fn Purchases() -> Element {
                     form_error.set(String::new());
                     purchases.restart();
                     let desc = if is_edit { "Purchase record updated successfully." } else { "Purchase record created successfully." };
-                    toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
+                    toast_api.success(tr("success"), ToastOptions::new().description(desc));
                 }
                 Err(e) => {
                     form_error.set(e.clone());
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
             }
         });
@@ -144,18 +145,18 @@ pub fn Purchases() -> Element {
                 if let Ok(_) = res {
                     delete_id.set(None);
                     purchases.restart();
-                    toast_api.success("Success".to_string(), ToastOptions::new().description("Purchase record deleted successfully."));
+                    toast_api.success(tr("success"), ToastOptions::new().description("Purchase record deleted successfully."));
                 } else if let Err(e) = res {
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });
         }
     };
 
-    let pur_list = purchases.cloned().and_then(|r| r.ok()).unwrap_or_default();
+    let records_list = purchases.cloned().and_then(|r| r.ok()).unwrap_or_default();
     let q = search_query().trim().to_lowercase();
-    let filtered_purchases: Vec<_> = pur_list.into_iter().filter(|p| {
+    let filtered_purchases: Vec<_> = records_list.into_iter().filter(|p| {
         let matches_month = if let Some(ref m) = selected_month() {
             p.date.starts_with(m)
         } else {
@@ -164,13 +165,18 @@ pub fn Purchases() -> Element {
         let matches_search = if q.is_empty() {
             true
         } else {
-            p.material_name.to_lowercase().contains(&q)
-                || p.party_name.to_lowercase().contains(&q)
-                || p.date.contains(&q)
+            p.party_name.to_lowercase().contains(&q)
+                || p.material_name.to_lowercase().contains(&q)
                 || p.status.to_lowercase().contains(&q)
         };
         matches_month && matches_search
     }).collect();
+
+    let title_str = tr("purchases");
+    let add_btn_str = tr("add-purchase");
+    let search_ph = tr("search-placeholder");
+    let edit_str = tr("edit");
+    let delete_str = tr("delete");
 
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
@@ -178,7 +184,7 @@ pub fn Purchases() -> Element {
             // SECTION 1: FIXED HEADER — does NOT scroll
             div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex justify-between items-center",
-                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Purchases" }
+                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "{title_str}" }
                     Button {
                         onclick: move |_| {
                             form_id.set(None);
@@ -192,12 +198,12 @@ pub fn Purchases() -> Element {
                             form_error.set(String::new());
                             is_sheet_open.set(true);
                         },
-                        "Add Purchase"
+                        "{add_btn_str}"
                     }
                 }
 
                 Input {
-                    placeholder: "🔍 Search by supplier, material, status...",
+                    placeholder: "{search_ph}",
                     value: "{search_query}",
                     oninput: move |e: Event<FormData>| search_query.set(e.value())
                 }
@@ -265,14 +271,12 @@ pub fn Purchases() -> Element {
                                                                 form_advance.set(edit_item.advance_paid.to_string());
                                                                 is_sheet_open.set(true);
                                                             },
-                                                            "Edit"
+                                                            "{edit_str}"
                                                         }
                                                         Button {
                                                             variant: ButtonVariant::Destructive,
-                                                            onclick: move |_| {
-                                                                delete_id.set(Some(del_id.clone()));
-                                                            },
-                                                            "Delete"
+                                                            onclick: move |_| delete_id.set(Some(del_id.clone())),
+                                                            "{delete_str}"
                                                         }
                                                     }
                                                 }

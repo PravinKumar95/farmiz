@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::components::toast::{use_toast, ToastOptions};
+use crate::i18n::tr;
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent};
@@ -95,11 +96,11 @@ pub fn Employees() -> Element {
                     form_balance.set("0.0".to_string());
                     employees.restart();
                     let desc = if is_edit { "Employee updated successfully." } else { "Employee created successfully." };
-                    toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
+                    toast_api.success(tr("success"), ToastOptions::new().description(desc));
                 }
                 Err(e) => {
                     form_error.set(e.clone());
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
             }
         });
@@ -116,19 +117,22 @@ pub fn Employees() -> Element {
                 if let Ok(_) = res {
                     delete_id.set(None);
                     employees.restart();
-                    toast_api.success("Success".to_string(), ToastOptions::new().description("Employee deleted successfully."));
+                    toast_api.success(tr("success"), ToastOptions::new().description("Employee deleted successfully."));
                 } else if let Err(e) = res {
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });
         }
     };
 
+    let title_str = tr("employees");
+    let add_btn_str = tr("add-employee");
+
     rsx! {
-        div { class: "flex flex-col gap-4 w-full max-w-4xl mx-auto pb-20",
+        div { class: "flex flex-col gap-4 w-full max-w-4xl mx-auto pb-20 p-4 md:p-6",
             div { class: "flex justify-between items-center",
-                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Employees Directory" }
+                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "👷 {title_str}" }
                 Button {
                     onclick: move |_| {
                         form_id.set(None);
@@ -139,7 +143,7 @@ pub fn Employees() -> Element {
                         form_error.set(String::new());
                         is_sheet_open.set(true);
                     },
-                    "Add Employee"
+                    "+ {add_btn_str}"
                 }
             }
 

@@ -7,14 +7,26 @@ use crate::components::sidebar::{
     SidebarTrigger,
 };
 use crate::routes::AuthenticatedRoute;
+use crate::i18n::{tr, LanguageSelect};
 
 #[component]
 pub fn AuthenticatedLayout() -> Element {
+    let title = tr("app-title");
+    let dashboard_lbl = tr("dashboard");
+    let production_lbl = tr("production");
+    let sales_lbl = tr("sales");
+    let purchases_lbl = tr("purchases");
+    let feed_lbl = tr("feed-mill");
+    let labor_lbl = tr("labor");
+    let ledger_lbl = tr("ledger");
+    let employees_lbl = tr("employees");
+    let settings_lbl = tr("settings");
+
     rsx! {
         SidebarProvider {
             Sidebar {
                 SidebarHeader {
-                    div { class: " p-4 font-bold text-lg text-blue-600 dark:text-blue-400", "🐔 Farmiz App" }
+                    div { class: " p-4 font-bold text-lg text-blue-600 dark:text-blue-400", "🐔 {title}" }
                 }
                 SidebarContent {
                     SidebarGroup {
@@ -24,62 +36,62 @@ pub fn AuthenticatedLayout() -> Element {
                                 SidebarMenuItem {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Dashboard {},
                                         SidebarMenuButton {
-                                            span { "🏠 Dashboard" }
+                                            span { "🏠 {dashboard_lbl}" }
                                         }
                                     }
                                 }
                                 SidebarMenuItem {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Production {},
                                         SidebarMenuButton {
-                                            span { "🥚 Production Log" }
+                                            span { "🥚 {production_lbl}" }
                                         }
                                     }
                                 }
                                 SidebarMenuItem {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Sales {},
                                         SidebarMenuButton {
-                                            span { "🥚 Sales" }
+                                            span { "🥚 {sales_lbl}" }
                                         }
                                     }
                                 }
                                 SidebarMenuItem {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Purchases {},
                                         SidebarMenuButton {
-                                            span { "🛒 Purchases" }
+                                            span { "🛒 {purchases_lbl}" }
                                         }
                                     }
                                 }
                                 SidebarMenuItem {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Feed {},
                                         SidebarMenuButton {
-                                            span { "🌾 Feed Mill" }
+                                            span { "🌾 {feed_lbl}" }
                                         }
                                     }
                                 }
                                 SidebarMenuItem {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Labor {},
                                         SidebarMenuButton {
-                                            span { "👥 Labor" }
+                                            span { "👥 {labor_lbl}" }
                                         }
                                     }
                                 }
                                 SidebarMenuItem {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Parties {},
                                         SidebarMenuButton {
-                                            span { "📒 Ledger" }
+                                            span { "📒 {ledger_lbl}" }
                                         }
                                     }
                                 }
                                 SidebarMenuItem {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Employees {},
                                         SidebarMenuButton {
-                                            span { "👷 Employees" }
+                                            span { "👷 {employees_lbl}" }
                                         }
                                     }
                                 }
                                 SidebarMenuItem {
                                     SidebarMenuButton {
-                                        span { "⚙️ Settings" }
+                                        span { "⚙️ {settings_lbl}" }
                                     }
                                 }
                             }
@@ -91,8 +103,9 @@ pub fn AuthenticatedLayout() -> Element {
                 }
             }
             SidebarInset {
-                header { class: "flex h-14 items-center gap-4 border-b bg-white dark:bg-stone-900 px-4 lg:h-[60px] shrink-0",
+                header { class: "flex h-14 items-center justify-between gap-4 border-b bg-white dark:bg-stone-900 px-4 lg:h-[60px] shrink-0",
                     SidebarTrigger {}
+                    LanguageSelect {}
                 }
                 div { class: "flex-1 overflow-hidden flex flex-col min-h-0 text-gray-900 dark:text-gray-100",
                     Outlet::<AuthenticatedRoute> {}

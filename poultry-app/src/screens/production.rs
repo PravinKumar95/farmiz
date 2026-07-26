@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use chrono::Utc;
 use crate::components::toast::{use_toast, ToastOptions};
+use crate::i18n::tr;
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::Card;
@@ -134,11 +135,11 @@ pub fn Production() -> Element {
                     form_error.set(String::new());
                     logs.restart();
                     let desc = if is_edit { "Production record updated successfully." } else { "Production record logged successfully." };
-                    toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
+                    toast_api.success(tr("success"), ToastOptions::new().description(desc));
                 }
                 Err(e) => {
                     form_error.set(e.clone());
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
             }
         });
@@ -155,9 +156,9 @@ pub fn Production() -> Element {
                 if let Ok(_) = res {
                     delete_id.set(None);
                     logs.restart();
-                    toast_api.success("Success".to_string(), ToastOptions::new().description("Production record deleted successfully."));
+                    toast_api.success(tr("success"), ToastOptions::new().description("Production record deleted successfully."));
                 } else if let Err(e) = res {
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });
@@ -182,6 +183,10 @@ pub fn Production() -> Element {
         matches_month && matches_search
     }).collect();
 
+    let title_str = tr("production");
+    let log_btn_str = tr("log-production");
+    let search_ph = tr("search-placeholder");
+
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
 
@@ -189,7 +194,7 @@ pub fn Production() -> Element {
             div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
                     div {
-                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🥚 Daily Production & Flock Health Log" }
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🥚 {title_str}" }
                         p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Track daily egg collection, damaged eggs, mortality, and feed consumption per shed." }
                     }
                     Button {
@@ -206,12 +211,12 @@ pub fn Production() -> Element {
                             form_error.set(String::new());
                             is_sheet_open.set(true);
                         },
-                        "+ Log Production"
+                        "+ {log_btn_str}"
                     }
                 }
 
                 Input {
-                    placeholder: "🔍 Search by shed name, date, notes...",
+                    placeholder: "{search_ph}",
                     value: "{search_query}",
                     oninput: move |e: Event<FormData>| search_query.set(e.value())
                 }

@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use chrono::Utc;
 use crate::components::toast::{use_toast, ToastOptions};
+use crate::i18n::tr;
 
 use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
@@ -122,11 +123,11 @@ pub fn Sales() -> Element {
                         form_error.set(String::new());
                         standard_sales.restart();
                         let desc = if is_edit { "Egg sale updated successfully." } else { "Egg sale created successfully." };
-                        toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
+                        toast_api.success(tr("success"), ToastOptions::new().description(desc));
                     }
                     Err(e) => {
                         form_error.set(e.clone());
-                        toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                        toast_api.error(tr("error"), ToastOptions::new().description(e));
                     }
                 }
             });
@@ -187,11 +188,11 @@ pub fn Sales() -> Element {
                         form_error.set(String::new());
                         broken_sales.restart();
                         let desc = if is_edit { "Broken egg sale updated successfully." } else { "Broken egg sale created successfully." };
-                        toast_api.success("Success".to_string(), ToastOptions::new().description(desc));
+                        toast_api.success(tr("success"), ToastOptions::new().description(desc));
                     }
                     Err(e) => {
                         form_error.set(e.clone());
-                        toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                        toast_api.error(tr("error"), ToastOptions::new().description(e));
                     }
                 }
             });
@@ -215,9 +216,9 @@ pub fn Sales() -> Element {
                     delete_info.set(None);
                     standard_sales.restart();
                     broken_sales.restart();
-                    toast_api.success("Success".to_string(), ToastOptions::new().description("Sale record deleted successfully."));
+                    toast_api.success(tr("success"), ToastOptions::new().description("Sale record deleted successfully."));
                 } else if let Err(e) = res {
-                    toast_api.error("Error".to_string(), ToastOptions::new().description(e));
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
                 is_deleting.set(false);
             });
@@ -256,13 +257,17 @@ pub fn Sales() -> Element {
         matches_month && matches_search
     }).collect();
 
+    let title_str = tr("sales");
+    let add_btn_str = tr("add-sale");
+    let search_ph = tr("search-placeholder");
+
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
 
             // SECTION 1: FIXED HEADER — does NOT scroll
             div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex justify-between items-center",
-                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "Sales" }
+                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🥚 {title_str}" }
                     Button {
                         onclick: move |_| {
                             form_id.set(None);
@@ -275,12 +280,12 @@ pub fn Sales() -> Element {
                             form_error.set(String::new());
                             is_sheet_open.set(true);
                         },
-                        "Add Sale"
+                        "+ {add_btn_str}"
                     }
                 }
 
                 Input {
-                    placeholder: "🔍 Search by party name or date...",
+                    placeholder: "{search_ph}",
                     value: "{search_query}",
                     oninput: move |e: Event<FormData>| search_query.set(e.value())
                 }

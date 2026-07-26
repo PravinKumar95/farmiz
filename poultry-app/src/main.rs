@@ -3,6 +3,7 @@ use dioxus::prelude::*;
 use tracing::Level;
 
 mod components;
+mod i18n;
 mod layouts;
 mod models;
 mod routes;
@@ -31,6 +32,7 @@ pub struct LogoutAction(pub Callback<()>);
 
 #[component]
 fn App() -> Element {
+    let _i18n = i18n::use_app_i18n();
     let mut auth_token = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
         "auth_token".to_string(),
         || None::<String>,
