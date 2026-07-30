@@ -482,31 +482,31 @@ pub fn SignUp() -> Element {
                                     disabled: is_loading,
                                 }
                             }
-                        }
-                        match feedback() {
-                            MessageKind::Error(msg) => rsx! {
-                                div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700", "{msg}" }
-                            },
-                            MessageKind::None => rsx! {},
-                        }
-                        CardFooter { class: "pt-4 flex flex-col gap-3",
-                            Button {
-                                r#type: "submit",
-                                class: "w-full",
-                                disabled: is_loading,
-                                if is_loading {
-                                    "Creating account..."
-                                } else {
-                                    "Sign Up"
-                                }
+                            match feedback() {
+                                MessageKind::Error(msg) => rsx! {
+                                    div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700", "{msg}" }
+                                },
+                                MessageKind::None => rsx! {},
                             }
-                            div { class: "text-sm text-center text-gray-500 dark:text-gray-400 w-full mt-2",
-                                "Already have an account?"
-                                Link {
-                                    to: crate::routes::PublicRoute::SignIn {
-                                    },
-                                    class: "ml-1 text-blue-600 hover:underline dark:text-blue-400 font-medium",
-                                    "Sign in"
+                            CardFooter { class: "pt-4 flex flex-col gap-3",
+                                Button {
+                                    r#type: "submit",
+                                    class: "w-full",
+                                    disabled: is_loading,
+                                    if is_loading {
+                                        "Creating account..."
+                                    } else {
+                                        "Sign Up"
+                                    }
+                                }
+                                div { class: "text-sm text-center text-gray-500 dark:text-gray-400 w-full mt-2",
+                                    "Already have an account?"
+                                    Link {
+                                        to: crate::routes::PublicRoute::SignIn {
+                                        },
+                                        class: "ml-1 text-blue-600 hover:underline dark:text-blue-400 font-medium",
+                                        "Sign in"
+                                    }
                                 }
                             }
                         }
