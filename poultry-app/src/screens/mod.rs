@@ -7,3 +7,4 @@ pub mod labor;
 pub mod parties;
 pub mod party_detail;
 pub mod employees;
+pub mod production;

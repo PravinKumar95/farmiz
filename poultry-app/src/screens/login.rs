@@ -4,6 +4,7 @@ use crate::components::card::{
 };
 use crate::components::input::Input;
 use crate::components::label::Label;
+use crate::components::toast::{use_toast, ToastOptions};
 use dioxus::prelude::*;
 use serde::Serialize;
 
@@ -31,6 +32,7 @@ pub struct LoginInfo {
 pub fn SignIn() -> Element {
     let login_action = use_context::<crate::LoginAction>();
     let on_login = login_action.0;
+    let toast_api = use_toast();
 
     let mut email = use_signal(|| "".to_string());
     let mut password = use_signal(|| "".to_string());
@@ -78,6 +80,7 @@ pub fn SignIn() -> Element {
                             
                             if let Some(token) = token_str {
                                 println!("Login successful!");
+                                toast_api.success("Success".to_string(), ToastOptions::new().description("Signed in successfully."));
                                 on_login.call(LoginInfo {
                                     token: token.to_string(),
                                     email: login_email,
@@ -87,7 +90,9 @@ pub fn SignIn() -> Element {
                                 return;
                             }
                         }
-                        error_msg.set("Signed in, but no token returned.".into());
+                        let err = "Signed in, but no token returned.".to_string();
+                        error_msg.set(err.clone());
+                        toast_api.error("Error".to_string(), ToastOptions::new().description(err));
                     } else {
                         let status = resp.status();
                         let body = resp.text().await.unwrap_or_default();
@@ -101,12 +106,15 @@ pub fn SignIn() -> Element {
                         } else {
                             format!("Error: {}", status)
                         };
-                        error_msg.set(msg);
+                        error_msg.set(msg.clone());
+                        toast_api.error("Error".to_string(), ToastOptions::new().description(msg));
                     }
                 }
                 Err(e) => {
                     println!("Network error: {:?}", e);
-                    error_msg.set(format!("Request failed: {}", e));
+                    let err = format!("Request failed: {}", e);
+                    error_msg.set(err.clone());
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(err));
                 }
             }
             is_loading.set(false);
@@ -151,6 +159,7 @@ pub fn SignIn() -> Element {
                             r#type: "submit",
                             class: "w-full",
                             disabled: is_loading(),
+                            loading: is_loading(),
                             if is_loading() {
                                 "Signing in..."
                             } else {
@@ -192,6 +201,27 @@ enum MessageKind {
     Error(String),
 }
 
+fn extract_error_message(err_body: &str) -> String {
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(err_body) {
+        if let Some(m) = json.get("message").and_then(|m| m.as_str()) {
+            return m.to_string();
+        }
+        if let Some(err_val) = json.get("error") {
+            if let Some(e) = err_val.as_str() {
+                return e.to_string();
+            }
+            if let Some(m) = err_val.get("message").and_then(|m| m.as_str()) {
+                return m.to_string();
+            }
+        }
+    }
+    if err_body.is_empty() {
+        "An unexpected error occurred".to_string()
+    } else {
+        err_body.to_string()
+    }
+}
+
 #[derive(Serialize)]
 struct VerifyEmailPayload {
     email: String,
@@ -200,6 +230,7 @@ struct VerifyEmailPayload {
 
 #[component]
 pub fn SignUp() -> Element {
+    let toast_api = use_toast();
     let mut name = use_signal(|| "".to_string());
     let mut email = use_signal(|| "".to_string());
     let mut password = use_signal(|| "".to_string());
@@ -237,29 +268,19 @@ pub fn SignUp() -> Element {
                         state.set(SignUpState::VerifyOtp {
                             email_address: submitted_email,
                         });
+                        toast_api.success("Success".to_string(), ToastOptions::new().description("Verification code sent to your email."));
                     } else {
                         let err_body = resp.text().await.unwrap_or_default();
-                        let msg = if let Ok(json) =
-                            serde_json::from_str::<serde_json::Value>(&err_body)
-                        {
-                            json.get("message")
-                                .and_then(|m| m.as_str())
-                                .map(|s| s.to_string())
-                                .or_else(|| {
-                                    json.get("error")
-                                        .and_then(|e| e.as_str())
-                                        .map(|s| s.to_string())
-                                })
-                                .unwrap_or(err_body)
-                        } else {
-                            err_body
-                        };
-                        feedback.set(MessageKind::Error(msg));
+                        let msg = extract_error_message(&err_body);
+                        feedback.set(MessageKind::Error(msg.clone()));
+                        toast_api.error("Error".to_string(), ToastOptions::new().description(msg));
                         state.set(SignUpState::Form);
                     }
                 }
                 Err(e) => {
-                    feedback.set(MessageKind::Error(format!("Request failed: {}", e)));
+                    let err = format!("Request failed: {}", e);
+                    feedback.set(MessageKind::Error(err.clone()));
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(err));
                     state.set(SignUpState::Form);
                 }
             }
@@ -295,24 +316,12 @@ pub fn SignUp() -> Element {
                 Ok(resp) => {
                     if resp.status().is_success() {
                         state.set(SignUpState::Verified);
+                        toast_api.success("Success".to_string(), ToastOptions::new().description("Email verified successfully! You can now sign in."));
                     } else {
                         let err_body = resp.text().await.unwrap_or_default();
-                        let msg = if let Ok(json) =
-                            serde_json::from_str::<serde_json::Value>(&err_body)
-                        {
-                            json.get("message")
-                                .and_then(|m| m.as_str())
-                                .map(|s| s.to_string())
-                                .or_else(|| {
-                                    json.get("error")
-                                        .and_then(|e| e.as_str())
-                                        .map(|s| s.to_string())
-                                })
-                                .unwrap_or(err_body)
-                        } else {
-                            err_body
-                        };
-                        feedback.set(MessageKind::Error(msg));
+                        let msg = extract_error_message(&err_body);
+                        feedback.set(MessageKind::Error(msg.clone()));
+                        toast_api.error("Error".to_string(), ToastOptions::new().description(msg));
                         // Go back to the OTP input so they can retry
                         state.set(SignUpState::VerifyOtp {
                             email_address: email(),
@@ -320,7 +329,9 @@ pub fn SignUp() -> Element {
                     }
                 }
                 Err(e) => {
-                    feedback.set(MessageKind::Error(format!("Request failed: {}", e)));
+                    let err = format!("Request failed: {}", e);
+                    feedback.set(MessageKind::Error(err.clone()));
+                    toast_api.error("Error".to_string(), ToastOptions::new().description(err));
                     state.set(SignUpState::VerifyOtp {
                         email_address: email(),
                     });
@@ -425,10 +436,10 @@ pub fn SignUp() -> Element {
                     p { class: "text-gray-600 dark:text-gray-400 mt-2",
                         "Your account is ready. You can now sign in with your credentials."
                     }
-                    div { class: "bg-green-50 border border-green-200 rounded-lg p-4 mt-4 text-sm text-green-800",
-                        "Switch to the "
-                        span { class: "font-bold", "Sign In" }
-                        " tab above to log in."
+                    Link {
+                        to: crate::routes::PublicRoute::SignIn {},
+                        class: "mt-4 inline-block bg-blue-600 text-white font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition-colors",
+                        "Proceed to Sign In"
                     }
                 }
             }
@@ -493,6 +504,7 @@ pub fn SignUp() -> Element {
                                     r#type: "submit",
                                     class: "w-full",
                                     disabled: is_loading,
+                                    loading: is_loading,
                                     if is_loading {
                                         "Creating account..."
                                     } else {
@@ -502,8 +514,7 @@ pub fn SignUp() -> Element {
                                 div { class: "text-sm text-center text-gray-500 dark:text-gray-400 w-full mt-2",
                                     "Already have an account?"
                                     Link {
-                                        to: crate::routes::PublicRoute::SignIn {
-                                        },
+                                        to: crate::routes::PublicRoute::SignIn {},
                                         class: "ml-1 text-blue-600 hover:underline dark:text-blue-400 font-medium",
                                         "Sign in"
                                     }
@@ -511,7 +522,6 @@ pub fn SignUp() -> Element {
                             }
                         }
                     }
-
                 }
             }
         }

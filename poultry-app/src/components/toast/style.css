@@ -1,0 +1,206 @@
+.dx-toast-container {
+  position: fixed;
+  z-index: 9999;
+  right: 20px;
+  bottom: 20px;
+  max-width: 380px;
+}
+
+.dx-toast-container ol {
+  display: flex;
+  flex-direction: column-reverse;
+  padding: 0;
+  margin: 0;
+  gap: 0.75rem;
+}
+
+.dx-toast-container li {
+  display: flex;
+}
+
+.dx-toast {
+  z-index: calc(var(--toast-count) - var(--toast-index));
+  display: flex;
+  overflow: hidden;
+  width: 20rem;
+  min-height: 4.25rem;
+  height: auto;
+  box-sizing: border-box;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 0.5rem;
+  margin-top: -4.25rem;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 40%);
+  opacity: calc(1 - var(--toast-hidden));
+  transform: scale(
+    calc(100% - var(--toast-index) * 5%),
+    calc(100% - var(--toast-index) * 2%)
+  );
+  transition: transform 0.2s ease, margin-top 0.2s ease, opacity 0.2s ease;
+
+  --toast-hidden: calc(min(max(0, var(--toast-index) - 2), 1));
+}
+
+.dx-toast-container:not(:hover, :focus-within)
+  .dx-toast[data-toast-even]:not([data-top]) {
+  animation: dx-slide-up-even 0.2s ease-out;
+}
+
+.dx-toast-container:not(:hover, :focus-within)
+  .dx-toast[data-toast-odd]:not([data-top]) {
+  animation: dx-slide-up-odd 0.2s ease-out;
+}
+
+@keyframes dx-slide-up-even {
+  from {
+    transform: translateY(0.5rem)
+      scale(
+        calc(100% - var(--toast-index) * 5%),
+        calc(100% - var(--toast-index) * 2%)
+      );
+  }
+
+  to {
+    transform: translateY(0)
+      scale(
+        calc(100% - var(--toast-index) * 5%),
+        calc(100% - var(--toast-index) * 2%)
+      );
+  }
+}
+
+@keyframes dx-slide-up-odd {
+  from {
+    transform: translateY(0.5rem)
+      scale(
+        calc(100% - var(--toast-index) * 5%),
+        calc(100% - var(--toast-index) * 2%)
+      );
+  }
+
+  to {
+    transform: translateY(0)
+      scale(
+        calc(100% - var(--toast-index) * 5%),
+        calc(100% - var(--toast-index) * 2%)
+      );
+  }
+}
+
+.dx-toast[data-top] {
+  animation: dx-toast-slide-in 0.2s ease-out;
+}
+
+.dx-toast-container:hover .dx-toast[data-top],
+.dx-toast-container:focus-within .dx-toast[data-top] {
+  animation: dx-toast-slide-in 0 ease-out;
+}
+
+@keyframes dx-toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(100%)
+      scale(
+        calc(110% - var(--toast-index) * 5%),
+        calc(110% - var(--toast-index) * 2%)
+      );
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0)
+      scale(
+        calc(100% - var(--toast-index) * 5%),
+        calc(100% - var(--toast-index) * 2%)
+      );
+  }
+}
+
+.dx-toast-container:hover .dx-toast,
+.dx-toast-container:focus-within .dx-toast {
+  margin-top: var(--toast-padding);
+  filter: brightness(1);
+  opacity: 1;
+  transform: scale(calc(100%));
+}
+
+.dx-toast[data-type="success"] {
+  background-color: #022c22;
+  border: 1px solid #065f46;
+  color: #ecfdf5;
+}
+
+.dx-toast[data-type="success"] .dx-toast-title {
+  color: #ffffff;
+}
+
+.dx-toast[data-type="success"] .dx-toast-description {
+  color: #a7f3d0;
+}
+
+.dx-toast[data-type="success"] .dx-toast-close {
+  color: #a7f3d0;
+}
+
+.dx-toast[data-type="error"] {
+  background-color: #450a0a;
+  border: 1px solid #991b1b;
+  color: #fef2f2;
+}
+
+.dx-toast[data-type="error"] .dx-toast-title {
+  color: #ffffff;
+}
+
+.dx-toast[data-type="error"] .dx-toast-description {
+  color: #fca5a5;
+}
+
+.dx-toast[data-type="error"] .dx-toast-close {
+  color: #fca5a5;
+}
+
+.dx-toast[data-type="warning"] {
+  background-color: #451a03;
+  border: 1px solid #7c2d12;
+  color: #fff7ed;
+}
+
+.dx-toast[data-type="info"] {
+  background-color: #082f49;
+  border: 1px solid #075985;
+  color: #f0f9ff;
+}
+
+.dx-toast-content {
+  flex: 1;
+  margin-right: 8px;
+}
+
+.dx-toast-title {
+  margin-bottom: 2px;
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+.dx-toast-description {
+  font-size: 0.8125rem;
+  line-height: 1.2rem;
+}
+
+.dx-toast-close {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  margin: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.dx-toast-close:hover {
+  opacity: 1;
+}

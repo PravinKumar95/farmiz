@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_sdk::storage::{use_storage, LocalStorage};
 use crate::models::{
-    BrokenEggSale, EggSale, FeedBatch, LaborRecord, MaterialPurchase, Party, Employee
+    BrokenEggSale, DailyProduction, EggSale, Employee, FeedBatch, LaborRecord, MaterialPurchase, Party,
 };
 
 const BACKEND_URL: &str = match option_env!("BACKEND_URL") {
@@ -13,18 +13,34 @@ const BACKEND_URL: &str = match option_env!("BACKEND_URL") {
 pub struct AuthSession {
     pub token: Signal<Option<String>>,
     pub session_cookies: Signal<Option<Vec<String>>>,
+    pub auth_email: Signal<Option<String>>,
 }
 
 pub fn use_auth() -> AuthSession {
     let token = use_storage::<LocalStorage, _>("auth_token".to_string(), || None::<String>);
+    let auth_email = use_storage::<LocalStorage, _>("auth_email".to_string(), || None::<String>);
     let session_cookies = use_storage::<LocalStorage, _>("session_cookies".to_string(), || None::<Vec<String>>);
-    AuthSession { token, session_cookies }
+    AuthSession { token, session_cookies, auth_email }
 }
 
 impl AuthSession {
+    pub fn logout(&self) {
+        let mut token = self.token;
+        let mut session_cookies = self.session_cookies;
+        let mut auth_email = self.auth_email;
+        token.set(None);
+        session_cookies.set(None);
+        auth_email.set(None);
+    }
+
     pub async fn refresh(&self) -> Result<String, String> {
-        let cookies = self.session_cookies.read().clone().ok_or("No session cookies")?;
-        if cookies.is_empty() { return Err("No session cookies".into()); }
+        let cookies = match self.session_cookies.read().clone() {
+            Some(c) if !c.is_empty() => c,
+            _ => {
+                self.logout();
+                return Err("No session cookies".into());
+            }
+        };
         
         let client = reqwest::Client::new();
         let res = client.post(format!("{BACKEND_URL}/api/auth/refresh"))
@@ -38,7 +54,9 @@ impl AuthSession {
             auth_token.set(Some(token.to_string()));
             Ok(token.to_string())
         } else {
-            Err(res.text().await.unwrap_or_else(|_| "Refresh failed".to_string()))
+            let err_msg = res.text().await.unwrap_or_else(|_| "Refresh failed".to_string());
+            self.logout();
+            Err(err_msg)
         }
     }
 
@@ -51,11 +69,19 @@ impl AuthSession {
             .send().await.map_err(|e| e.to_string())?;
             
         if res.status() == 401 {
-            if let Ok(t) = self.refresh().await {
-                current_token = t;
-                res = client.get(format!("{BACKEND_URL}{endpoint}"))
-                    .header("Authorization", format!("Bearer {}", current_token))
-                    .send().await.map_err(|e| e.to_string())?;
+            match self.refresh().await {
+                Ok(t) => {
+                    current_token = t;
+                    res = client.get(format!("{BACKEND_URL}{endpoint}"))
+                        .header("Authorization", format!("Bearer {}", current_token))
+                        .send().await.map_err(|e| e.to_string())?;
+                    if res.status() == 401 {
+                        self.logout();
+                    }
+                }
+                Err(_) => {
+                    self.logout();
+                }
             }
         }
         
@@ -76,12 +102,20 @@ impl AuthSession {
             .send().await.map_err(|e| e.to_string())?;
             
         if res.status() == 401 {
-            if let Ok(t) = self.refresh().await {
-                current_token = t;
-                res = client.post(format!("{BACKEND_URL}{endpoint}"))
-                    .header("Authorization", format!("Bearer {}", current_token))
-                    .json(payload)
-                    .send().await.map_err(|e| e.to_string())?;
+            match self.refresh().await {
+                Ok(t) => {
+                    current_token = t;
+                    res = client.post(format!("{BACKEND_URL}{endpoint}"))
+                        .header("Authorization", format!("Bearer {}", current_token))
+                        .json(payload)
+                        .send().await.map_err(|e| e.to_string())?;
+                    if res.status() == 401 {
+                        self.logout();
+                    }
+                }
+                Err(_) => {
+                    self.logout();
+                }
             }
         }
         
@@ -102,12 +136,20 @@ impl AuthSession {
             .send().await.map_err(|e| e.to_string())?;
             
         if res.status() == 401 {
-            if let Ok(t) = self.refresh().await {
-                current_token = t;
-                res = client.put(format!("{BACKEND_URL}{endpoint}"))
-                    .header("Authorization", format!("Bearer {}", current_token))
-                    .json(payload)
-                    .send().await.map_err(|e| e.to_string())?;
+            match self.refresh().await {
+                Ok(t) => {
+                    current_token = t;
+                    res = client.put(format!("{BACKEND_URL}{endpoint}"))
+                        .header("Authorization", format!("Bearer {}", current_token))
+                        .json(payload)
+                        .send().await.map_err(|e| e.to_string())?;
+                    if res.status() == 401 {
+                        self.logout();
+                    }
+                }
+                Err(_) => {
+                    self.logout();
+                }
             }
         }
         
@@ -127,11 +169,19 @@ impl AuthSession {
             .send().await.map_err(|e| e.to_string())?;
             
         if res.status() == 401 {
-            if let Ok(t) = self.refresh().await {
-                current_token = t;
-                res = client.delete(format!("{BACKEND_URL}{endpoint}"))
-                    .header("Authorization", format!("Bearer {}", current_token))
-                    .send().await.map_err(|e| e.to_string())?;
+            match self.refresh().await {
+                Ok(t) => {
+                    current_token = t;
+                    res = client.delete(format!("{BACKEND_URL}{endpoint}"))
+                        .header("Authorization", format!("Bearer {}", current_token))
+                        .send().await.map_err(|e| e.to_string())?;
+                    if res.status() == 401 {
+                        self.logout();
+                    }
+                }
+                Err(_) => {
+                    self.logout();
+                }
             }
         }
         
@@ -145,93 +195,104 @@ impl AuthSession {
 
 // Helpers for the `use_resource` hooks (since they run in components, they just use AuthSession)
 
-pub fn use_egg_sales() -> Resource<Vec<EggSale>> {
+pub fn use_egg_sales() -> Resource<Result<Vec<EggSale>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<EggSale>>("/api/sales/egg").await.unwrap_or_default()
+            auth.get::<Vec<EggSale>>("/api/sales/egg").await
         }
     })
 }
 
-pub fn use_broken_egg_sales() -> Resource<Vec<BrokenEggSale>> {
+pub fn use_broken_egg_sales() -> Resource<Result<Vec<BrokenEggSale>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<BrokenEggSale>>("/api/sales/broken").await.unwrap_or_default()
+            auth.get::<Vec<BrokenEggSale>>("/api/sales/broken").await
         }
     })
 }
 
-pub fn use_material_purchases() -> Resource<Vec<MaterialPurchase>> {
+pub fn use_material_purchases() -> Resource<Result<Vec<MaterialPurchase>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<MaterialPurchase>>("/api/purchases").await.unwrap_or_default()
+            auth.get::<Vec<MaterialPurchase>>("/api/purchases").await
         }
     })
 }
 
-pub fn use_feed_batches() -> Resource<Vec<FeedBatch>> {
+pub fn use_feed_batches() -> Resource<Result<Vec<FeedBatch>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<FeedBatch>>("/api/feed").await.unwrap_or_default()
+            auth.get::<Vec<FeedBatch>>("/api/feed").await
         }
     })
 }
 
-pub fn use_labor_records() -> Resource<Vec<LaborRecord>> {
+pub fn use_labor_records() -> Resource<Result<Vec<LaborRecord>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<LaborRecord>>("/api/labor").await.unwrap_or_default()
+            auth.get::<Vec<LaborRecord>>("/api/labor").await
         }
     })
 }
 
-pub fn use_parties() -> Resource<Vec<Party>> {
+pub fn use_parties() -> Resource<Result<Vec<Party>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<Party>>("/api/parties").await.unwrap_or_default()
+            auth.get::<Vec<Party>>("/api/parties").await
         }
     })
 }
 
-pub fn use_employees() -> Resource<Vec<Employee>> {
+pub fn use_employees() -> Resource<Result<Vec<Employee>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<Vec<Employee>>("/api/employees").await.unwrap_or_default()
+            auth.get::<Vec<Employee>>("/api/employees").await
         }
     })
 }
 
-pub fn use_dashboard_stats() -> Resource<Option<crate::models::DashboardStats>> {
+pub fn use_dashboard_stats() -> Resource<Result<crate::models::DashboardStats, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         async move {
-            auth.get::<crate::models::DashboardStats>("/api/dashboard/stats").await.ok()
+            auth.get::<crate::models::DashboardStats>("/api/dashboard/stats").await
         }
     })
 }
 
-pub fn use_party_ledger(party_id: String) -> Resource<Vec<crate::models::LedgerEntry>> {
+pub fn use_party_ledger(party_id: String) -> Resource<Result<Vec<crate::models::LedgerEntry>, String>> {
     let auth = use_auth();
     use_resource(move || {
         let auth = auth;
         let id = party_id.clone();
         async move {
-            auth.get::<Vec<crate::models::LedgerEntry>>(&format!("/api/parties/{}/ledger", id)).await.unwrap_or_default()
+            auth.get::<Vec<crate::models::LedgerEntry>>(&format!("/api/parties/{}/ledger", id)).await
         }
     })
 }
+
+pub fn use_daily_production() -> Resource<Result<Vec<DailyProduction>, String>> {
+    let auth = use_auth();
+    use_resource(move || {
+        let auth = auth;
+        async move {
+            auth.get::<Vec<DailyProduction>>("/api/production").await
+        }
+    })
+}
+

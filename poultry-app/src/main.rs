@@ -3,6 +3,7 @@ use dioxus::prelude::*;
 use tracing::Level;
 
 mod components;
+mod i18n;
 mod layouts;
 mod models;
 mod routes;
@@ -31,6 +32,7 @@ pub struct LogoutAction(pub Callback<()>);
 
 #[component]
 fn App() -> Element {
+    let _i18n = i18n::use_app_i18n();
     let mut auth_token = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
         "auth_token".to_string(),
         || None::<String>,
@@ -62,26 +64,28 @@ fn App() -> Element {
     });
 
     rsx! {
-        document::Meta {
-            name: "viewport",
-            content: "width=device-width, initial-scale=1.0, viewport-fit=cover",
-        }
-        document::Link { rel: "icon", href: FAVICON }
-        document::Stylesheet {
-            // Urls are relative to your Cargo.toml file
-            href: asset!("/assets/tailwind.css"),
-        }
-        document::Stylesheet { href: asset!("/assets/dx-components-theme.css") }
-        if auth_token().is_some() {
-            // ── Authenticated routes ──
-            div { class: "w-full h-[100dvh] dark:bg-stone-900",
-                Router::<crate::routes::AuthenticatedRoute> {}
+        crate::components::toast::ToastProvider {
+            document::Meta {
+                name: "viewport",
+                content: "width=device-width, initial-scale=1.0, viewport-fit=cover",
             }
-        } else {
-            div { 
-                class: "flex flex-col items-center dark:bg-stone-900 min-h-[100dvh]",
-                style: "padding-top: calc(env(safe-area-inset-top) + 6rem); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); box-sizing: border-box;",
-                Router::<PublicRoute> {}
+            document::Link { rel: "icon", href: FAVICON }
+            document::Stylesheet {
+                // Urls are relative to your Cargo.toml file
+                href: asset!("/assets/tailwind.css"),
+            }
+            document::Stylesheet { href: asset!("/assets/dx-components-theme.css") }
+            if auth_token().is_some() {
+                // ── Authenticated routes ──
+                div { class: "w-full h-[100dvh] dark:bg-stone-900",
+                    Router::<crate::routes::AuthenticatedRoute> {}
+                }
+            } else {
+                div { 
+                    class: "flex flex-col items-center dark:bg-stone-900 min-h-[100dvh]",
+                    style: "padding-top: calc(env(safe-area-inset-top) + 6rem); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); box-sizing: border-box;",
+                    Router::<PublicRoute> {}
+                }
             }
         }
     }

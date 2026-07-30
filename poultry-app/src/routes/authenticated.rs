@@ -2,13 +2,14 @@ use dioxus::prelude::*;
 
 use crate::layouts::AuthenticatedLayout;
 use crate::screens::dashboard::Dashboard;
-use crate::screens::sales::Sales;
-use crate::screens::purchases::Purchases;
+use crate::screens::employees::Employees;
 use crate::screens::feed::Feed;
 use crate::screens::labor::Labor;
 use crate::screens::parties::Parties;
 use crate::screens::party_detail::PartyDetail;
-use crate::screens::employees::Employees;
+use crate::screens::production::Production;
+use crate::screens::purchases::Purchases;
+use crate::screens::sales::Sales;
 
 #[derive(Clone, Debug, PartialEq, Routable)]
 pub enum AuthenticatedRoute {
@@ -17,6 +18,8 @@ pub enum AuthenticatedRoute {
     #[redirect("/signin", || AuthenticatedRoute::Dashboard {})]
     #[redirect("/signup", || AuthenticatedRoute::Dashboard {})]
     Dashboard {},
+    #[route("/production")]
+    Production {},
     #[route("/sales")]
     Sales {},
     #[route("/purchases")]

@@ -1,0 +1,392 @@
+use dioxus::prelude::*;
+use chrono::Utc;
+use crate::components::toast::{use_toast, ToastOptions};
+use crate::i18n::tr;
+
+use crate::components::button::{Button, ButtonVariant};
+use crate::components::card::Card;
+use crate::components::confirm_dialog::ConfirmDialog;
+use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
+use crate::components::input::Input;
+use crate::components::label::Label;
+use crate::components::month_filter::MonthFilter;
+use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
+use crate::models::DailyProduction;
+use crate::services::*;
+
+#[component]
+pub fn Production() -> Element {
+    let mut logs = use_daily_production();
+    let api = use_auth();
+    let toast_api = use_toast();
+    let mut is_sheet_open = use_signal(|| false);
+
+    let current_month_str = Utc::now().format("%Y-%m").to_string();
+    let mut selected_month = use_signal(move || Some(current_month_str.clone()));
+    let mut search_query = use_signal(String::new);
+
+    let mut delete_id = use_signal(|| Option::<String>::None);
+    let mut form_id = use_signal(|| Option::<String>::None);
+
+    let today_str = Utc::now().format("%Y-%m-%d").to_string();
+
+    let mut form_date = use_signal(move || today_str.clone());
+    let mut form_shed = use_signal(String::new);
+    let mut form_good = use_signal(|| "0".to_string());
+    let mut form_damaged = use_signal(|| "0".to_string());
+    let mut form_mortality = use_signal(|| "0".to_string());
+    let mut form_cull = use_signal(|| "0".to_string());
+    let mut form_feed = use_signal(|| "0.0".to_string());
+    let mut form_notes = use_signal(String::new);
+    let mut form_error = use_signal(String::new);
+
+    let mut is_submitting = use_signal(|| false);
+    let mut is_deleting = use_signal(|| false);
+
+    let submit_handler = move |_| {
+        if is_submitting() {
+            return;
+        }
+
+        let date = form_date().trim().to_string();
+        let shed_name = form_shed().trim().to_string();
+
+        if date.is_empty() {
+            form_error.set("Date is required.".to_string());
+            return;
+        }
+        if shed_name.is_empty() {
+            form_error.set("Shed name is required.".to_string());
+            return;
+        }
+
+        let good: i32 = match form_good().parse() {
+            Ok(v) => v,
+            Err(_) => {
+                form_error.set("Invalid good eggs count.".to_string());
+                return;
+            }
+        };
+        let damaged: i32 = match form_damaged().parse() {
+            Ok(v) => v,
+            Err(_) => {
+                form_error.set("Invalid damaged eggs count.".to_string());
+                return;
+            }
+        };
+        let mortality: i32 = match form_mortality().parse() {
+            Ok(v) => v,
+            Err(_) => {
+                form_error.set("Invalid mortality count.".to_string());
+                return;
+            }
+        };
+        let cull: i32 = match form_cull().parse() {
+            Ok(v) => v,
+            Err(_) => {
+                form_error.set("Invalid cull count.".to_string());
+                return;
+            }
+        };
+        let feed: f64 = match form_feed().parse() {
+            Ok(v) => v,
+            Err(_) => {
+                form_error.set("Invalid feed consumed.".to_string());
+                return;
+            }
+        };
+
+        let notes_val = if form_notes().trim().is_empty() {
+            None
+        } else {
+            Some(form_notes().trim().to_string())
+        };
+
+        form_error.set(String::new());
+        is_submitting.set(true);
+
+        let is_edit = form_id().is_some();
+        let record = DailyProduction {
+            id: form_id().unwrap_or_default(),
+            date,
+            shed_name,
+            egg_count_good: good,
+            egg_count_damaged: damaged,
+            mortality_count: mortality,
+            cull_count: cull,
+            feed_consumed_kg: feed,
+            notes: notes_val,
+            user_id: None,
+            created_at: None,
+        };
+
+        spawn(async move {
+            let res = if let Some(id) = form_id() {
+                api.put(&format!("/api/production/{}", id), &record).await
+            } else {
+                api.post("/api/production", &record).await
+            };
+
+            is_submitting.set(false);
+
+            match res {
+                Ok(_) => {
+                    is_sheet_open.set(false);
+                    form_error.set(String::new());
+                    logs.restart();
+                    let desc = if is_edit { "Production record updated successfully." } else { "Production record logged successfully." };
+                    toast_api.success(tr("success"), ToastOptions::new().description(desc));
+                }
+                Err(e) => {
+                    form_error.set(e.clone());
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
+                }
+            }
+        });
+    };
+
+    let confirm_delete = move |_| {
+        if is_deleting() {
+            return;
+        }
+        if let Some(id) = delete_id() {
+            is_deleting.set(true);
+            spawn(async move {
+                let res = api.delete(&format!("/api/production/{}", id)).await;
+                if let Ok(_) = res {
+                    delete_id.set(None);
+                    logs.restart();
+                    toast_api.success(tr("success"), ToastOptions::new().description("Production record deleted successfully."));
+                } else if let Err(e) = res {
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
+                }
+                is_deleting.set(false);
+            });
+        }
+    };
+
+    let records_list = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
+    let q = search_query().trim().to_lowercase();
+    let filtered_records: Vec<_> = records_list.into_iter().filter(|r| {
+        let matches_month = if let Some(ref m) = selected_month() {
+            r.date.starts_with(m)
+        } else {
+            true
+        };
+        let matches_search = if q.is_empty() {
+            true
+        } else {
+            r.shed_name.to_lowercase().contains(&q)
+                || r.date.contains(&q)
+                || r.notes.as_deref().unwrap_or("").to_lowercase().contains(&q)
+        };
+        matches_month && matches_search
+    }).collect();
+
+    let title_str = tr("production");
+    let log_btn_str = tr("log-production");
+    let search_ph = tr("search-placeholder");
+
+    rsx! {
+        div { class: "flex flex-col h-full w-full min-h-0",
+
+            // SECTION 1: FIXED HEADER — does NOT scroll
+            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
+                div { class: "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
+                    div {
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🥚 {title_str}" }
+                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Track daily egg collection, damaged eggs, mortality, and feed consumption per shed." }
+                    }
+                    Button {
+                        onclick: move |_| {
+                            form_id.set(None);
+                            form_date.set(Utc::now().format("%Y-%m-%d").to_string());
+                            form_shed.set(String::new());
+                            form_good.set("0".to_string());
+                            form_damaged.set("0".to_string());
+                            form_mortality.set("0".to_string());
+                            form_cull.set("0".to_string());
+                            form_feed.set("0.0".to_string());
+                            form_notes.set(String::new());
+                            form_error.set(String::new());
+                            is_sheet_open.set(true);
+                        },
+                        "+ {log_btn_str}"
+                    }
+                }
+
+                Input {
+                    placeholder: "{search_ph}",
+                    value: "{search_query}",
+                    oninput: move |e: Event<FormData>| search_query.set(e.value())
+                }
+                MonthFilter {
+                    selected: selected_month(),
+                    onchange: move |m| selected_month.set(m)
+                }
+            }
+
+            // SECTION 2: SCROLLABLE CONTENT
+            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
+                div { class: "flex flex-col gap-6 w-full max-w-6xl mx-auto pb-20",
+
+                    match logs.cloned() {
+                        Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
+                            Card {
+                                div { class: "overflow-x-auto",
+                                    table { class: "w-full text-sm text-left",
+                                        thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-border",
+                                            tr {
+                                                th { class: "px-6 py-3", "Date" }
+                                                th { class: "px-6 py-3", "Shed" }
+                                                th { class: "px-6 py-3 text-right", "Good Eggs" }
+                                                th { class: "px-6 py-3 text-right", "Damaged" }
+                                                th { class: "px-6 py-3 text-right", "Mortality" }
+                                                th { class: "px-6 py-3 text-right", "Feed (kg)" }
+                                                th { class: "px-6 py-3 text-right", "Actions" }
+                                            }
+                                        }
+                                        tbody { class: "divide-y divide-border",
+                                            for item in filtered_records {
+                                                tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800 transition-colors",
+                                                    td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100", "{item.date}" }
+                                                    td { class: "px-6 py-4 text-gray-600 dark:text-gray-300", "{item.shed_name}" }
+                                                    td { class: "px-6 py-4 text-right font-semibold text-green-600 dark:text-green-400", "{item.egg_count_good}" }
+                                                    td { class: "px-6 py-4 text-right text-amber-600 dark:text-amber-400", "{item.egg_count_damaged}" }
+                                                    td { class: "px-6 py-4 text-right text-red-600 dark:text-red-400", "{item.mortality_count}" }
+                                                    td { class: "px-6 py-4 text-right text-blue-600 dark:text-blue-400", "{item.feed_consumed_kg:.1}" }
+                                                    td { class: "px-6 py-4 text-right flex items-center justify-end gap-2",
+                                                        {
+                                                            let edit_item = item.clone();
+                                                            let del_id = item.id.clone();
+                                                            rsx! {
+                                                                Button {
+                                                                    variant: ButtonVariant::Outline,
+                                                                    onclick: move |_| {
+                                                                        form_id.set(Some(edit_item.id.clone()));
+                                                                        form_date.set(edit_item.date.clone());
+                                                                        form_shed.set(edit_item.shed_name.clone());
+                                                                        form_good.set(edit_item.egg_count_good.to_string());
+                                                                        form_damaged.set(edit_item.egg_count_damaged.to_string());
+                                                                        form_mortality.set(edit_item.mortality_count.to_string());
+                                                                        form_cull.set(edit_item.cull_count.to_string());
+                                                                        form_feed.set(edit_item.feed_consumed_kg.to_string());
+                                                                        form_notes.set(edit_item.notes.clone().unwrap_or_default());
+                                                                        is_sheet_open.set(true);
+                                                                    },
+                                                                    "Edit"
+                                                                }
+                                                                Button {
+                                                                    variant: ButtonVariant::Destructive,
+                                                                    onclick: move |_| {
+                                                                        delete_id.set(Some(del_id.clone()));
+                                                                    },
+                                                                    "Delete"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        Some(Ok(_)) => rsx! {
+                            EmptyState {
+                                icon: "🥚",
+                                title: "No production records found",
+                                description: "No production logs match your search criteria or date filter."
+                            }
+                        },
+                        Some(Err(err)) => rsx! {
+                            ErrorState { message: err }
+                        },
+                        None => rsx! { LoadingState {} }
+                    }
+
+                    ConfirmDialog {
+                        is_open: delete_id().is_some(),
+                        is_deleting: is_deleting(),
+                        title: "Delete Production Record".to_string(),
+                        description: "Are you sure you want to delete this production record? This action cannot be undone.".to_string(),
+                        onconfirm: confirm_delete,
+                        oncancel: move |_| {
+                            if !is_deleting() {
+                                delete_id.set(None);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if is_sheet_open() {
+                Sheet {
+                    open: Some(is_sheet_open()),
+                    on_open_change: move |open| is_sheet_open.set(open),
+                    SheetHeader {
+                        SheetTitle {
+                            if form_id().is_some() { "Edit Production Record" } else { "Log Daily Production" }
+                        }
+                    }
+                    div { class: "flex flex-col gap-4 py-4 px-6 overflow-y-auto max-h-[70vh]",
+                        if !form_error().is_empty() {
+                            div { class: "p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200", "{form_error}" }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "prod-date", "Date" }
+                            Input { r#type: "date", value: "{form_date}", oninput: move |e: Event<FormData>| form_date.set(e.value()) }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "prod-shed", "Shed Name" }
+                            Input { placeholder: "e.g. Shed A, Shed 1", value: "{form_shed}", oninput: move |e: Event<FormData>| form_shed.set(e.value()) }
+                        }
+                        div { class: "grid grid-cols-2 gap-4",
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "prod-good", "Good Eggs" }
+                                Input { r#type: "number", value: "{form_good}", oninput: move |e: Event<FormData>| form_good.set(e.value()) }
+                            }
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "prod-damaged", "Damaged Eggs" }
+                                Input { r#type: "number", value: "{form_damaged}", oninput: move |e: Event<FormData>| form_damaged.set(e.value()) }
+                            }
+                        }
+                        div { class: "grid grid-cols-2 gap-4",
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "prod-mortality", "Mortality Count" }
+                                Input { r#type: "number", value: "{form_mortality}", oninput: move |e: Event<FormData>| form_mortality.set(e.value()) }
+                            }
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "prod-cull", "Cull Count" }
+                                Input { r#type: "number", value: "{form_cull}", oninput: move |e: Event<FormData>| form_cull.set(e.value()) }
+                            }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "prod-feed", "Feed Consumed (KG)" }
+                            Input { r#type: "number", step: "0.1", value: "{form_feed}", oninput: move |e: Event<FormData>| form_feed.set(e.value()) }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "prod-notes", "Notes (Optional)" }
+                            Input { placeholder: "Vaccination, temperature, etc.", value: "{form_notes}", oninput: move |e: Event<FormData>| form_notes.set(e.value()) }
+                        }
+                    }
+                    SheetFooter {
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            disabled: is_submitting(),
+                            onclick: move |_| is_sheet_open.set(false),
+                            "Cancel"
+                        }
+                        Button {
+                            disabled: is_submitting(),
+                            loading: is_submitting(),
+                            onclick: submit_handler,
+                            if form_id().is_some() { "Update Record" } else { "Save Record" }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
