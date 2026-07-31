@@ -346,40 +346,45 @@ pub fn SignUp() -> Element {
             let display_email = email_address;
             let is_verifying = false;
             rsx! {
-                div { class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
-                    div { class: "text-4xl mb-2", "✉️" }
-                    h2 { class: "text-2xl font-bold", "Check Your Email" }
-                    p { class: "text-gray-600 dark:text-gray-400 mt-1", "We sent a verification code to:" }
-                    p { class: "font-semibold text-black mt-1", "{display_email}" }
-
-                    form {
-                        onsubmit: handle_verify,
-                        class: "flex flex-col gap-3 mt-4",
-                        Input {
-                            r#type: "text",
-                            placeholder: "Enter 6-digit code",
-                            value: "{otp_code}",
-                            oninput: move |e: Event<FormData>| otp_code.set(e.value()),
-                            class: "text-center text-xl tracking-widest font-mono",
-                            maxlength: "6",
-                            required: true,
-                            disabled: is_verifying,
-                            autocomplete: "one-time-code",
+                Card {
+                    CardHeader {
+                        div { class: "text-4xl mb-2 text-center", "✉️" }
+                        CardTitle { class: "text-2xl font-bold text-center text-gray-900 dark:text-gray-100", "Check Your Email" }
+                        CardDescription { class: "text-center text-gray-600 dark:text-gray-400 mt-1",
+                            "We sent a verification code to:"
+                            div { class: "font-semibold text-gray-900 dark:text-gray-100 mt-1 break-all", "{display_email}" }
                         }
-                        Button { r#type: "submit", disabled: is_verifying, "Verify Email" }
                     }
-
-                    match feedback() {
-                        MessageKind::Error(msg) => rsx! {
-                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700 text-left",
-                                "{msg}"
+                    CardContent {
+                        form {
+                            onsubmit: handle_verify,
+                            class: "flex flex-col gap-4 mt-2",
+                            Input {
+                                r#type: "text",
+                                placeholder: "Enter 6-digit code",
+                                value: "{otp_code}",
+                                oninput: move |e: Event<FormData>| otp_code.set(e.value()),
+                                class: "text-center text-xl tracking-widest font-mono text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-3 focus:ring-2 focus:ring-blue-500 outline-none",
+                                maxlength: "6",
+                                required: true,
+                                disabled: is_verifying,
+                                autocomplete: "one-time-code",
                             }
-                        },
-                        MessageKind::None => rsx! {},
-                    }
+                            Button { r#type: "submit", class: "w-full", disabled: is_verifying, "Verify Email" }
+                        }
 
-                    p { class: "text-xs text-gray-400 mt-3",
-                        "Didn't receive the code? Check your spam folder or try signing up again."
+                        match feedback() {
+                            MessageKind::Error(msg) => rsx! {
+                                div { class: "mt-3 p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-sm rounded text-red-700 dark:text-red-300 text-left",
+                                    "{msg}"
+                                }
+                            },
+                            MessageKind::None => rsx! {},
+                        }
+
+                        p { class: "text-xs text-center text-gray-500 dark:text-gray-400 mt-4",
+                            "Didn't receive the code? Check your spam folder or try signing up again."
+                        }
                     }
                 }
             }
@@ -388,40 +393,45 @@ pub fn SignUp() -> Element {
         SignUpState::Verifying => {
             let display_email = email();
             rsx! {
-                div { class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
-                    div { class: "text-4xl mb-2", "✉️" }
-                    h2 { class: "text-2xl font-bold", "Check Your Email" }
-                    p { class: "text-gray-600 dark:text-gray-400 mt-1", "We sent a verification code to:" }
-                    p { class: "font-semibold text-black mt-1", "{display_email}" }
-
-                    form {
-                        onsubmit: handle_verify,
-                        class: "flex flex-col gap-3 mt-4",
-                        Input {
-                            r#type: "text",
-                            placeholder: "Enter 6-digit code",
-                            value: "{otp_code}",
-                            oninput: move |e: Event<FormData>| otp_code.set(e.value()),
-                            class: "text-center text-xl tracking-widest font-mono",
-                            maxlength: "6",
-                            required: true,
-                            disabled: true,
-                            autocomplete: "one-time-code",
+                Card {
+                    CardHeader {
+                        div { class: "text-4xl mb-2 text-center", "✉️" }
+                        CardTitle { class: "text-2xl font-bold text-center text-gray-900 dark:text-gray-100", "Verifying Code..." }
+                        CardDescription { class: "text-center text-gray-600 dark:text-gray-400 mt-1",
+                            "Verifying code sent to:"
+                            div { class: "font-semibold text-gray-900 dark:text-gray-100 mt-1 break-all", "{display_email}" }
                         }
-                        Button { r#type: "submit", disabled: true, "Verifying..." }
                     }
-
-                    match feedback() {
-                        MessageKind::Error(msg) => rsx! {
-                            div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700 text-left",
-                                "{msg}"
+                    CardContent {
+                        form {
+                            onsubmit: handle_verify,
+                            class: "flex flex-col gap-4 mt-2",
+                            Input {
+                                r#type: "text",
+                                placeholder: "Enter 6-digit code",
+                                value: "{otp_code}",
+                                oninput: move |e: Event<FormData>| otp_code.set(e.value()),
+                                class: "text-center text-xl tracking-widest font-mono text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-3 focus:ring-2 focus:ring-blue-500 outline-none",
+                                maxlength: "6",
+                                required: true,
+                                disabled: true,
+                                autocomplete: "one-time-code",
                             }
-                        },
-                        MessageKind::None => rsx! {},
-                    }
+                            Button { r#type: "submit", class: "w-full", disabled: true, loading: true, "Verifying..." }
+                        }
 
-                    p { class: "text-xs text-gray-400 mt-3",
-                        "Didn't receive the code? Check your spam folder or try signing up again."
+                        match feedback() {
+                            MessageKind::Error(msg) => rsx! {
+                                div { class: "mt-3 p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-sm rounded text-red-700 dark:text-red-300 text-left",
+                                    "{msg}"
+                                }
+                            },
+                            MessageKind::None => rsx! {},
+                        }
+
+                        p { class: "text-xs text-center text-gray-500 dark:text-gray-400 mt-4",
+                            "Didn't receive the code? Check your spam folder or try signing up again."
+                        }
                     }
                 }
             }
@@ -430,16 +440,20 @@ pub fn SignUp() -> Element {
         // ── Verified Success Screen ──
         SignUpState::Verified => {
             rsx! {
-                div { class: "flex flex-col gap-4 p-4 max-w-sm mx-auto text-center",
-                    div { class: "text-4xl mb-2", "✅" }
-                    h2 { class: "text-2xl font-bold text-green-700", "Email Verified!" }
-                    p { class: "text-gray-600 dark:text-gray-400 mt-2",
-                        "Your account is ready. You can now sign in with your credentials."
+                Card {
+                    CardHeader {
+                        div { class: "text-4xl mb-2 text-center", "✅" }
+                        CardTitle { class: "text-2xl font-bold text-center text-green-700 dark:text-green-400", "Email Verified!" }
+                        CardDescription { class: "text-center text-gray-600 dark:text-gray-400 mt-2",
+                            "Your account is ready. You can now sign in with your credentials."
+                        }
                     }
-                    Link {
-                        to: crate::routes::PublicRoute::SignIn {},
-                        class: "mt-4 inline-block bg-blue-600 text-white font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition-colors",
-                        "Proceed to Sign In"
+                    CardContent { class: "pt-2",
+                        Link {
+                            to: crate::routes::PublicRoute::SignIn {},
+                            class: "w-full block text-center bg-blue-600 text-white font-medium py-2.5 px-4 rounded-md hover:bg-blue-700 transition-colors dark:bg-blue-500 dark:hover:bg-blue-600",
+                            "Proceed to Sign In"
+                        }
                     }
                 }
             }
