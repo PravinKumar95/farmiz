@@ -307,43 +307,9 @@ pub fn Production() -> Element {
                 }
             }
 
-            // SECTION 2: SCROLLABLE CONTENT — KPI Cards & Register Table
+            // SECTION 2: SCROLLABLE CONTENT — Register Table
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
                 div { class: "flex flex-col gap-6 w-full max-w-6xl mx-auto pb-20",
-
-                    // KPI Summary Stat Cards
-                    div { class: "grid grid-cols-2 lg:grid-cols-4 gap-4",
-                        Card {
-                            div { class: "p-4 flex flex-col gap-1",
-                                span { class: "text-xs font-medium text-stone-500 dark:text-stone-400", "Total Production" }
-                                div { class: "flex items-baseline justify-between",
-                                    span { class: "text-xl font-bold text-amber-600 dark:text-amber-400", "{total_trays_sum:.1} Trays" }
-                                    span { class: "text-xs text-stone-400 font-medium", "({total_eggs_sum} Eggs)" }
-                                }
-                            }
-                        }
-                        Card {
-                            div { class: "p-4 flex flex-col gap-1",
-                                span { class: "text-xs font-medium text-stone-500 dark:text-stone-400", "Broken & Dirty Eggs" }
-                                div { class: "flex items-baseline justify-between",
-                                    span { class: "text-xl font-bold text-red-600 dark:text-red-400", "{total_broken_sum:.1} Broken" }
-                                    span { class: "text-xs text-amber-600 dark:text-amber-400 font-semibold", "{total_dirty1_sum:.1} | {total_dirty2_sum:.1} Dirty" }
-                                }
-                            }
-                        }
-                        Card {
-                            div { class: "p-4 flex flex-col gap-1",
-                                span { class: "text-xs font-medium text-stone-500 dark:text-stone-400", "Average Yield" }
-                                span { class: "text-xl font-bold text-emerald-600 dark:text-emerald-400", "{avg_yield:.1}%" }
-                            }
-                        }
-                        Card {
-                            div { class: "p-4 flex flex-col gap-1",
-                                span { class: "text-xs font-medium text-stone-500 dark:text-stone-400", "Stock in Trays" }
-                                span { class: "text-xl font-bold text-blue-600 dark:text-blue-400", "{total_stock_sum:.1} Trays" }
-                            }
-                        }
-                    }
 
                     // Production Register Table
                     match logs.cloned() {
