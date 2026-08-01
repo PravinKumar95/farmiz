@@ -35,7 +35,20 @@ To use tailwind plugins or manually customize tailwind, you can can install the 
 npx @tailwindcss/cli -i ./input.css -o ./assets/tailwind.css --watch
 ```
 
-### Serving Your App
+### Quick Start (Tailwind Watch + Dioxus Serve)
+
+Run the start script to launch Tailwind CSS compiler in watch mode and start `dx serve`:
+
+```cmd
+.\start.cmd
+```
+
+Or for PowerShell:
+```powershell
+.\start.ps1
+```
+
+### Serving Your App Directly
 
 Run the following command in the root of your project to start developing with the default platform:
 
