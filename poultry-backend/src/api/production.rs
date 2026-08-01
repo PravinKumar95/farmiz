@@ -14,7 +14,8 @@ pub async fn get_daily_production(
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<DailyProduction>>, (StatusCode, String)> {
     let records = sqlx::query_as::<_, DailyProduction>(
-        "SELECT * FROM daily_production WHERE user_id = $1 ORDER BY date DESC, created_at DESC",
+        r#"SELECT id, date, shed_name, total_trays, egg_count_good, egg_count_damaged, dirty_cat1, dirty_cat2, production_percentage, stock_in_trays, mortality_count, cull_count, feed_consumed_kg, notes, user_id, created_at 
+           FROM daily_production WHERE user_id = $1 ORDER BY date DESC, created_at DESC"#,
     )
     .bind(&user.user_id)
     .fetch_all(&pool)
@@ -31,7 +32,8 @@ pub async fn create_daily_production(
     let record = sqlx::query_as::<_, DailyProduction>(
         r#"INSERT INTO daily_production (
             date, shed_name, total_trays, egg_count_good, egg_count_damaged, dirty_cat1, dirty_cat2, production_percentage, stock_in_trays, mortality_count, cull_count, feed_consumed_kg, notes, user_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *"#,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
+        RETURNING id, date, shed_name, total_trays, egg_count_good, egg_count_damaged, dirty_cat1, dirty_cat2, production_percentage, stock_in_trays, mortality_count, cull_count, feed_consumed_kg, notes, user_id, created_at"#,
     )
     .bind(&payload.date)
     .bind(&payload.shed_name)
@@ -63,7 +65,8 @@ pub async fn update_daily_production(
     let record = sqlx::query_as::<_, DailyProduction>(
         r#"UPDATE daily_production SET 
             date=$1, shed_name=$2, total_trays=$3, egg_count_good=$4, egg_count_damaged=$5, dirty_cat1=$6, dirty_cat2=$7, production_percentage=$8, stock_in_trays=$9, mortality_count=$10, cull_count=$11, feed_consumed_kg=$12, notes=$13
-        WHERE id=$14 AND user_id = $15 RETURNING *"#,
+        WHERE id=$14 AND user_id = $15 
+        RETURNING id, date, shed_name, total_trays, egg_count_good, egg_count_damaged, dirty_cat1, dirty_cat2, production_percentage, stock_in_trays, mortality_count, cull_count, feed_consumed_kg, notes, user_id, created_at"#,
     )
     .bind(p.date)
     .bind(p.shed_name)
