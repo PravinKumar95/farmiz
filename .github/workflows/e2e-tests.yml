@@ -1,20 +1,19 @@
 name: Playwright E2E Tests
 
 on:
-  # Allows manual execution from the GitHub Actions tab UI
+  # Scheduled daily run at 00:00 UTC (5:30 AM IST)
+  schedule:
+    - cron: '0 0 * * *'
+
+  # Manual execution from the GitHub Actions UI tab
   workflow_dispatch:
     inputs:
       e2e_email:
         description: 'Optional: E2E Real User Email'
         required: false
         type: string
-      run_against_staging:
-        description: 'Run tests against deployed staging URL'
-        required: false
-        type: boolean
-        default: false
 
-  # Optional: Automatically run on pull requests to main
+  # Run on pull requests to main
   pull_request:
     branches: ["main"]
 
@@ -76,3 +75,26 @@ jobs:
           name: playwright-report
           path: ./poultry-app/playwright-report/
           retention-days: 30
+
+      - name: Send Email Report Notification
+        uses: dawidd6/action-send-mail@v4
+        if: always() && secrets.MAIL_USERNAME != ''
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "Poultry App E2E Test Report - Status: ${{ job.status }}"
+          to: pravinshanmugam1995@gmail.com
+          from: Farmiz E2E Test Runner <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            Playwright E2E Test execution for Poultry App completed.
+
+            Status: ${{ job.status }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Triggered By: ${{ github.event_name }}
+            
+            View detailed test run, logs, and HTML report:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          secure: true
