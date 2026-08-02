@@ -34,7 +34,10 @@ pub fn AuthenticatedLayout() -> Element {
         SidebarProvider {
             Sidebar {
                 SidebarHeader {
-                    div { class: " p-4 font-bold text-lg text-blue-600 dark:text-blue-400", "🐔 {title}" }
+                    div { class: "p-4 flex items-center gap-3 font-bold text-lg text-blue-600 dark:text-blue-400",
+                        crate::components::logo::Logo { class: "h-8 w-8" }
+                        span { "{title}" }
+                    }
                 }
                 SidebarContent {
                     SidebarGroup {

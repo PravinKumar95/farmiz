@@ -122,64 +122,66 @@ pub fn SignIn() -> Element {
     };
 
     rsx! {
-        Card {
-            CardHeader {
-                CardTitle { class: "text-2xl font-bold text-center", "Welcome back" }
-                CardDescription { "Enter your email below to login to your farmiz account" }
+        div { class: "w-full space-y-6",
+            div { class: "space-y-2 text-center sm:text-left",
+                h1 { class: "text-3xl font-bold tracking-tight text-stone-900 dark:text-white", "Welcome back" }
+                p { class: "text-sm text-stone-500 dark:text-stone-400", "Sign in to your account" }
             }
-            CardContent {
-                form { onsubmit: handle_submit,
-                    div { class: "flex flex-col gap-4",
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "signin_email", "Email" }
-                            Input {
-                                id: "signin_email",
-                                r#type: "email",
-                                placeholder: "m@example.com",
-                                value: "{email}",
-                                oninput: move |e: Event<FormData>| email.set(e.value()),
-                                required: true,
-                                disabled: is_loading(),
-                            }
-                        }
-                        div { class: "flex flex-col gap-2",
-                            Label { html_for: "signin_password", "Password" }
-                            Input {
-                                id: "signin_password",
-                                r#type: "password",
-                                value: "{password}",
-                                oninput: move |e: Event<FormData>| password.set(e.value()),
-                                required: true,
-                                disabled: is_loading(),
-                            }
-                        }
-                    }
-                    CardFooter { class: "pt-4 flex flex-col gap-3",
-                        Button {
-                            r#type: "submit",
-                            class: "w-full",
-                            disabled: is_loading(),
-                            loading: is_loading(),
-                            if is_loading() {
-                                "Signing in..."
-                            } else {
-                                "Sign In"
-                            }
-                        }
-                        div { class: "text-sm text-center text-gray-500 dark:text-gray-400 w-full mt-2",
-                            "Don't have an account?"
-                            Link {
-                                to: crate::routes::PublicRoute::SignUp,
-                                class: "ml-1 text-blue-600 hover:underline dark:text-blue-400 font-medium",
-                                "Sign up"
-                            }
-                        }
+
+            form { onsubmit: handle_submit, class: "space-y-4",
+                div { class: "space-y-2",
+                    Label { html_for: "signin_email", "Email" }
+                    Input {
+                        id: "signin_email",
+                        r#type: "email",
+                        placeholder: "you@example.com",
+                        value: "{email}",
+                        oninput: move |e: Event<FormData>| email.set(e.value()),
+                        required: true,
+                        disabled: is_loading(),
                     }
                 }
-                if !error_msg().is_empty() {
-                    div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700",
-                        "{error_msg}"
+
+                div { class: "space-y-2",
+                    div { class: "flex items-center justify-between",
+                        Label { html_for: "signin_password", "Password" }
+                        a { href: "#", class: "text-xs text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 transition-colors", "Forgot password?" }
                     }
+                    Input {
+                        id: "signin_password",
+                        r#type: "password",
+                        placeholder: "••••••••",
+                        value: "{password}",
+                        oninput: move |e: Event<FormData>| password.set(e.value()),
+                        required: true,
+                        disabled: is_loading(),
+                    }
+                }
+
+                button {
+                    r#type: "submit",
+                    disabled: is_loading(),
+                    class: "w-full h-11 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-6",
+                    if is_loading() {
+                        "Signing in..."
+                    } else {
+                        "Sign in"
+                    }
+                }
+            }
+
+            div { class: "text-center text-sm text-stone-600 dark:text-stone-400 pt-2",
+                "Don't have an account? "
+                Link {
+                    to: crate::routes::PublicRoute::SignUp,
+                    class: "font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 underline underline-offset-4 transition-colors",
+                    "Sign up"
+                }
+            }
+
+            if !error_msg().is_empty() {
+                div { class: "p-3.5 bg-red-500/10 border border-red-500/20 text-sm rounded-lg text-red-600 dark:text-red-400 font-medium",
+                    "{error_msg}"
                 }
             }
         }
@@ -463,77 +465,77 @@ pub fn SignUp() -> Element {
         _ => {
             let is_loading = state() == SignUpState::Loading;
             rsx! {
-                Card {
-                    CardHeader {
-                        CardTitle { "Create a new account" }
-                        CardDescription { "Enter your details below to create a new account" }
+                div { class: "w-full space-y-6",
+                    div { class: "space-y-2 text-center sm:text-left",
+                        h1 { class: "text-3xl font-bold tracking-tight text-stone-900 dark:text-white", "Create an account" }
+                        p { class: "text-sm text-stone-500 dark:text-stone-400", "Enter your details below to get started" }
                     }
-                    CardContent {
-                        form {
-                            onsubmit: handle_signup,
-                            class: "flex flex-col gap-4",
-                            div { class: "flex flex-col gap-2",
-                                Label { html_for: "signup_name", "Name" }
-                                Input {
-                                    id: "signup_name",
-                                    r#type: "text",
-                                    placeholder: "John Doe",
-                                    value: "{name}",
-                                    oninput: move |e: Event<FormData>| name.set(e.value()),
-                                    required: true,
-                                    disabled: is_loading,
-                                }
+
+                    form { onsubmit: handle_signup, class: "space-y-4",
+                        div { class: "space-y-2",
+                            Label { html_for: "signup_name", "Full Name" }
+                            Input {
+                                id: "signup_name",
+                                r#type: "text",
+                                placeholder: "Jane Doe",
+                                value: "{name}",
+                                oninput: move |e: Event<FormData>| name.set(e.value()),
+                                required: true,
+                                disabled: is_loading,
                             }
-                            div { class: "flex flex-col gap-2",
-                                Label { html_for: "signup_email", "Email" }
-                                Input {
-                                    id: "signup_email",
-                                    r#type: "email",
-                                    placeholder: "m@example.com",
-                                    value: "{email}",
-                                    oninput: move |e: Event<FormData>| email.set(e.value()),
-                                    required: true,
-                                    disabled: is_loading,
-                                }
+                        }
+
+                        div { class: "space-y-2",
+                            Label { html_for: "signup_email", "Email" }
+                            Input {
+                                id: "signup_email",
+                                r#type: "email",
+                                placeholder: "you@example.com",
+                                value: "{email}",
+                                oninput: move |e: Event<FormData>| email.set(e.value()),
+                                required: true,
+                                disabled: is_loading,
                             }
-                            div { class: "flex flex-col gap-2",
-                                Label { html_for: "signup_password", "Password" }
-                                Input {
-                                    id: "signup_password",
-                                    r#type: "password",
-                                    value: "{password}",
-                                    oninput: move |e: Event<FormData>| password.set(e.value()),
-                                    required: true,
-                                    disabled: is_loading,
-                                }
+                        }
+
+                        div { class: "space-y-2",
+                            Label { html_for: "signup_password", "Password" }
+                            Input {
+                                id: "signup_password",
+                                r#type: "password",
+                                placeholder: "••••••••",
+                                value: "{password}",
+                                oninput: move |e: Event<FormData>| password.set(e.value()),
+                                required: true,
+                                disabled: is_loading,
                             }
-                            match feedback() {
-                                MessageKind::Error(msg) => rsx! {
-                                    div { class: "p-3 bg-red-50 border border-red-200 text-sm rounded text-red-700", "{msg}" }
-                                },
-                                MessageKind::None => rsx! {},
+                        }
+
+                        match feedback() {
+                            MessageKind::Error(msg) => rsx! {
+                                div { class: "p-3.5 bg-red-500/10 border border-red-500/20 text-sm rounded-lg text-red-600 dark:text-red-400 font-medium", "{msg}" }
+                            },
+                            MessageKind::None => rsx! {},
+                        }
+
+                        button {
+                            r#type: "submit",
+                            disabled: is_loading,
+                            class: "w-full h-11 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-6",
+                            if is_loading {
+                                "Creating account..."
+                            } else {
+                                "Sign up"
                             }
-                            CardFooter { class: "pt-4 flex flex-col gap-3",
-                                Button {
-                                    r#type: "submit",
-                                    class: "w-full",
-                                    disabled: is_loading,
-                                    loading: is_loading,
-                                    if is_loading {
-                                        "Creating account..."
-                                    } else {
-                                        "Sign Up"
-                                    }
-                                }
-                                div { class: "text-sm text-center text-gray-500 dark:text-gray-400 w-full mt-2",
-                                    "Already have an account?"
-                                    Link {
-                                        to: crate::routes::PublicRoute::SignIn {},
-                                        class: "ml-1 text-blue-600 hover:underline dark:text-blue-400 font-medium",
-                                        "Sign in"
-                                    }
-                                }
-                            }
+                        }
+                    }
+
+                    div { class: "text-center text-sm text-stone-600 dark:text-stone-400 pt-2",
+                        "Already have an account? "
+                        Link {
+                            to: crate::routes::PublicRoute::SignIn {},
+                            class: "font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 underline underline-offset-4 transition-colors",
+                            "Sign in"
                         }
                     }
                 }

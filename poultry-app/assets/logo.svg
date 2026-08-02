@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Minimalist Golden Egg Contour -->
+  <path d="M 60 16 C 34 16 20 42 20 72 C 20 94 38 108 60 108 C 82 108 100 94 100 72 C 100 42 86 16 60 16 Z" 
+        stroke="#f59e0b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Sleek Rooster Comb Sweep -->
+  <path d="M 44 42 C 48 26 62 22 66 30 C 72 20 86 24 84 34 C 92 28 100 36 94 46 C 86 54 72 58 66 52 C 58 46 50 44 44 42 Z" 
+        fill="#2563eb"/>
+        
+  <!-- Beak Accent -->
+  <path d="M 82 46 L 98 52 L 84 60" 
+        stroke="#3b82f6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        
+  <!-- Core Golden Egg Dot Accent -->
+  <circle cx="60" cy="74" r="7" fill="#f59e0b"/>
+</svg>
