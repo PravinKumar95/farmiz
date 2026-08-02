@@ -80,7 +80,9 @@ jobs:
 
       - name: Send Email Report Notification
         uses: dawidd6/action-send-mail@v4
-        if: always() && secrets.MAIL_USERNAME != ''
+        if: always() && env.MAIL_USERNAME != ''
+        env:
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
         with:
           server_address: smtp.gmail.com
           server_port: 465
