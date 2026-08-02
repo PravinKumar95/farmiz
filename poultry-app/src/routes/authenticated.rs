@@ -10,6 +10,7 @@ use crate::screens::party_detail::PartyDetail;
 use crate::screens::production::Production;
 use crate::screens::purchases::Purchases;
 use crate::screens::sales::Sales;
+use crate::screens::settings::Settings;
 
 #[derive(Clone, Debug, PartialEq, Routable)]
 pub enum AuthenticatedRoute {
@@ -32,6 +33,8 @@ pub enum AuthenticatedRoute {
     Parties {},
     #[route("/employees")]
     Employees {},
+    #[route("/settings")]
+    Settings {},
     #[route("/parties/:id")]
     PartyDetail { id: String },
     #[route("/:.._route")]

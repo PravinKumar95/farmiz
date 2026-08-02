@@ -8,7 +8,8 @@ use crate::components::sidebar::{
     SidebarTrigger,
 };
 use crate::routes::AuthenticatedRoute;
-use crate::i18n::{tr, LanguageSelect};
+use crate::i18n::tr;
+use crate::components::theme_toggle::ThemeToggle;
 
 #[component]
 pub fn AuthenticatedLayout() -> Element {
@@ -97,8 +98,10 @@ pub fn AuthenticatedLayout() -> Element {
                                     }
                                 }
                                 SidebarMenuItem {
-                                    SidebarMenuButton {
-                                        span { "⚙️ {settings_lbl}" }
+                                    dioxus_router::components::Link { to: AuthenticatedRoute::Settings {},
+                                        SidebarMenuButton {
+                                            span { "⚙️ {settings_lbl}" }
+                                        }
                                     }
                                 }
                             }
@@ -120,7 +123,7 @@ pub fn AuthenticatedLayout() -> Element {
             SidebarInset {
                 header { class: "flex h-14 items-center justify-between gap-4 border-b bg-white dark:bg-stone-900 px-4 lg:h-[60px] shrink-0",
                     SidebarTrigger {}
-                    LanguageSelect {}
+                    ThemeToggle {}
                 }
                 div { class: "flex-1 overflow-hidden flex flex-col min-h-0 text-gray-900 dark:text-gray-100",
                     Outlet::<AuthenticatedRoute> {}

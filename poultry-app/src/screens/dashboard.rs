@@ -1,22 +1,15 @@
-use crate::components::button::{Button, ButtonVariant};
 use crate::components::card::{Card, CardContent, CardHeader, CardTitle};
 use crate::i18n::tr;
 use dioxus::prelude::*;
 
 #[component]
 pub fn Dashboard() -> Element {
-    let nav = dioxus_router::hooks::use_navigator();
+    let _nav = dioxus_router::hooks::use_navigator();
     let auth_email = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
         "auth_email".to_string(),
         || None::<String>,
     );
     let user_email = auth_email().unwrap_or_default();
-
-    let logout_action = use_context::<crate::LogoutAction>();
-    let on_signout = move |_| {
-        nav.replace(crate::routes::AuthenticatedRoute::Dashboard {});
-        logout_action.0.call(());
-    };
 
     let stats_resource = crate::services::use_dashboard_stats();
     let stats = stats_resource.cloned().and_then(|r| r.ok());
@@ -26,7 +19,6 @@ pub fn Dashboard() -> Element {
     let active_parties = stats.as_ref().map(|s| s.active_parties).unwrap_or(0);
 
     let dash_title = tr("dashboard");
-    let signout_lbl = tr("sign-out");
 
     rsx! {
         div {
@@ -34,13 +26,8 @@ pub fn Dashboard() -> Element {
 
             // Header
             div {
-                class: "w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
+                class: "w-full flex items-center justify-between gap-4",
                 h1 { class: "text-2xl sm:text-3xl font-bold break-words text-gray-900 dark:text-gray-100", "🏠 {dash_title}" }
-                Button {
-                    variant: ButtonVariant::Outline,
-                    onclick: on_signout,
-                    "{signout_lbl}"
-                }
             }
 
             // Welcome card
