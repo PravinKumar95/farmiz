@@ -41,8 +41,8 @@ jobs:
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main
 
-      - name: Install Dioxus CLI
-        run: cargo binstall dioxus-cli -y
+      - name: Install Dioxus CLI (Pinned to 0.7.9)
+        run: cargo binstall dioxus-cli --version 0.7.9 -y
 
       - name: Install npm dependencies
         working-directory: ./poultry-app
@@ -58,6 +58,8 @@ jobs:
 
       - name: Build Dioxus App (Pre-cache WASM binary)
         working-directory: ./poultry-app
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL || 'https://orcdvylxbbvafrfjlltap3fa2i0vzmtp.lambda-url.us-east-1.on.aws' }}
         run: dx build
 
       - name: Run Playwright E2E Tests
@@ -65,7 +67,7 @@ jobs:
         env:
           E2E_EMAIL: ${{ inputs.e2e_email || secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
-          BACKEND_URL: ${{ vars.BACKEND_URL }}
+          BACKEND_URL: ${{ vars.BACKEND_URL || 'https://orcdvylxbbvafrfjlltap3fa2i0vzmtp.lambda-url.us-east-1.on.aws' }}
         run: npm run test:e2e
 
       - name: Upload Playwright HTML Report

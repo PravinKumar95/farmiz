@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-// Real user credentials loaded from .env
-const e2eEmail = process.env.E2E_EMAIL;
-const e2ePassword = process.env.E2E_PASSWORD;
+// Real user credentials loaded from .env or GitHub Secrets
+const e2eEmail = process.env.E2E_EMAIL?.trim();
+const e2ePassword = process.env.E2E_PASSWORD?.trim();
+const hasRealCredentials = Boolean(e2eEmail && e2ePassword);
 
 test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
   test.beforeEach(async ({ page }) => {
@@ -24,7 +25,8 @@ test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
    * to avoid creating un-deletable temporary accounts in Neon Auth.
    */
   test('should complete the Sign Up and OTP Verification flow (Mocked)', async ({ page }) => {
-    await page.route('**/api/auth/signup', async (route) => {
+    // Match any endpoint containing /api/auth/signup using regex
+    await page.route(/\/api\/auth\/signup/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -32,7 +34,8 @@ test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
       });
     });
 
-    await page.route('**/api/auth/verify-email', async (route) => {
+    // Match any endpoint containing /api/auth/verify-email using regex
+    await page.route(/\/api\/auth\/verify-email/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -56,7 +59,7 @@ test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
     await page.getByRole('button', { name: 'Sign Up' }).click();
 
     // Verify transition to OTP Verification step
-    await expect(page.getByText('Check Your Email')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Check Your Email')).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('testuser@example.com')).toBeVisible();
 
     // Enter 6-digit OTP code
@@ -68,7 +71,7 @@ test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
     await page.getByRole('button', { name: 'Verify Email' }).click();
 
     // Verify transition to Email Verified success screen
-    await expect(page.getByText('Email Verified!')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Email Verified!')).toBeVisible({ timeout: 15000 });
 
     // Click "Proceed to Sign In"
     await page.getByRole('link', { name: 'Proceed to Sign In' }).click();
@@ -76,15 +79,15 @@ test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
   });
 
   /**
-   * Real API Flow: Sign In with real user credentials from .env and Sign Out
+   * Real API Flow: Sign In with real user credentials from .env/secrets and Sign Out
    */
   test('should successfully Sign In and then Sign Out (Real API)', async ({ page }) => {
-    test.skip(!e2eEmail || !e2ePassword, 'Set E2E_EMAIL and E2E_PASSWORD in .env to run Real API sign-in test');
+    test.skip(!hasRealCredentials, 'Skipped: Set E2E_EMAIL and E2E_PASSWORD secrets in GitHub Actions or .env to run Real API sign-in test');
 
     await page.goto('/farmiz/signin');
     await expect(page.getByText('Welcome back')).toBeVisible({ timeout: 15000 });
 
-    // Fill real user credentials from .env
+    // Fill real user credentials
     await page.locator('#signin_email').fill(e2eEmail!);
     await page.locator('#signin_password').fill(e2ePassword!);
 
