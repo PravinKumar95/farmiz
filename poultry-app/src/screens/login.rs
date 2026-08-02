@@ -121,6 +121,8 @@ pub fn SignIn() -> Element {
         });
     };
 
+    let mut show_password = use_signal(|| false);
+
     rsx! {
         div { class: "w-full space-y-6",
             div { class: "space-y-2 text-center sm:text-left",
@@ -147,14 +149,35 @@ pub fn SignIn() -> Element {
                         Label { html_for: "signin_password", "Password" }
                         a { href: "#", class: "text-xs text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 transition-colors", "Forgot password?" }
                     }
-                    Input {
-                        id: "signin_password",
-                        r#type: "password",
-                        placeholder: "••••••••",
-                        value: "{password}",
-                        oninput: move |e: Event<FormData>| password.set(e.value()),
-                        required: true,
-                        disabled: is_loading(),
+                    div { class: "relative w-full",
+                        Input {
+                            id: "signin_password",
+                            r#type: if show_password() { "text" } else { "password" },
+                            placeholder: "••••••••",
+                            value: "{password}",
+                            oninput: move |e: Event<FormData>| password.set(e.value()),
+                            required: true,
+                            disabled: is_loading(),
+                            style: "padding-right: 2.75rem;",
+                        }
+                        button {
+                            r#type: "button",
+                            tabindex: "-1",
+                            onclick: move |_| show_password.toggle(),
+                            class: "absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 transition-colors p-1 cursor-pointer focus:outline-none",
+                            aria_label: if show_password() { "Hide password" } else { "Show password" },
+                            if show_password() {
+                                svg { class: "h-4 w-4", fill: "none", stroke: "currentColor", stroke_width: "2", view_box: "0 0 24 24",
+                                    path { d: "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" }
+                                    line { x1: "1", y1: "1", x2: "23", y2: "23" }
+                                }
+                            } else {
+                                svg { class: "h-4 w-4", fill: "none", stroke: "currentColor", stroke_width: "2", view_box: "0 0 24 24",
+                                    path { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }
+                                    circle { cx: "12", cy: "12", r: "3" }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -464,6 +487,7 @@ pub fn SignUp() -> Element {
         // ── Sign Up Form (default + loading) ──
         _ => {
             let is_loading = state() == SignUpState::Loading;
+            let mut show_signup_password = use_signal(|| false);
             rsx! {
                 div { class: "w-full space-y-6",
                     div { class: "space-y-2 text-center sm:text-left",
@@ -500,14 +524,35 @@ pub fn SignUp() -> Element {
 
                         div { class: "space-y-2",
                             Label { html_for: "signup_password", "Password" }
-                            Input {
-                                id: "signup_password",
-                                r#type: "password",
-                                placeholder: "••••••••",
-                                value: "{password}",
-                                oninput: move |e: Event<FormData>| password.set(e.value()),
-                                required: true,
-                                disabled: is_loading,
+                            div { class: "relative w-full",
+                                Input {
+                                    id: "signup_password",
+                                    r#type: if show_signup_password() { "text" } else { "password" },
+                                    placeholder: "••••••••",
+                                    value: "{password}",
+                                    oninput: move |e: Event<FormData>| password.set(e.value()),
+                                    required: true,
+                                    disabled: is_loading,
+                                    style: "padding-right: 2.75rem;",
+                                }
+                                button {
+                                    r#type: "button",
+                                    tabindex: "-1",
+                                    onclick: move |_| show_signup_password.toggle(),
+                                    class: "absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 transition-colors p-1 cursor-pointer focus:outline-none",
+                                    aria_label: if show_signup_password() { "Hide password" } else { "Show password" },
+                                    if show_signup_password() {
+                                        svg { class: "h-4 w-4", fill: "none", stroke: "currentColor", stroke_width: "2", view_box: "0 0 24 24",
+                                            path { d: "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" }
+                                            line { x1: "1", y1: "1", x2: "23", y2: "23" }
+                                        }
+                                    } else {
+                                        svg { class: "h-4 w-4", fill: "none", stroke: "currentColor", stroke_width: "2", view_box: "0 0 24 24",
+                                            path { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }
+                                            circle { cx: "12", cy: "12", r: "3" }
+                                        }
+                                    }
+                                }
                             }
                         }
 
