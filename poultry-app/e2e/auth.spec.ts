@@ -48,7 +48,7 @@ test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
 
     // Click link to navigate to Sign Up
     await page.getByRole('link', { name: 'Sign up' }).click();
-    await expect(page.getByText('Create a new account', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Create an account', { exact: true })).toBeVisible({ timeout: 10000 });
 
     // Fill out registration form
     await page.locator('#signup_name').fill('Test User');
