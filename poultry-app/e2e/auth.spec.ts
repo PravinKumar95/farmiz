@@ -124,6 +124,6 @@ test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Verify error banner rendered from real backend error response
-    await expect(page.locator('div.bg-red-50, div.dx-toast-description-7088ee25').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('div[class*="bg-red-"], div[class*="dx-toast-description"]').first()).toBeVisible({ timeout: 15000 });
   });
 });
