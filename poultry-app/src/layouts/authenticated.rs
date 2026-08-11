@@ -26,7 +26,9 @@ pub fn AuthenticatedLayout() -> Element {
     let signout_lbl = tr("sign-out");
 
     let logout_action = use_context::<crate::LogoutAction>();
+    let nav = dioxus_router::hooks::use_navigator();
     let on_signout = move |_| {
+        nav.replace(AuthenticatedRoute::Dashboard {});
         logout_action.0.call(());
     };
 
