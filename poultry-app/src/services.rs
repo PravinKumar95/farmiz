@@ -52,6 +52,14 @@ impl AuthSession {
             let token = json.get("token").and_then(|t| t.as_str()).ok_or("Missing token")?;
             let mut auth_token = self.token;
             auth_token.set(Some(token.to_string()));
+
+            if let Some(new_cookies) = json.get("session_cookies").and_then(|c| {
+                c.as_array().map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
+            }) {
+                let mut session_cookies = self.session_cookies;
+                session_cookies.set(Some(new_cookies));
+            }
+
             Ok(token.to_string())
         } else {
             let err_msg = res.text().await.unwrap_or_else(|_| "Refresh failed".to_string());

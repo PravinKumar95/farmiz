@@ -328,12 +328,25 @@ pub async fn refresh_token(axum::Json(payload): axum::Json<RefreshRequest>) -> R
     match jwt_req.send().await {
         Ok(jwt_res) => {
             let status = jwt_res.status();
+            let new_cookies = jwt_res
+                .headers()
+                .get_all(reqwest::header::SET_COOKIE)
+                .iter()
+                .filter_map(|v| v.to_str().ok().map(|s| s.to_string()))
+                .collect::<Vec<_>>();
+
             if status.is_success() {
                 match jwt_res.json::<serde_json::Value>().await {
                     Ok(jwt_json) => {
                         if let Some(jwt_token) = jwt_json.get("token") {
+                            let cookies_to_return = if !new_cookies.is_empty() {
+                                new_cookies
+                            } else {
+                                payload.session_cookies
+                            };
                             return Ok(axum::Json(serde_json::json!({
                                 "token": jwt_token,
+                                "session_cookies": cookies_to_return,
                             })));
                         } else {
                             return Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, "No token field in JWT response".to_string()));
