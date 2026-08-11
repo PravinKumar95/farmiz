@@ -129,20 +129,25 @@ where
     }
 }
 
-pub async fn signin(headers: HeaderMap, Json(payload): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+fn get_neon_auth_origin(neon_auth_url: &str) -> String {
+    if let Ok(url) = reqwest::Url::parse(neon_auth_url) {
+        url.origin().ascii_serialization()
+    } else {
+        "http://localhost:8080".to_string()
+    }
+}
+
+pub async fn signin(_headers: HeaderMap, Json(payload): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let neon_auth_url = env::var("NEON_AUTH_URL")
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "NEON_AUTH_URL missing".to_string()))?;
 
-    let origin = headers
-        .get("origin")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("http://localhost:8080");
+    let origin = get_neon_auth_origin(&neon_auth_url);
 
     let client = reqwest::Client::new();
     let res = client
         .post(format!("{}/sign-in/email", neon_auth_url))
-        .header("Origin", origin.clone())
-        .header("Referer", origin)
+        .header("Origin", &origin)
+        .header("Referer", &origin)
         .json(&payload)
         .send()
         .await
@@ -222,22 +227,19 @@ pub async fn signin(headers: HeaderMap, Json(payload): Json<serde_json::Value>) 
     Ok(Json(json))
 }
 
-pub async fn signup(headers: HeaderMap, Json(payload): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+pub async fn signup(_headers: HeaderMap, Json(payload): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let neon_auth_url = env::var("NEON_AUTH_URL")
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "NEON_AUTH_URL missing".to_string()))?;
 
-    let origin = headers
-        .get("origin")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("http://localhost:8080");
+    let origin = get_neon_auth_origin(&neon_auth_url);
 
     lambda_http::tracing::info!("Sign-up request for email: {}", payload.get("email").and_then(|e| e.as_str()).unwrap_or("unknown"));
 
     let client = reqwest::Client::new();
     let res = client
         .post(format!("{}/sign-up/email", neon_auth_url))
-        .header("Origin", origin)
-        .header("Referer", origin)
+        .header("Origin", &origin)
+        .header("Referer", &origin)
         .json(&payload)
         .send()
         .await
@@ -264,22 +266,19 @@ pub async fn signup(headers: HeaderMap, Json(payload): Json<serde_json::Value>) 
     Ok(Json(json))
 }
 
-pub async fn verify_email(headers: HeaderMap, Json(payload): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+pub async fn verify_email(_headers: HeaderMap, Json(payload): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let neon_auth_url = env::var("NEON_AUTH_URL")
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "NEON_AUTH_URL missing".to_string()))?;
 
-    let origin = headers
-        .get("origin")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("http://localhost:8080");
+    let origin = get_neon_auth_origin(&neon_auth_url);
 
     lambda_http::tracing::info!("Verify email request for: {}", payload.get("email").and_then(|e| e.as_str()).unwrap_or("unknown"));
 
     let client = reqwest::Client::new();
     let res = client
         .post(format!("{}/email-otp/verify-email", neon_auth_url))
-        .header("Origin", origin)
-        .header("Referer", origin)
+        .header("Origin", &origin)
+        .header("Referer", &origin)
         .json(&payload)
         .send()
         .await
