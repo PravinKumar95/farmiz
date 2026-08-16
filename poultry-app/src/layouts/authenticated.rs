@@ -21,7 +21,6 @@ pub fn AuthenticatedLayout() -> Element {
     let feed_lbl = tr("feed-mill");
     let labor_lbl = tr("labor");
     let ledger_lbl = tr("ledger");
-    let employees_lbl = tr("employees");
     let settings_lbl = tr("settings");
     let signout_lbl = tr("sign-out");
 
@@ -92,13 +91,6 @@ pub fn AuthenticatedLayout() -> Element {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Parties {},
                                         SidebarMenuButton {
                                             span { "📒 {ledger_lbl}" }
-                                        }
-                                    }
-                                }
-                                SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Employees {},
-                                        SidebarMenuButton {
-                                            span { "👷 {employees_lbl}" }
                                         }
                                     }
                                 }

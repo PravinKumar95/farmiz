@@ -2,7 +2,6 @@ use dioxus::prelude::*;
 
 use crate::layouts::AuthenticatedLayout;
 use crate::screens::dashboard::Dashboard;
-use crate::screens::employees::Employees;
 use crate::screens::feed::Feed;
 use crate::screens::labor::Labor;
 use crate::screens::parties::Parties;
@@ -28,11 +27,10 @@ pub enum AuthenticatedRoute {
     #[route("/feed")]
     Feed {},
     #[route("/labor")]
+    #[redirect("/employees", || AuthenticatedRoute::Labor {})]
     Labor {},
     #[route("/parties")]
     Parties {},
-    #[route("/employees")]
-    Employees {},
     #[route("/settings")]
     Settings {},
     #[route("/parties/:id")]

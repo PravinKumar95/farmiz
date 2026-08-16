@@ -12,38 +12,53 @@ use crate::components::input::Input;
 use crate::components::label::Label;
 use crate::components::month_filter::MonthFilter;
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
-use crate::models::{LaborRecord, LaborPayrollSummary};
+use crate::models::{Employee, LaborPayrollSummary, LaborRecord};
 use crate::services::*;
 
 #[component]
 pub fn Labor() -> Element {
     let mut records = use_labor_records();
-    let employees_res = use_employees();
+    let mut employees_res = use_employees();
     let api = use_auth();
     let toast_api = use_toast();
-    let mut is_sheet_open = use_signal(|| false);
 
+    // Sub-view: "LOGS", "SETTLEMENT", or "WORKERS"
+    let mut view_mode = use_signal(|| "LOGS".to_string());
+
+    // Search & Filter
     let current_month_str = Utc::now().format("%Y-%m").to_string();
     let mut selected_month = use_signal(move || Some(current_month_str.clone()));
     let mut search_query = use_signal(String::new);
-    let mut view_mode = use_signal(|| "LOGS".to_string()); // "LOGS" or "SETTLEMENT"
 
-    let mut delete_id = use_signal(|| Option::<String>::None);
-    let mut form_id = use_signal(|| Option::<String>::None);
-
+    // --- Labor Record Form State ---
+    let mut is_labor_sheet_open = use_signal(|| false);
+    let mut labor_delete_id = use_signal(|| Option::<String>::None);
+    let mut labor_form_id = use_signal(|| Option::<String>::None);
     let today_str = Utc::now().format("%Y-%m-%d").to_string();
     let mut form_date = use_signal(move || today_str.clone());
     let mut form_employee_name = use_signal(String::new);
     let mut form_employee_id = use_signal(|| Option::<String>::None);
     let mut form_attendance = use_signal(|| "1.0".to_string());
     let mut form_advance = use_signal(|| "0.0".to_string());
-    let mut form_error = use_signal(String::new);
+    let mut labor_form_error = use_signal(String::new);
+    let mut is_labor_submitting = use_signal(|| false);
+    let mut is_labor_deleting = use_signal(|| false);
 
-    let mut is_submitting = use_signal(|| false);
-    let mut is_deleting = use_signal(|| false);
+    // --- Worker Form State ---
+    let mut is_worker_sheet_open = use_signal(|| false);
+    let mut worker_delete_id = use_signal(|| Option::<String>::None);
+    let mut worker_form_id = use_signal(|| Option::<String>::None);
+    let mut worker_form_name = use_signal(String::new);
+    let mut worker_form_role = use_signal(String::new);
+    let mut worker_form_wage = use_signal(|| "500.0".to_string());
+    let mut worker_form_balance = use_signal(|| "0.0".to_string());
+    let mut worker_form_error = use_signal(String::new);
+    let mut is_worker_submitting = use_signal(|| false);
+    let mut is_worker_deleting = use_signal(|| false);
 
-    let submit_handler = move |_| {
-        if is_submitting() {
+    // --- Submit Labor Record ---
+    let submit_labor_handler = move |_| {
+        if is_labor_submitting() {
             return;
         }
 
@@ -51,35 +66,35 @@ pub fn Labor() -> Element {
         let employee = form_employee_name().trim().to_string();
 
         if date.is_empty() {
-            form_error.set("Date required".to_string());
+            labor_form_error.set("Date required".to_string());
             return;
         }
         if employee.is_empty() {
-            form_error.set("Employee selection required".to_string());
+            labor_form_error.set("Employee selection required".to_string());
             return;
         }
 
         let attendance: f64 = match form_attendance().parse() {
             Ok(v) => v,
             Err(_) => {
-                form_error.set("Invalid attendance".to_string());
+                labor_form_error.set("Invalid attendance value".to_string());
                 return;
             }
         };
         let advance: f64 = match form_advance().parse() {
             Ok(v) => v,
             Err(_) => {
-                form_error.set("Invalid advance amount".to_string());
+                labor_form_error.set("Invalid advance amount".to_string());
                 return;
             }
         };
 
-        form_error.set(String::new());
-        is_submitting.set(true);
+        labor_form_error.set(String::new());
+        is_labor_submitting.set(true);
 
-        let is_edit = form_id().is_some();
+        let is_edit = labor_form_id().is_some();
         let new_record = LaborRecord {
-            id: form_id().unwrap_or_default(),
+            id: labor_form_id().unwrap_or_default(),
             date,
             employee_name: employee,
             employee_id: form_employee_id(),
@@ -90,46 +105,162 @@ pub fn Labor() -> Element {
         };
 
         spawn(async move {
-            let res = if let Some(id) = form_id() {
+            let res = if let Some(id) = labor_form_id() {
                 api.put(&format!("/api/labor/{}", id), &new_record).await
             } else {
                 api.post("/api/labor", &new_record).await
             };
 
-            is_submitting.set(false);
+            is_labor_submitting.set(false);
 
             match res {
                 Ok(_) => {
-                    is_sheet_open.set(false);
-                    form_error.set(String::new());
+                    is_labor_sheet_open.set(false);
+                    labor_form_error.set(String::new());
                     records.restart();
-                    let desc = if is_edit { "Labor record updated successfully." } else { "Labor record logged successfully." };
+                    employees_res.restart();
+                    let desc = if is_edit {
+                        "Labor record updated successfully."
+                    } else {
+                        "Labor record logged successfully."
+                    };
                     toast_api.success(tr("success"), ToastOptions::new().description(desc));
                 }
                 Err(e) => {
-                    form_error.set(e.clone());
+                    labor_form_error.set(e.clone());
                     toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
             }
         });
     };
 
-    let confirm_delete = move |_| {
-        if is_deleting() {
+    // --- Delete Labor Record ---
+    let confirm_delete_labor = move |_| {
+        if is_labor_deleting() {
             return;
         }
-        if let Some(id) = delete_id() {
-            is_deleting.set(true);
+        if let Some(id) = labor_delete_id() {
+            is_labor_deleting.set(true);
             spawn(async move {
                 let res = api.delete(&format!("/api/labor/{}", id)).await;
                 if let Ok(_) = res {
-                    delete_id.set(None);
+                    labor_delete_id.set(None);
                     records.restart();
-                    toast_api.success(tr("success"), ToastOptions::new().description("Labor record deleted successfully."));
+                    employees_res.restart();
+                    toast_api.success(
+                        tr("success"),
+                        ToastOptions::new().description("Labor record deleted successfully."),
+                    );
                 } else if let Err(e) = res {
                     toast_api.error(tr("error"), ToastOptions::new().description(e));
                 }
-                is_deleting.set(false);
+                is_labor_deleting.set(false);
+            });
+        }
+    };
+
+    // --- Submit Worker ---
+    let submit_worker_handler = move |_| {
+        if is_worker_submitting() {
+            return;
+        }
+
+        let name = worker_form_name().trim().to_string();
+        let role = worker_form_role().trim().to_string();
+        let wage_str = worker_form_wage().trim().to_string();
+        let balance_str = worker_form_balance().trim().to_string();
+
+        if name.len() < 2 {
+            worker_form_error.set("Name must be at least 2 characters long.".to_string());
+            return;
+        }
+        if role.is_empty() {
+            worker_form_error.set("Role is required.".to_string());
+            return;
+        }
+        let daily_wage: f64 = match wage_str.parse() {
+            Ok(w) => w,
+            Err(_) => {
+                worker_form_error.set("Daily wage must be a valid number.".to_string());
+                return;
+            }
+        };
+        let current_balance: f64 = match balance_str.parse() {
+            Ok(b) => b,
+            Err(_) => {
+                worker_form_error.set("Balance must be a valid number.".to_string());
+                return;
+            }
+        };
+
+        worker_form_error.set(String::new());
+        is_worker_submitting.set(true);
+
+        let is_edit = worker_form_id().is_some();
+        let new_employee = Employee {
+            id: worker_form_id().unwrap_or_default(),
+            name,
+            role,
+            daily_wage,
+            current_balance,
+            user_id: None,
+            created_at: None,
+        };
+
+        spawn(async move {
+            let res = if let Some(id) = worker_form_id() {
+                api.put(&format!("/api/employees/{}", id), &new_employee).await
+            } else {
+                api.post("/api/employees", &new_employee).await
+            };
+
+            is_worker_submitting.set(false);
+
+            match res {
+                Ok(_) => {
+                    is_worker_sheet_open.set(false);
+                    worker_form_name.set(String::new());
+                    worker_form_role.set(String::new());
+                    worker_form_wage.set("500.0".to_string());
+                    worker_form_balance.set("0.0".to_string());
+                    employees_res.restart();
+                    records.restart();
+                    let desc = if is_edit {
+                        "Worker profile updated successfully."
+                    } else {
+                        "Worker added successfully."
+                    };
+                    toast_api.success(tr("success"), ToastOptions::new().description(desc));
+                }
+                Err(e) => {
+                    worker_form_error.set(e.clone());
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
+                }
+            }
+        });
+    };
+
+    // --- Delete Worker ---
+    let confirm_delete_worker = move |_| {
+        if is_worker_deleting() {
+            return;
+        }
+        if let Some(id) = worker_delete_id() {
+            is_worker_deleting.set(true);
+            spawn(async move {
+                let res = api.delete(&format!("/api/employees/{}", id)).await;
+                if let Ok(_) = res {
+                    worker_delete_id.set(None);
+                    employees_res.restart();
+                    records.restart();
+                    toast_api.success(
+                        tr("success"),
+                        ToastOptions::new().description("Worker profile deleted successfully."),
+                    );
+                } else if let Err(e) = res {
+                    toast_api.error(tr("error"), ToastOptions::new().description(e));
+                }
+                is_worker_deleting.set(false);
             });
         }
     };
@@ -138,19 +269,37 @@ pub fn Labor() -> Element {
     let emp_list = employees_res.cloned().and_then(|r| r.ok()).unwrap_or_default();
 
     let q = search_query().trim().to_lowercase();
-    let filtered_records: Vec<_> = rec_list.into_iter().filter(|r| {
-        let matches_month = if let Some(ref m) = selected_month() {
-            r.date.starts_with(m)
-        } else {
-            true
-        };
-        let matches_search = if q.is_empty() {
-            true
-        } else {
-            r.employee_name.to_lowercase().contains(&q) || r.date.contains(&q)
-        };
-        matches_month && matches_search
-    }).collect();
+
+    // Filtered labor records
+    let filtered_records: Vec<_> = rec_list
+        .into_iter()
+        .filter(|r| {
+            let matches_month = if let Some(ref m) = selected_month() {
+                r.date.starts_with(m)
+            } else {
+                true
+            };
+            let matches_search = if q.is_empty() {
+                true
+            } else {
+                r.employee_name.to_lowercase().contains(&q) || r.date.contains(&q)
+            };
+            matches_month && matches_search
+        })
+        .collect();
+
+    // Filtered workers list
+    let filtered_workers: Vec<_> = emp_list
+        .iter()
+        .filter(|e| {
+            if q.is_empty() {
+                true
+            } else {
+                e.name.to_lowercase().contains(&q) || e.role.to_lowercase().contains(&q)
+            }
+        })
+        .cloned()
+        .collect();
 
     // Group & calculate payroll summary per worker for Settlement view
     let mut payroll_summaries: Vec<LaborPayrollSummary> = Vec::new();
@@ -162,7 +311,6 @@ pub fn Labor() -> Element {
         }
         processed_names.insert(r.employee_name.clone());
 
-        // Sum attendance and advances for this worker in filtered range
         let worker_records: Vec<&LaborRecord> = filtered_records
             .iter()
             .filter(|rec| rec.employee_name == r.employee_name)
@@ -171,7 +319,6 @@ pub fn Labor() -> Element {
         let total_att: f64 = worker_records.iter().map(|rec| rec.attendance).sum();
         let total_adv: f64 = worker_records.iter().map(|rec| rec.advance_given).sum();
 
-        // Match daily wage from employee directory or default 500
         let daily_wage = emp_list
             .iter()
             .find(|e| e.name.to_lowercase() == r.employee_name.to_lowercase())
@@ -204,24 +351,39 @@ pub fn Labor() -> Element {
                 div { class: "flex justify-between items-center",
                     div {
                         h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "👥 {title_str}" }
-                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track daily attendance, cash advances & monthly wage settlements" }
+                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track daily attendance, cash advances, payroll settlements & worker directory" }
                     }
-                    Button {
-                        onclick: move |_| {
-                            form_id.set(None);
-                            form_date.set(Utc::now().format("%Y-%m-%d").to_string());
-                            form_employee_name.set(String::new());
-                            form_employee_id.set(None);
-                            form_attendance.set("1.0".to_string());
-                            form_advance.set("0.0".to_string());
-                            form_error.set(String::new());
-                            is_sheet_open.set(true);
-                        },
-                        "+ {log_btn_str}"
+                    if view_mode() == "WORKERS" {
+                        Button {
+                            onclick: move |_| {
+                                worker_form_id.set(None);
+                                worker_form_name.set(String::new());
+                                worker_form_role.set("Farm Worker".to_string());
+                                worker_form_wage.set("500.0".to_string());
+                                worker_form_balance.set("0.0".to_string());
+                                worker_form_error.set(String::new());
+                                is_worker_sheet_open.set(true);
+                            },
+                            "+ Add Worker"
+                        }
+                    } else {
+                        Button {
+                            onclick: move |_| {
+                                labor_form_id.set(None);
+                                form_date.set(Utc::now().format("%Y-%m-%d").to_string());
+                                form_employee_name.set(String::new());
+                                form_employee_id.set(None);
+                                form_attendance.set("1.0".to_string());
+                                form_advance.set("0.0".to_string());
+                                labor_form_error.set(String::new());
+                                is_labor_sheet_open.set(true);
+                            },
+                            "+ {log_btn_str}"
+                        }
                     }
                 }
 
-                // Mode Toggle Bar (Logs vs Settlement) & Filters
+                // Mode Toggle Bar (Logs vs Settlement vs Workers) & Filters
                 div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-1",
                     div { class: "flex p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start",
                         button {
@@ -240,20 +402,31 @@ pub fn Labor() -> Element {
                                 "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1"
                             },
                             onclick: move |_| view_mode.set("SETTLEMENT".to_string()),
-                            "🧮 Monthly Payroll Settlement"
+                            "🧮 Monthly Settlement"
+                        }
+                        button {
+                            class: if view_mode() == "WORKERS" {
+                                "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all flex items-center gap-1"
+                            } else {
+                                "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1"
+                            },
+                            onclick: move |_| view_mode.set("WORKERS".to_string()),
+                            "👷 Manage Workers"
                         }
                     }
 
-                    div { class: "flex items-center gap-2",
-                        MonthFilter {
-                            selected: selected_month(),
-                            onchange: move |m| selected_month.set(m)
+                    if view_mode() != "WORKERS" {
+                        div { class: "flex items-center gap-2",
+                            MonthFilter {
+                                selected: selected_month(),
+                                onchange: move |m| selected_month.set(m)
+                            }
                         }
                     }
                 }
 
                 Input {
-                    placeholder: "🔍 Search employee name or date...",
+                    placeholder: if view_mode() == "WORKERS" { "🔍 Search worker name or role..." } else { "🔍 Search employee name or date..." },
                     value: "{search_query}",
                     oninput: move |e: Event<FormData>| search_query.set(e.value())
                 }
@@ -261,9 +434,78 @@ pub fn Labor() -> Element {
 
             // SCROLLABLE CONTENT
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-3xl mx-auto pb-20",
+                div { class: "flex flex-col gap-4 w-full max-w-4xl mx-auto pb-20",
 
-                    if view_mode() == "SETTLEMENT" {
+                    if view_mode() == "WORKERS" {
+                        // WORKERS DIRECTORY VIEW
+                        match employees_res.cloned() {
+                            Some(Ok(_)) if !filtered_workers.is_empty() => rsx! {
+                                Card { class: "mt-2",
+                                    CardContent { class: "p-0 overflow-hidden rounded-xl",
+                                        div { class: "overflow-x-auto",
+                                            table { class: "w-full text-sm text-left",
+                                                thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-border",
+                                                    tr {
+                                                        th { class: "px-6 py-3", "Worker Name" }
+                                                        th { class: "px-6 py-3", "Role" }
+                                                        th { class: "px-6 py-3 text-right", "Daily Wage" }
+                                                        th { class: "px-6 py-3 text-right", "Advance Balance" }
+                                                        th { class: "px-6 py-3 text-right", "Actions" }
+                                                    }
+                                                }
+                                                tbody { class: "divide-y divide-border",
+                                                    for emp in filtered_workers {
+                                                        tr { class: "hover:bg-gray-50 dark:bg-stone-800 transition-colors",
+                                                            td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100", "{emp.name}" }
+                                                            td { class: "px-6 py-4 text-xs font-semibold text-gray-600 dark:text-gray-300", "{emp.role}" }
+                                                            td { class: "px-6 py-4 text-right font-semibold text-gray-900 dark:text-gray-100", "₹ {emp.daily_wage:.2}" }
+                                                            td { class: "px-6 py-4 text-right font-bold text-amber-600 dark:text-amber-400", "₹ {emp.current_balance:.2}" }
+                                                            td { class: "px-6 py-4 text-right flex items-center justify-end gap-2",
+                                                                {
+                                                                    let e_edit = emp.clone();
+                                                                    let e_del_id = emp.id.clone();
+                                                                    rsx! {
+                                                                        Button {
+                                                                            variant: ButtonVariant::Outline,
+                                                                            onclick: move |_| {
+                                                                                worker_form_id.set(Some(e_edit.id.clone()));
+                                                                                worker_form_name.set(e_edit.name.clone());
+                                                                                worker_form_role.set(e_edit.role.clone());
+                                                                                worker_form_wage.set(e_edit.daily_wage.to_string());
+                                                                                worker_form_balance.set(e_edit.current_balance.to_string());
+                                                                                is_worker_sheet_open.set(true);
+                                                                            },
+                                                                            "Edit"
+                                                                        }
+                                                                        Button {
+                                                                            variant: ButtonVariant::Destructive,
+                                                                            onclick: move |_| {
+                                                                                worker_delete_id.set(Some(e_del_id.clone()));
+                                                                            },
+                                                                            "Delete"
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            Some(Ok(_)) => rsx! {
+                                EmptyState {
+                                    icon: "👷",
+                                    title: "No Workers Found",
+                                    description: "No farm workers or staff members match your search criteria."
+                                }
+                            },
+                            Some(Err(err)) => rsx! { ErrorState { message: err } },
+                            None => rsx! { LoadingState {} }
+                        }
+                    } else if view_mode() == "SETTLEMENT" {
                         // PAYROLL SETTLEMENT VIEW
                         if !payroll_summaries.is_empty() {
                             div { class: "flex flex-col gap-4 mt-2",
@@ -348,20 +590,20 @@ pub fn Labor() -> Element {
                                                             Button {
                                                                 variant: ButtonVariant::Outline,
                                                                 onclick: move |_| {
-                                                                    form_id.set(Some(edit_item.id.clone()));
+                                                                    labor_form_id.set(Some(edit_item.id.clone()));
                                                                     form_date.set(edit_item.date.clone());
                                                                     form_employee_name.set(edit_item.employee_name.clone());
                                                                     form_employee_id.set(edit_item.employee_id.clone());
                                                                     form_attendance.set(edit_item.attendance.to_string());
                                                                     form_advance.set(edit_item.advance_given.to_string());
-                                                                    is_sheet_open.set(true);
+                                                                    is_labor_sheet_open.set(true);
                                                                 },
                                                                 "Edit"
                                                             }
                                                             Button {
                                                                 variant: ButtonVariant::Destructive,
                                                                 onclick: move |_| {
-                                                                    delete_id.set(Some(del_id.clone()));
+                                                                    labor_delete_id.set(Some(del_id.clone()));
                                                                 },
                                                                 "Delete"
                                                             }
@@ -385,31 +627,47 @@ pub fn Labor() -> Element {
                         }
                     }
 
+                    // Labor Delete Confirm Dialog
                     ConfirmDialog {
-                        is_open: delete_id().is_some(),
-                        is_deleting: is_deleting(),
+                        is_open: labor_delete_id().is_some(),
+                        is_deleting: is_labor_deleting(),
                         title: "Delete Labor Record".to_string(),
                         description: "Are you sure you want to delete this labor record? Employee balance will automatically update.".to_string(),
-                        onconfirm: confirm_delete,
+                        onconfirm: confirm_delete_labor,
                         oncancel: move |_| {
-                            if !is_deleting() {
-                                delete_id.set(None);
+                            if !is_labor_deleting() {
+                                labor_delete_id.set(None);
+                            }
+                        }
+                    }
+
+                    // Worker Delete Confirm Dialog
+                    ConfirmDialog {
+                        is_open: worker_delete_id().is_some(),
+                        is_deleting: is_worker_deleting(),
+                        title: "Delete Worker Profile".to_string(),
+                        description: "Are you sure you want to delete this worker? This will not delete their past attendance logs.".to_string(),
+                        onconfirm: confirm_delete_worker,
+                        oncancel: move |_| {
+                            if !is_worker_deleting() {
+                                worker_delete_id.set(None);
                             }
                         }
                     }
                 }
             }
 
-            if is_sheet_open() {
+            // --- LABOR SHEET ---
+            if is_labor_sheet_open() {
                 Sheet {
-                    open: Some(is_sheet_open()),
-                    on_open_change: move |open| is_sheet_open.set(open),
+                    open: Some(is_labor_sheet_open()),
+                    on_open_change: move |open| is_labor_sheet_open.set(open),
                     SheetHeader {
-                        SheetTitle { if form_id().is_some() { "Edit Labor Record" } else { "Log Labor & Advance" } }
+                        SheetTitle { if labor_form_id().is_some() { "Edit Labor Record" } else { "Log Labor & Advance" } }
                     }
                     div { class: "flex flex-col gap-4 py-4 px-6 overflow-y-auto max-h-[70vh]",
-                        if !form_error().is_empty() {
-                            div { class: "p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200", "{form_error}" }
+                        if !labor_form_error().is_empty() {
+                            div { class: "p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200", "{labor_form_error}" }
                         }
                         div { class: "flex flex-col gap-2",
                             Label { html_for: "labor-date", "Date" }
@@ -420,7 +678,7 @@ pub fn Labor() -> Element {
                             }
                         }
                         div { class: "flex flex-col gap-2",
-                            Label { html_for: "labor-emp", "Employee" }
+                            Label { html_for: "labor-emp", "Employee / Worker" }
                             EmployeeSelect {
                                 value: form_employee_id().unwrap_or_else(|| form_employee_name()),
                                 onchange: move |(eid, ename): (String, String)| {
@@ -457,15 +715,81 @@ pub fn Labor() -> Element {
                     SheetFooter {
                         Button {
                             variant: ButtonVariant::Outline,
-                            disabled: is_submitting(),
-                            onclick: move |_| is_sheet_open.set(false),
+                            disabled: is_labor_submitting(),
+                            onclick: move |_| is_labor_sheet_open.set(false),
                             "Cancel"
                         }
                         Button {
-                            disabled: is_submitting(),
-                            loading: is_submitting(),
-                            onclick: submit_handler,
-                            if form_id().is_some() { "Update Record" } else { "Save Record" }
+                            disabled: is_labor_submitting(),
+                            loading: is_labor_submitting(),
+                            onclick: submit_labor_handler,
+                            if labor_form_id().is_some() { "Update Record" } else { "Save Record" }
+                        }
+                    }
+                }
+            }
+
+            // --- WORKER SHEET ---
+            if is_worker_sheet_open() {
+                Sheet {
+                    open: Some(is_worker_sheet_open()),
+                    on_open_change: move |open| is_worker_sheet_open.set(open),
+                    SheetHeader {
+                        SheetTitle { if worker_form_id().is_some() { "Edit Worker Profile" } else { "Add New Worker" } }
+                    }
+                    div { class: "flex flex-col gap-4 py-4 px-6 overflow-y-auto max-h-[70vh]",
+                        if !worker_form_error().is_empty() {
+                            div { class: "p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200", "{worker_form_error}" }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "emp-name", "Worker Name" }
+                            Input {
+                                placeholder: "e.g. Ramesh Kumar",
+                                value: "{worker_form_name}",
+                                oninput: move |e: Event<FormData>| worker_form_name.set(e.value())
+                            }
+                        }
+                        div { class: "flex flex-col gap-2",
+                            Label { html_for: "emp-role", "Role / Designation" }
+                            Input {
+                                placeholder: "e.g. Farm Worker, Shed Manager, Driver",
+                                value: "{worker_form_role}",
+                                oninput: move |e: Event<FormData>| worker_form_role.set(e.value())
+                            }
+                        }
+                        div { class: "grid grid-cols-2 gap-4",
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "emp-wage", "Daily Wage Rate (₹)" }
+                                Input {
+                                    r#type: "number",
+                                    step: "1",
+                                    value: "{worker_form_wage}",
+                                    oninput: move |e: Event<FormData>| worker_form_wage.set(e.value())
+                                }
+                            }
+                            div { class: "flex flex-col gap-2",
+                                Label { html_for: "emp-balance", "Starting Advance Balance (₹)" }
+                                Input {
+                                    r#type: "number",
+                                    step: "1",
+                                    value: "{worker_form_balance}",
+                                    oninput: move |e: Event<FormData>| worker_form_balance.set(e.value())
+                                }
+                            }
+                        }
+                    }
+                    SheetFooter {
+                        Button {
+                            variant: ButtonVariant::Outline,
+                            disabled: is_worker_submitting(),
+                            onclick: move |_| is_worker_sheet_open.set(false),
+                            "Cancel"
+                        }
+                        Button {
+                            disabled: is_worker_submitting(),
+                            loading: is_worker_submitting(),
+                            onclick: submit_worker_handler,
+                            if worker_form_id().is_some() { "Update Worker" } else { "Save Worker" }
                         }
                     }
                 }
