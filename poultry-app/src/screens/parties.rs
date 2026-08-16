@@ -214,34 +214,51 @@ pub fn Parties() -> Element {
                                             }
                                             tbody { class: "divide-y divide-border",
                                                 for party in filtered_list {
-                                                    tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800 transition-colors",
-                                                        td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100",
-                                                            Link {
-                                                                to: crate::routes::AuthenticatedRoute::PartyDetail { id: party.id.clone() },
-                                                                class: "hover:underline text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1",
-                                                                "{party.name} 📖"
+                                                    {
+                                                        let bal_str = if party.party_type == "SUPPLIER" {
+                                                            if party.current_balance < 0.0 {
+                                                                format!("-₹ {:.2} (Payable)", party.current_balance.abs())
+                                                            } else if party.current_balance > 0.0 {
+                                                                format!("+₹ {:.2} (Surplus)", party.current_balance)
+                                                            } else {
+                                                                "₹ 0.00".to_string()
                                                             }
-                                                        }
-                                                        td { class: "px-6 py-4 text-xs font-semibold",
-                                                            span {
-                                                                class: match party.party_type.as_str() {
-                                                                    "CUSTOMER" => "px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300",
-                                                                    "SUPPLIER" => "px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300",
-                                                                    "BAKERY" => "px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300",
-                                                                    _ => "px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
-                                                                },
-                                                                "{party.party_type}"
+                                                        } else {
+                                                            if party.current_balance > 0.0 {
+                                                                format!("₹ {:.2} (Due)", party.current_balance)
+                                                            } else if party.current_balance < 0.0 {
+                                                                format!("-₹ {:.2} (Overpaid)", party.current_balance.abs())
+                                                            } else {
+                                                                "₹ 0.00".to_string()
                                                             }
-                                                        }
-                                                        td { class: "px-6 py-4 text-right font-bold",
-                                                            class: if party.current_balance > 0.0 { "text-emerald-600 dark:text-emerald-400" } else if party.current_balance < 0.0 { "text-rose-600 dark:text-rose-400" } else { "text-gray-500" },
-                                                            "₹ {party.current_balance:.2}"
-                                                        }
-                                                        td { class: "px-6 py-4 text-right flex items-center justify-end gap-2",
-                                                            {
-                                                                let p_edit = party.clone();
-                                                                let p_del_id = party.id.clone();
-                                                                rsx! {
+                                                        };
+                                                        let p_edit = party.clone();
+                                                        let p_del_id = party.id.clone();
+                                                        rsx! {
+                                                            tr { class: "hover:bg-gray-50 dark:bg-stone-800 transition-colors",
+                                                                td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100",
+                                                                    Link {
+                                                                        to: crate::routes::AuthenticatedRoute::PartyDetail { id: party.id.clone() },
+                                                                        class: "hover:underline text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1",
+                                                                        "{party.name} 📖"
+                                                                    }
+                                                                }
+                                                                td { class: "px-6 py-4 text-xs font-semibold",
+                                                                    span {
+                                                                        class: match party.party_type.as_str() {
+                                                                            "CUSTOMER" => "px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300",
+                                                                            "SUPPLIER" => "px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300",
+                                                                            "BAKERY" => "px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300",
+                                                                            _ => "px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
+                                                                        },
+                                                                        "{party.party_type}"
+                                                                    }
+                                                                }
+                                                                td { class: "px-6 py-4 text-right font-bold text-sm",
+                                                                    class: if party.current_balance > 0.0 { "text-emerald-600 dark:text-emerald-400" } else if party.current_balance < 0.0 { "text-rose-600 dark:text-rose-400" } else { "text-gray-500" },
+                                                                    "{bal_str}"
+                                                                }
+                                                                td { class: "px-6 py-4 text-right flex items-center justify-end gap-2",
                                                                     Button {
                                                                         variant: ButtonVariant::Outline,
                                                                         onclick: move |_| {

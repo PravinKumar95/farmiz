@@ -192,6 +192,16 @@ pub fn Production() -> Element {
     let records_list = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
     let q = search_query().trim().to_lowercase();
     
+    // Dynamically derive complete list of active batches (from custom list + database records)
+    let mut all_batches = available_batches();
+    for r in &records_list {
+        if !r.shed_name.trim().is_empty() && !all_batches.contains(&r.shed_name) {
+            all_batches.push(r.shed_name.clone());
+        }
+    }
+    all_batches.sort();
+    all_batches.dedup();
+
     // Filter records by Month, Batch, and Search query
     let filtered_records: Vec<_> = records_list.into_iter().filter(|r| {
         let matches_month = if let Some(ref m) = selected_month() {
@@ -299,7 +309,7 @@ pub fn Production() -> Element {
                                 }
                             },
                             option { value: "", "All Batches" }
-                            for b in available_batches() {
+                            for b in all_batches.iter() {
                                 option { key: "{b}", value: "{b}", "{b}" }
                             }
                         }
@@ -468,7 +478,7 @@ pub fn Production() -> Element {
                                     class: "flex h-10 w-full rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500",
                                     value: form_shed(),
                                     onchange: move |e: Event<FormData>| form_shed.set(e.value()),
-                                    for b in available_batches() {
+                                    for b in all_batches.iter() {
                                         option { key: "{b}", value: "{b}", "{b}" }
                                     }
                                 }

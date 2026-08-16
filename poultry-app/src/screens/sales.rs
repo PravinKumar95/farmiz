@@ -541,32 +541,64 @@ pub fn Sales() -> Element {
                             }
                         }
                         div { class: "flex flex-col gap-2",
-                            Label { html_for: "sale-boxes", if active_tab() == Some("standard".to_string()) { "Boxes" } else { "Trays" } }
+                            Label { html_for: "sale-boxes", if active_tab() == Some("standard".to_string()) { "Quantity (Boxes — 210 eggs/box)" } else { "Quantity (Trays — 30 eggs/tray)" } }
                             Input {
                                 r#type: "number",
                                 value: "{form_boxes}",
                                 oninput: move |e: Event<FormData>| form_boxes.set(e.value()),
-                                placeholder: "0"
+                                placeholder: if active_tab() == Some("standard".to_string()) { "e.g. 50 boxes" } else { "e.g. 20 trays" }
                             }
                         }
                         div { class: "flex flex-col gap-2",
-                            Label { html_for: "sale-rate", "Rate" }
+                            Label { html_for: "sale-rate", if active_tab() == Some("standard".to_string()) { "Rate per Egg (₹/egg)" } else { "Rate per Tray (₹/tray)" } }
                             Input {
                                 r#type: "number",
                                 step: "0.01",
                                 value: "{form_rate}",
                                 oninput: move |e: Event<FormData>| form_rate.set(e.value()),
-                                placeholder: "0.00"
+                                placeholder: if active_tab() == Some("standard".to_string()) { "e.g. 5.25" } else { "e.g. 130.00" }
                             }
                         }
                         div { class: "flex flex-col gap-2",
-                            Label { html_for: "sale-received", "Received Amount" }
+                            Label { html_for: "sale-received", "Received Payment Amount (₹)" }
                             Input {
                                 r#type: "number",
                                 step: "0.01",
                                 value: "{form_received}",
                                 oninput: move |e: Event<FormData>| form_received.set(e.value()),
                                 placeholder: "0.00"
+                            }
+                        }
+
+                        // Live Calculation Preview Box
+                        {
+                            let is_std = active_tab() == Some("standard".to_string());
+                            let p_qty = form_boxes().parse::<f64>().unwrap_or(0.0);
+                            let p_rate = form_rate().parse::<f64>().unwrap_or(0.0);
+                            let p_rec = form_received().parse::<f64>().unwrap_or(0.0);
+                            let tot_eggs = if is_std { (p_qty * 210.0) as i32 } else { (p_qty * 30.0) as i32 };
+                            let tot_bill = if is_std { (tot_eggs as f64) * p_rate } else { p_qty * p_rate };
+                            let vol_str = if is_std { format!("{} Boxes ({} Eggs)", p_qty as i32, tot_eggs) } else { format!("{} Trays ({} Eggs)", p_qty as i32, tot_eggs) };
+                            let bal_due = tot_bill - p_rec;
+
+                            rsx! {
+                                div { class: "p-3 rounded-lg bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-xs space-y-1.5 mt-1",
+                                    div { class: "font-medium text-blue-900 dark:text-blue-200 flex justify-between",
+                                        span { if is_std { "📦 Total Egg Volume" } else { "🍳 Total Trays Volume" } }
+                                        span { class: "font-bold", "{vol_str}" }
+                                    }
+                                    div { class: "font-medium text-blue-900 dark:text-blue-200 flex justify-between",
+                                        span { "💵 Estimated Total Bill" }
+                                        span { class: "font-bold text-sm text-blue-700 dark:text-blue-300", "₹ {tot_bill:.2}" }
+                                    }
+                                    div { class: "font-medium flex justify-between pt-1 border-t border-blue-200/60 dark:border-blue-800/40",
+                                        span { class: "text-gray-600 dark:text-gray-300", "⏳ Balance Due After Payment" }
+                                        span {
+                                            class: if bal_due > 0.0 { "font-bold text-amber-600 dark:text-amber-400" } else { "font-bold text-emerald-600 dark:text-emerald-400" },
+                                            "₹ {bal_due:.2}"
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

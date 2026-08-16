@@ -352,12 +352,44 @@ pub fn Feed() -> Element {
                                 }
                             }
                             div { class: "flex flex-col gap-2",
-                                Label { html_for: "feed-payment", "Payment (₹)" }
+                                Label { html_for: "feed-payment", "Payment Paid (₹)" }
                                 Input {
                                     r#type: "number",
                                     placeholder: "e.g. 700",
                                     value: "{form_payment}",
                                     oninput: move |e: Event<FormData>| form_payment.set(e.value())
+                                }
+                            }
+                        }
+
+                        // Live Milling Cost Calculation Preview
+                        {
+                            let p_batches = form_batch_id().parse::<f64>().unwrap_or(0.0);
+                            let p_rate = form_rate().parse::<f64>().unwrap_or(0.0);
+                            let p_pay = form_payment().parse::<f64>().unwrap_or(0.0);
+                            let tot = if let Ok(t) = form_total().parse::<f64>() { t } else { p_batches * p_rate };
+                            let bal = tot - p_pay;
+                            let batch_vol_str = format!("{:.1} Batches", p_batches);
+                            let tot_str = format!("₹ {:.2}", tot);
+                            let bal_str = format!("₹ {:.2}", bal);
+
+                            rsx! {
+                                div { class: "p-3 rounded-lg bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-xs space-y-1.5 mt-1",
+                                    div { class: "font-medium text-amber-900 dark:text-amber-200 flex justify-between",
+                                        span { "🌾 Production Volume" }
+                                        span { class: "font-bold", "{batch_vol_str}" }
+                                    }
+                                    div { class: "font-medium text-amber-900 dark:text-amber-200 flex justify-between",
+                                        span { "💵 Total Milling Cost" }
+                                        span { class: "font-bold text-sm text-amber-700 dark:text-amber-300", "{tot_str}" }
+                                    }
+                                    div { class: "font-medium flex justify-between pt-1 border-t border-amber-200/60 dark:border-amber-800/40",
+                                        span { class: "text-gray-600 dark:text-gray-300", "⏳ Pending Milling Balance" }
+                                        span {
+                                            class: if bal > 0.0 { "font-bold text-rose-600 dark:text-rose-400" } else { "font-bold text-emerald-600 dark:text-emerald-400" },
+                                            "{bal_str}"
+                                        }
+                                    }
                                 }
                             }
                         }
