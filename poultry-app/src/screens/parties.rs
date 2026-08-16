@@ -47,9 +47,9 @@ pub fn Parties() -> Element {
             form_error.set("Name must be at least 2 characters long.".to_string());
             return;
         }
-        let allowed_types = ["CUSTOMER", "SUPPLIER", "EMPLOYEE", "BAKERY"];
+        let allowed_types = ["CUSTOMER", "SUPPLIER", "BAKERY"];
         if !allowed_types.contains(&p_type.as_str()) {
-            form_error.set("Type must be CUSTOMER, SUPPLIER, EMPLOYEE, or BAKERY.".to_string());
+            form_error.set("Type must be CUSTOMER, SUPPLIER, or BAKERY.".to_string());
             return;
         }
         let balance: f64 = match balance_str.parse() {
@@ -172,7 +172,7 @@ pub fn Parties() -> Element {
                 // Controls: Filter Tabs & Search Bar
                 div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-1",
                     div { class: "flex flex-wrap gap-1 p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start",
-                        for (tab_key, tab_label) in [("ALL", "All"), ("CUSTOMER", "Customers"), ("SUPPLIER", "Suppliers"), ("BAKERY", "Bakeries"), ("EMPLOYEE", "Employees")] {
+                        for (tab_key, tab_label) in [("ALL", "All"), ("CUSTOMER", "Customers"), ("SUPPLIER", "Suppliers"), ("BAKERY", "Bakeries")] {
                             button {
                                 key: "{tab_key}",
                                 class: if selected_tab() == tab_key {
@@ -325,7 +325,6 @@ pub fn Parties() -> Element {
                                 option { value: "CUSTOMER", "CUSTOMER" }
                                 option { value: "SUPPLIER", "SUPPLIER" }
                                 option { value: "BAKERY", "BAKERY" }
-                                option { value: "EMPLOYEE", "EMPLOYEE" }
                             }
                         }
                         div { class: "flex flex-col gap-2",
