@@ -10,6 +10,7 @@ use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
 use crate::components::date_range_filter::{DateRange, DateRangeFilter};
+use crate::components::layout_toggle::{LayoutToggle, ViewLayout};
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::DailyProduction;
 use crate::services::*;
@@ -21,6 +22,7 @@ pub fn Production() -> Element {
     let toast_api = use_toast();
 
     // UI state
+    let mut view_layout = use_signal(ViewLayout::default);
     let mut is_sheet_open = use_signal(|| false);
     let mut is_manage_batches_open = use_signal(|| false);
 
@@ -279,7 +281,7 @@ pub fn Production() -> Element {
                     }
                 }
 
-                // Filter controls: Search, Batch Filter, Date Range Filter
+                // Filter controls: Search, Batch Filter, Date Range Filter, Layout Toggle
                 div { class: "flex flex-col gap-2.5",
                     div { class: "flex flex-wrap items-center gap-3",
                         div { class: "flex-1 min-w-[200px]",
@@ -308,6 +310,10 @@ pub fn Production() -> Element {
                                 }
                             }
                         }
+                        LayoutToggle {
+                            selected: view_layout(),
+                            onchange: move |vl| view_layout.set(vl)
+                        }
                     }
                     DateRangeFilter {
                         selected: date_range(),
@@ -316,13 +322,13 @@ pub fn Production() -> Element {
                 }
             }
 
-            // SECTION 2: SCROLLABLE CONTENT — Register Table
+            // SECTION 2: SCROLLABLE CONTENT — Register Table or Cards
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
                 div { class: "flex flex-col gap-6 w-full max-w-6xl mx-auto pb-20",
 
-                    // Production Register Table
+                    // Production Register Table or Cards
                     match logs.cloned() {
-                        Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
+                        Some(Ok(_)) if !filtered_records.is_empty() && view_layout() == ViewLayout::Table => rsx! {
                             Card {
                                 div { class: "overflow-x-auto",
                                     table { class: "w-full text-sm text-left border-collapse",
@@ -409,6 +415,106 @@ pub fn Production() -> Element {
                                                 td { class: "px-4 py-3 text-right text-emerald-700 dark:text-emerald-300", "{avg_yield:.1}%" }
                                                 td { class: "px-4 py-3 text-right text-blue-700 dark:text-blue-300", "{total_stock_sum:.1}" }
                                                 td { class: "px-4 py-3", "" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
+                            div { class: "flex flex-col gap-4",
+                                for item in filtered_records.iter() {
+                                    Card { key: "{item.id}", class: "border-l-4 border-l-amber-500 dark:border-l-amber-400",
+                                        div { class: "p-4 sm:p-5 flex flex-col gap-3",
+                                            div { class: "flex justify-between items-center",
+                                                div { class: "flex items-center gap-2",
+                                                    span { class: "text-sm font-semibold text-stone-900 dark:text-stone-100", "🗓️ {item.date}" }
+                                                    span { class: "px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
+                                                        "🏷️ {item.shed_name}"
+                                                    }
+                                                }
+                                                if item.production_percentage > 0.0 {
+                                                    span { class: "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800",
+                                                        "Yield: {item.production_percentage:.1}%"
+                                                    }
+                                                }
+                                            }
+                                            div { class: "grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-2 bg-stone-50 dark:bg-stone-800/50 rounded-lg p-3 border border-stone-200/60 dark:border-stone-700/60 text-xs",
+                                                div {
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Total Trays" }
+                                                    p { class: "text-base font-bold text-amber-600 dark:text-amber-400 mt-0.5",
+                                                        if item.total_trays > 0.0 { "{item.total_trays:.1}" } else { "{(item.egg_count_good as f64 / 30.0):.1}" }
+                                                    }
+                                                }
+                                                div {
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Good Eggs" }
+                                                    p { class: "text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5", "{item.egg_count_good}" }
+                                                }
+                                                div {
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Broken / Damaged" }
+                                                    p { class: "text-base font-bold text-rose-600 dark:text-rose-400 mt-0.5", "{item.egg_count_damaged:.1}" }
+                                                }
+                                                div {
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Stock in Trays" }
+                                                    p { class: "text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5", "{item.stock_in_trays:.1}" }
+                                                }
+                                                div {
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Dirty (Cat 1 | 2)" }
+                                                    p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.dirty_cat1:.1} | {item.dirty_cat2:.1}" }
+                                                }
+                                                div {
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Feed Consumed" }
+                                                    p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.feed_consumed_kg:.1} kg" }
+                                                }
+                                                div {
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Mortality / Cull" }
+                                                    p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.mortality_count} / {item.cull_count}" }
+                                                }
+                                                div {
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Status" }
+                                                    p { class: "text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5", "Logged" }
+                                                }
+                                            }
+                                            if let Some(notes) = &item.notes {
+                                                if !notes.is_empty() {
+                                                    p { class: "text-xs text-stone-500 dark:text-stone-400 italic bg-stone-100/50 dark:bg-stone-800/30 p-2 rounded", "Note: {notes}" }
+                                                }
+                                            }
+                                            div { class: "flex justify-end gap-2 pt-1 border-t border-stone-100 dark:border-stone-800",
+                                                {
+                                                    let edit_item = item.clone();
+                                                    let del_id = item.id.clone();
+                                                    rsx! {
+                                                        Button {
+                                                            variant: ButtonVariant::Outline,
+                                                            onclick: move |_| {
+                                                                form_id.set(Some(edit_item.id.clone()));
+                                                                form_date.set(edit_item.date.clone());
+                                                                form_shed.set(edit_item.shed_name.clone());
+                                                                form_trays.set(edit_item.total_trays.to_string());
+                                                                form_good.set(edit_item.egg_count_good.to_string());
+                                                                form_damaged.set(edit_item.egg_count_damaged.to_string());
+                                                                form_dirty1.set(edit_item.dirty_cat1.to_string());
+                                                                form_dirty2.set(edit_item.dirty_cat2.to_string());
+                                                                form_yield.set(edit_item.production_percentage.to_string());
+                                                                form_stock.set(edit_item.stock_in_trays.to_string());
+                                                                form_mortality.set(edit_item.mortality_count.to_string());
+                                                                form_cull.set(edit_item.cull_count.to_string());
+                                                                form_feed.set(edit_item.feed_consumed_kg.to_string());
+                                                                form_notes.set(edit_item.notes.clone().unwrap_or_default());
+                                                                is_sheet_open.set(true);
+                                                            },
+                                                            "{edit_str}"
+                                                        }
+                                                        Button {
+                                                            variant: ButtonVariant::Destructive,
+                                                            onclick: move |_| {
+                                                                delete_id.set(Some(del_id.clone()));
+                                                            },
+                                                            "{delete_str}"
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }

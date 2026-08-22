@@ -11,6 +11,7 @@ use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
 use crate::components::date_range_filter::{DateRange, DateRangeFilter};
+use crate::components::layout_toggle::{LayoutToggle, ViewLayout};
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::{Employee, LaborPayrollSummary, LaborRecord};
 use crate::services::*;
@@ -24,6 +25,7 @@ pub fn Labor() -> Element {
 
     // Sub-view: "LOGS", "SETTLEMENT", or "WORKERS"
     let mut view_mode = use_signal(|| "LOGS".to_string());
+    let mut view_layout = use_signal(ViewLayout::default);
 
     // Search & Filter
     let mut date_range = use_signal(DateRange::default);
@@ -335,6 +337,14 @@ pub fn Labor() -> Element {
         });
     }
 
+    let total_att_sum: f64 = filtered_records.iter().map(|r| r.attendance).sum();
+    let total_adv_sum: f64 = filtered_records.iter().map(|r| r.advance_given).sum();
+
+    let total_settlement_att: f64 = payroll_summaries.iter().map(|s| s.total_attendance).sum();
+    let total_settlement_earned: f64 = payroll_summaries.iter().map(|s| s.total_earned).sum();
+    let total_settlement_adv: f64 = payroll_summaries.iter().map(|s| s.total_advance).sum();
+    let total_settlement_net: f64 = payroll_summaries.iter().map(|s| s.net_balance).sum();
+
     let title_str = tr("labor");
     let log_btn_str = tr("log-labor");
     let edit_str = tr("edit");
@@ -381,7 +391,7 @@ pub fn Labor() -> Element {
                 }
 
                 // Mode Toggle Bar (Logs vs Settlement vs Workers) & Filters
-                div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-1",
+                div { class: "flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-1",
                     div { class: "flex p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start shrink-0",
                         button {
                             class: if view_mode() == "LOGS" {
@@ -412,11 +422,17 @@ pub fn Labor() -> Element {
                         }
                     }
 
-                    div { class: "flex-1 min-w-[200px]",
-                        Input {
-                            placeholder: if view_mode() == "WORKERS" { "🔍 Search worker name or role..." } else { "🔍 Search employee name or date..." },
-                            value: "{search_query}",
-                            oninput: move |e: Event<FormData>| search_query.set(e.value())
+                    div { class: "flex items-center gap-2 flex-1",
+                        div { class: "flex-1 min-w-[200px]",
+                            Input {
+                                placeholder: if view_mode() == "WORKERS" { "🔍 Search worker name or role..." } else { "🔍 Search employee name or date..." },
+                                value: "{search_query}",
+                                oninput: move |e: Event<FormData>| search_query.set(e.value())
+                            }
+                        }
+                        LayoutToggle {
+                            selected: view_layout(),
+                            onchange: move |vl| view_layout.set(vl)
                         }
                     }
                 }
@@ -436,7 +452,7 @@ pub fn Labor() -> Element {
                     if view_mode() == "WORKERS" {
                         // WORKERS DIRECTORY VIEW
                         match employees_res.cloned() {
-                            Some(Ok(_)) if !filtered_workers.is_empty() => rsx! {
+                            Some(Ok(_)) if !filtered_workers.is_empty() && view_layout() == ViewLayout::Table => rsx! {
                                 Card { class: "mt-2",
                                     CardContent { class: "p-0 overflow-hidden rounded-xl",
                                         div { class: "overflow-x-auto",
@@ -451,7 +467,7 @@ pub fn Labor() -> Element {
                                                     }
                                                 }
                                                 tbody { class: "divide-y divide-stone-200 dark:divide-stone-800",
-                                                    for emp in filtered_workers {
+                                                    for emp in filtered_workers.iter() {
                                                         tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
                                                             td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100", "{emp.name}" }
                                                             td { class: "px-6 py-4 text-xs font-semibold text-gray-600 dark:text-gray-300", "{emp.role}" }
@@ -492,6 +508,60 @@ pub fn Labor() -> Element {
                                     }
                                 }
                             },
+                            Some(Ok(_)) if !filtered_workers.is_empty() => rsx! {
+                                div { class: "grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2",
+                                    for emp in filtered_workers {
+                                        Card { key: "{emp.id}",
+                                            CardHeader {
+                                                div { class: "flex justify-between items-center",
+                                                    div {
+                                                        h3 { class: "text-lg font-bold text-gray-900 dark:text-gray-100", "{emp.name}" }
+                                                        p { class: "text-xs text-gray-500 dark:text-gray-400", "Role: {emp.role}" }
+                                                    }
+                                                    span { class: "px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
+                                                        "₹{emp.daily_wage:.2}/day"
+                                                    }
+                                                }
+                                            }
+                                            CardContent {
+                                                div { class: "flex justify-between items-center bg-stone-50 dark:bg-stone-800/50 p-3 rounded-lg border border-stone-200/60 dark:border-stone-700/60 text-xs",
+                                                    span { class: "text-gray-500 dark:text-gray-400", "Advance Balance" }
+                                                    span { class: "text-base font-bold text-amber-600 dark:text-amber-400", "₹ {emp.current_balance:.2}" }
+                                                }
+                                            }
+                                            CardFooter {
+                                                div { class: "flex justify-end gap-2 w-full pt-1",
+                                                    {
+                                                        let e_edit = emp.clone();
+                                                        let e_del_id = emp.id.clone();
+                                                        rsx! {
+                                                            Button {
+                                                                variant: ButtonVariant::Outline,
+                                                                onclick: move |_| {
+                                                                    worker_form_id.set(Some(e_edit.id.clone()));
+                                                                    worker_form_name.set(e_edit.name.clone());
+                                                                    worker_form_role.set(e_edit.role.clone());
+                                                                    worker_form_wage.set(e_edit.daily_wage.to_string());
+                                                                    worker_form_balance.set(e_edit.current_balance.to_string());
+                                                                    is_worker_sheet_open.set(true);
+                                                                },
+                                                                "{edit_str}"
+                                                            }
+                                                            Button {
+                                                                variant: ButtonVariant::Destructive,
+                                                                onclick: move |_| {
+                                                                    worker_delete_id.set(Some(e_del_id.clone()));
+                                                                },
+                                                                "{delete_str}"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                             Some(Ok(_)) => rsx! {
                                 EmptyState {
                                     icon: "👷",
@@ -504,7 +574,71 @@ pub fn Labor() -> Element {
                         }
                     } else if view_mode() == "SETTLEMENT" {
                         // PAYROLL SETTLEMENT VIEW
-                        if !payroll_summaries.is_empty() {
+                        if !payroll_summaries.is_empty() && view_layout() == ViewLayout::Table {
+                            // ── DESKTOP/TABLE VIEW: Payroll Settlement Table ──
+                            div { class: "mt-2",
+                                Card {
+                                    div { class: "overflow-x-auto",
+                                        table { class: "w-full text-sm text-left border-collapse",
+                                            thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700",
+                                                tr {
+                                                    th { class: "px-4 py-3", "Worker Name" }
+                                                    th { class: "px-4 py-3 text-right", "Daily Wage" }
+                                                    th { class: "px-4 py-3 text-right", "Working Days" }
+                                                    th { class: "px-4 py-3 text-right", "Total Earned (₹)" }
+                                                    th { class: "px-4 py-3 text-right", "Total Advances (₹)" }
+                                                    th { class: "px-4 py-3 text-right", "Net Balance (₹)" }
+                                                    th { class: "px-4 py-3 text-center", "Status" }
+                                                }
+                                            }
+                                            tbody { class: "divide-y divide-stone-200 dark:divide-stone-800",
+                                                for summary in payroll_summaries.iter() {
+                                                    tr {
+                                                        key: "{summary.employee_name}",
+                                                        class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
+                                                        td { class: "px-4 py-3 font-semibold text-stone-900 dark:text-stone-100 whitespace-nowrap", "{summary.employee_name}" }
+                                                        td { class: "px-4 py-3 text-right font-medium text-stone-600 dark:text-stone-300 whitespace-nowrap", "₹{summary.daily_wage:.2}/day" }
+                                                        td { class: "px-4 py-3 text-right font-medium text-stone-800 dark:text-stone-200 whitespace-nowrap", "{summary.total_attendance} Days" }
+                                                        td { class: "px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap", "₹{summary.total_earned:.2}" }
+                                                        td { class: "px-4 py-3 text-right font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap", "₹{summary.total_advance:.2}" }
+                                                        td {
+                                                            class: if summary.net_balance < 0.0 {
+                                                                "px-4 py-3 text-right font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
+                                                            } else {
+                                                                "px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap"
+                                                            },
+                                                            "₹{summary.net_balance:.2}"
+                                                        }
+                                                        td { class: "px-4 py-3 text-center whitespace-nowrap",
+                                                            span {
+                                                                class: if summary.net_balance < 0.0 {
+                                                                    "px-2.5 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                                                                } else {
+                                                                    "px-2.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                                                },
+                                                                if summary.net_balance < 0.0 { "Advance Overpayment" } else { "Payout Due" }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            tfoot { class: "bg-amber-50/70 dark:bg-stone-800/90 font-bold border-t border-amber-200 dark:border-stone-700 text-stone-900 dark:text-stone-100",
+                                                tr {
+                                                    td { class: "px-4 py-3", "TOTAL" }
+                                                    td { class: "px-4 py-3 text-right text-stone-500 dark:text-stone-400 font-normal", "{payroll_summaries.len()} workers" }
+                                                    td { class: "px-4 py-3 text-right text-stone-900 dark:text-stone-100", "{total_settlement_att:.1} Days" }
+                                                    td { class: "px-4 py-3 text-right text-emerald-700 dark:text-emerald-300", "₹{total_settlement_earned:.2}" }
+                                                    td { class: "px-4 py-3 text-right text-amber-700 dark:text-amber-300", "₹{total_settlement_adv:.2}" }
+                                                    td { class: "px-4 py-3 text-right text-blue-700 dark:text-blue-300", "₹{total_settlement_net:.2}" }
+                                                    td {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else if !payroll_summaries.is_empty() {
+                            // ── CARD VIEW: Payroll Settlement Cards ──
                             div { class: "flex flex-col gap-4 mt-2",
                                 for summary in payroll_summaries {
                                     Card { key: "{summary.employee_name}", class: "border-l-4 border-l-blue-500 dark:border-l-blue-400",
@@ -560,7 +694,81 @@ pub fn Labor() -> Element {
                     } else {
                         // DAILY LOGS VIEW
                         match records.cloned() {
+                            Some(Ok(_)) if !filtered_records.is_empty() && view_layout() == ViewLayout::Table => rsx! {
+                                // ── DESKTOP/TABLE VIEW: Daily Logs Data Table ──
+                                div { class: "mt-2",
+                                    Card {
+                                        div { class: "overflow-x-auto",
+                                            table { class: "w-full text-sm text-left border-collapse",
+                                                thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700",
+                                                    tr {
+                                                        th { class: "px-4 py-3", "Date" }
+                                                        th { class: "px-4 py-3", "Employee Name" }
+                                                        th { class: "px-4 py-3 text-right", "Attendance (Days)" }
+                                                        th { class: "px-4 py-3 text-right", "Advance Given (₹)" }
+                                                        th { class: "px-4 py-3 text-right", "Actions" }
+                                                    }
+                                                }
+                                                tbody { class: "divide-y divide-stone-200 dark:divide-stone-800",
+                                                    for item in filtered_records.iter() {
+                                                        {
+                                                            let edit_item = item.clone();
+                                                            let del_id = item.id.clone();
+                                                            rsx! {
+                                                                tr {
+                                                                    key: "{item.id}",
+                                                                    class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
+                                                                    td { class: "px-4 py-3 font-medium text-stone-900 dark:text-stone-100 whitespace-nowrap", "{item.date}" }
+                                                                    td { class: "px-4 py-3 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap", "{item.employee_name}" }
+                                                                    td { class: "px-4 py-3 text-right font-medium text-stone-800 dark:text-stone-200 whitespace-nowrap",
+                                                                        span { class: "px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold text-xs", "{item.attendance} Day(s)" }
+                                                                    }
+                                                                    td { class: "px-4 py-3 text-right font-bold text-amber-600 dark:text-amber-400", "₹{item.advance_given:.2}" }
+                                                                    td { class: "px-4 py-3 text-right whitespace-nowrap",
+                                                                        div { class: "flex items-center justify-end gap-2",
+                                                                            Button {
+                                                                                variant: ButtonVariant::Outline,
+                                                                                onclick: move |_| {
+                                                                                    labor_form_id.set(Some(edit_item.id.clone()));
+                                                                                    form_date.set(edit_item.date.clone());
+                                                                                    form_employee_name.set(edit_item.employee_name.clone());
+                                                                                    form_employee_id.set(edit_item.employee_id.clone());
+                                                                                    form_attendance.set(edit_item.attendance.to_string());
+                                                                                    form_advance.set(edit_item.advance_given.to_string());
+                                                                                    is_labor_sheet_open.set(true);
+                                                                                },
+                                                                                "{edit_str}"
+                                                                            }
+                                                                            Button {
+                                                                                variant: ButtonVariant::Destructive,
+                                                                                onclick: move |_| {
+                                                                                    labor_delete_id.set(Some(del_id.clone()));
+                                                                                },
+                                                                                "{delete_str}"
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                tfoot { class: "bg-amber-50/70 dark:bg-stone-800/90 font-bold border-t border-amber-200 dark:border-stone-700 text-stone-900 dark:text-stone-100",
+                                                    tr {
+                                                        td { class: "px-4 py-3", "TOTAL" }
+                                                        td { class: "px-4 py-3 text-stone-500 dark:text-stone-400 font-normal", "{filtered_records.len()} logs" }
+                                                        td { class: "px-4 py-3 text-right text-stone-900 dark:text-stone-100", "{total_att_sum:.1} Days" }
+                                                        td { class: "px-4 py-3 text-right text-amber-700 dark:text-amber-300", "₹{total_adv_sum:.2}" }
+                                                        td {}
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                             Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
+                                // ── CARD VIEW: Daily Logs Cards ──
                                 div { class: "flex flex-col gap-3 mt-2",
                                     for item in filtered_records {
                                         Card { key: "{item.id}",

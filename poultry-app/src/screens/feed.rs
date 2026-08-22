@@ -10,6 +10,7 @@ use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
 use crate::components::date_range_filter::{DateRange, DateRangeFilter};
+use crate::components::layout_toggle::{LayoutToggle, ViewLayout};
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::FeedBatch;
 use crate::services::*;
@@ -21,6 +22,7 @@ pub fn Feed() -> Element {
     let toast_api = use_toast();
     let mut is_sheet_open = use_signal(|| false);
 
+    let mut view_layout = use_signal(ViewLayout::default);
     let mut date_range = use_signal(DateRange::default);
     let mut search_query = use_signal(String::new);
 
@@ -153,6 +155,10 @@ pub fn Feed() -> Element {
         matches_date && matches_search
     }).collect();
 
+    let total_feed_amount: f64 = filtered_batches.iter().map(|b| b.total_amount).sum();
+    let total_feed_payment: f64 = filtered_batches.iter().map(|b| b.payment).sum();
+    let total_feed_balance: f64 = filtered_batches.iter().map(|b| b.closing_balance).sum();
+
     let title_str = tr("feed-mill");
     let add_btn_str = tr("add-feed-batch");
     let search_ph = tr("search-placeholder");
@@ -185,10 +191,18 @@ pub fn Feed() -> Element {
                     }
                 }
 
-                Input {
-                    placeholder: "{search_ph}",
-                    value: "{search_query}",
-                    oninput: move |e: Event<FormData>| search_query.set(e.value())
+                div { class: "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3",
+                    div { class: "flex-1 min-w-[200px]",
+                        Input {
+                            placeholder: "{search_ph}",
+                            value: "{search_query}",
+                            oninput: move |e: Event<FormData>| search_query.set(e.value())
+                        }
+                    }
+                    LayoutToggle {
+                        selected: view_layout(),
+                        onchange: move |vl| view_layout.set(vl)
+                    }
                 }
                 DateRangeFilter {
                     selected: date_range(),
@@ -196,67 +210,154 @@ pub fn Feed() -> Element {
                 }
             }
 
-            // SECTION 2: SCROLLABLE CARD LIST
+            // SECTION 2: SCROLLABLE CONTENT (Table or Cards view)
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-3 w-full max-w-5xl mx-auto pb-20",
+                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
                     match batches.cloned() {
                         Some(Ok(_)) if !filtered_batches.is_empty() => rsx! {
-                            for item in filtered_batches {
-                                Card { key: "{item.id}",
-                                    CardHeader {
-                                        div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                            span { "🗓️ {item.date}" }
-                                            span { class: "px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-semibold border border-amber-200 dark:border-amber-800", "Batches: {item.batch_id}" }
-                                        }
-                                    }
-                                    CardContent {
-                                        div { class: "flex flex-col gap-3",
-                                            div { class: "flex justify-between items-baseline",
-                                                span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.feed_type}" }
-                                                span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "Total: ₹{item.total_amount:.2}" }
-                                            }
-                                            div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
-                                                div { class: "flex flex-col",
-                                                    span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Rate per Batch" }
-                                                    span { class: "font-semibold text-stone-900 dark:text-stone-100", "₹{item.rate:.2}" }
-                                                }
-                                                div { class: "flex flex-col items-center",
-                                                    span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Payment Made" }
-                                                    span { class: "font-semibold text-emerald-600 dark:text-emerald-400", "₹{item.payment:.2}" }
-                                                }
-                                                div { class: "flex flex-col items-end",
-                                                    span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Closing Balance" }
-                                                    span { class: "font-semibold text-rose-600 dark:text-rose-400", "₹{item.closing_balance:.2}" }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    CardFooter {
-                                        div { class: "flex justify-end gap-2 w-full pt-1 border-t border-stone-100 dark:border-stone-800/60 mt-2",
-                                            {
-                                                let edit_item = item.clone();
-                                                let del_id = item.id.clone();
-                                                rsx! {
-                                                    Button {
-                                                        variant: ButtonVariant::Outline,
-                                                        onclick: move |_| {
-                                                            form_id.set(Some(edit_item.id.clone()));
-                                                            form_date.set(edit_item.date.clone());
-                                                            form_batch_id.set(edit_item.batch_id.clone());
-                                                            form_type.set(edit_item.feed_type.clone());
-                                                            form_rate.set(edit_item.rate.to_string());
-                                                            form_total.set(edit_item.total_amount.to_string());
-                                                            form_payment.set(edit_item.payment.to_string());
-                                                            is_sheet_open.set(true);
-                                                        },
-                                                        "{edit_str}"
+                            if view_layout() == ViewLayout::Table {
+                                // ── FEED BATCHES DATA TABLE VIEW ──
+                                div { class: "mt-2",
+                                    Card {
+                                        div { class: "overflow-x-auto",
+                                            table { class: "w-full text-sm text-left border-collapse",
+                                                thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700",
+                                                    tr {
+                                                        th { class: "px-4 py-3", "Date" }
+                                                        th { class: "px-4 py-3", "Batch ID(s)" }
+                                                        th { class: "px-4 py-3", "Feed Type" }
+                                                        th { class: "px-4 py-3 text-right", "Rate/Batch" }
+                                                        th { class: "px-4 py-3 text-right", "Total (₹)" }
+                                                        th { class: "px-4 py-3 text-right", "Payment (₹)" }
+                                                        th { class: "px-4 py-3 text-right", "Closing Balance (₹)" }
+                                                        th { class: "px-4 py-3 text-right", "Actions" }
                                                     }
-                                                    Button {
-                                                        variant: ButtonVariant::Destructive,
-                                                        onclick: move |_| {
-                                                            delete_id.set(Some(del_id.clone()));
-                                                        },
-                                                        "{delete_str}"
+                                                }
+                                                tbody { class: "divide-y divide-stone-200 dark:divide-stone-800",
+                                                    for item in filtered_batches.iter() {
+                                                        {
+                                                            let edit_item = item.clone();
+                                                            let del_id = item.id.clone();
+                                                            rsx! {
+                                                                tr {
+                                                                    key: "{item.id}",
+                                                                    class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
+                                                                    td { class: "px-4 py-3 font-medium text-stone-900 dark:text-stone-100 whitespace-nowrap", "{item.date}" }
+                                                                    td { class: "px-4 py-3 font-semibold text-amber-700 dark:text-amber-400 whitespace-nowrap",
+                                                                        span { class: "px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-800 font-mono text-xs", "{item.batch_id}" }
+                                                                    }
+                                                                    td { class: "px-4 py-3 font-semibold text-stone-800 dark:text-stone-200 whitespace-nowrap", "{item.feed_type}" }
+                                                                    td { class: "px-4 py-3 text-right font-medium text-stone-700 dark:text-stone-300", "₹{item.rate:.2}" }
+                                                                    td { class: "px-4 py-3 text-right font-bold text-stone-900 dark:text-stone-100", "₹{item.total_amount:.2}" }
+                                                                    td { class: "px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400", "₹{item.payment:.2}" }
+                                                                    td { class: "px-4 py-3 text-right font-semibold text-rose-600 dark:text-rose-400", "₹{item.closing_balance:.2}" }
+                                                                    td { class: "px-4 py-3 text-right whitespace-nowrap",
+                                                                        div { class: "flex items-center justify-end gap-2",
+                                                                            Button {
+                                                                                variant: ButtonVariant::Outline,
+                                                                                onclick: move |_| {
+                                                                                    form_id.set(Some(edit_item.id.clone()));
+                                                                                    form_date.set(edit_item.date.clone());
+                                                                                    form_batch_id.set(edit_item.batch_id.clone());
+                                                                                    form_type.set(edit_item.feed_type.clone());
+                                                                                    form_rate.set(edit_item.rate.to_string());
+                                                                                    form_total.set(edit_item.total_amount.to_string());
+                                                                                    form_payment.set(edit_item.payment.to_string());
+                                                                                    is_sheet_open.set(true);
+                                                                                },
+                                                                                "{edit_str}"
+                                                                            }
+                                                                            Button {
+                                                                                variant: ButtonVariant::Destructive,
+                                                                                onclick: move |_| {
+                                                                                    delete_id.set(Some(del_id.clone()));
+                                                                                },
+                                                                                "{delete_str}"
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                tfoot { class: "bg-amber-50/70 dark:bg-stone-800/90 font-bold border-t border-amber-200 dark:border-stone-700 text-stone-900 dark:text-stone-100",
+                                                    tr {
+                                                        td { class: "px-4 py-3", "TOTAL" }
+                                                        td { class: "px-4 py-3 text-stone-500 dark:text-stone-400 font-normal", "{filtered_batches.len()} records" }
+                                                        td {}
+                                                        td {}
+                                                        td { class: "px-4 py-3 text-right text-blue-700 dark:text-blue-300", "₹{total_feed_amount:.2}" }
+                                                        td { class: "px-4 py-3 text-right text-emerald-700 dark:text-emerald-300", "₹{total_feed_payment:.2}" }
+                                                        td { class: "px-4 py-3 text-right text-rose-700 dark:text-rose-300", "₹{total_feed_balance:.2}" }
+                                                        td {}
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                // ── FEED BATCHES CARD VIEW ──
+                                div { class: "flex flex-col gap-3 mt-2",
+                                    for item in filtered_batches {
+                                        Card { key: "{item.id}",
+                                            CardHeader {
+                                                div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                                    span { "🗓️ {item.date}" }
+                                                    span { class: "px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-semibold border border-amber-200 dark:border-amber-800", "Batches: {item.batch_id}" }
+                                                }
+                                            }
+                                            CardContent {
+                                                div { class: "flex flex-col gap-3",
+                                                    div { class: "flex justify-between items-baseline",
+                                                        span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.feed_type}" }
+                                                        span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "Total: ₹{item.total_amount:.2}" }
+                                                    }
+                                                    div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                                        div { class: "flex flex-col",
+                                                            span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Rate per Batch" }
+                                                            span { class: "font-semibold text-stone-900 dark:text-stone-100", "₹{item.rate:.2}" }
+                                                        }
+                                                        div { class: "flex flex-col items-center",
+                                                            span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Payment Made" }
+                                                            span { class: "font-semibold text-emerald-600 dark:text-emerald-400", "₹{item.payment:.2}" }
+                                                        }
+                                                        div { class: "flex flex-col items-end",
+                                                            span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Closing Balance" }
+                                                            span { class: "font-semibold text-rose-600 dark:text-rose-400", "₹{item.closing_balance:.2}" }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            CardFooter {
+                                                div { class: "flex justify-end gap-2 w-full pt-1 border-t border-stone-100 dark:border-stone-800/60 mt-2",
+                                                    {
+                                                        let edit_item = item.clone();
+                                                        let del_id = item.id.clone();
+                                                        rsx! {
+                                                            Button {
+                                                                variant: ButtonVariant::Outline,
+                                                                onclick: move |_| {
+                                                                    form_id.set(Some(edit_item.id.clone()));
+                                                                    form_date.set(edit_item.date.clone());
+                                                                    form_batch_id.set(edit_item.batch_id.clone());
+                                                                    form_type.set(edit_item.feed_type.clone());
+                                                                    form_rate.set(edit_item.rate.to_string());
+                                                                    form_total.set(edit_item.total_amount.to_string());
+                                                                    form_payment.set(edit_item.payment.to_string());
+                                                                    is_sheet_open.set(true);
+                                                                },
+                                                                "{edit_str}"
+                                                            }
+                                                            Button {
+                                                                variant: ButtonVariant::Destructive,
+                                                                onclick: move |_| {
+                                                                  delete_id.set(Some(del_id.clone()));
+                                                                },
+                                                                "{delete_str}"
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }

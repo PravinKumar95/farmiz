@@ -10,6 +10,7 @@ use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
 use crate::components::date_range_filter::{DateRange, DateRangeFilter};
+use crate::components::layout_toggle::{LayoutToggle, ViewLayout};
 use crate::components::party_select::PartySelect;
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::MaterialPurchase;
@@ -22,6 +23,7 @@ pub fn Purchases() -> Element {
     let toast_api = use_toast();
     let mut is_sheet_open = use_signal(|| false);
 
+    let mut view_layout = use_signal(ViewLayout::default);
     let mut date_range = use_signal(DateRange::default);
     let mut search_query = use_signal(String::new);
 
@@ -167,6 +169,11 @@ pub fn Purchases() -> Element {
         matches_date && matches_search
     }).collect();
 
+    let total_qty_sum: f64 = filtered_purchases.iter().map(|p| p.quantity_kg).sum();
+    let total_amount_sum: f64 = filtered_purchases.iter().map(|p| p.total_amount).sum();
+    let total_advance_sum: f64 = filtered_purchases.iter().map(|p| p.advance_paid).sum();
+    let total_balance_sum: f64 = filtered_purchases.iter().map(|p| p.balance).sum();
+
     let title_str = tr("purchases");
     let add_btn_str = tr("add-purchase");
     let search_ph = tr("search-placeholder");
@@ -199,11 +206,18 @@ pub fn Purchases() -> Element {
                         "+ {add_btn_str}"
                     }
                 }
-
-                Input {
-                    placeholder: "{search_ph}",
-                    value: "{search_query}",
-                    oninput: move |e: Event<FormData>| search_query.set(e.value())
+                div { class: "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3",
+                    div { class: "flex-1 min-w-[200px]",
+                        Input {
+                            placeholder: "{search_ph}",
+                            value: "{search_query}",
+                            oninput: move |e: Event<FormData>| search_query.set(e.value())
+                        }
+                    }
+                    LayoutToggle {
+                        selected: view_layout(),
+                        onchange: move |vl| view_layout.set(vl)
+                    }
                 }
                 DateRangeFilter {
                     selected: date_range(),
@@ -211,70 +225,167 @@ pub fn Purchases() -> Element {
                 }
             }
 
-            // SECTION 2: SCROLLABLE CONTENT
+            // SECTION 2: SCROLLABLE CONTENT (Table View or Card View based on toggle)
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
                 div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
                     match purchases.cloned() {
                         Some(Ok(_)) if !filtered_purchases.is_empty() => rsx! {
-                            div { class: "flex flex-col gap-3 mt-2",
-                                for item in filtered_purchases {
-                                    Card { key: "{item.id}",
-                                        CardHeader {
-                                            div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
-                                                span { "{item.date}" }
-                                                span { class: if item.status == "PAID" { "text-green-600 dark:text-green-400 font-semibold" } else { "text-amber-600 dark:text-amber-400 font-semibold" }, "{item.status}" }
-                                            }
-                                        }
-                                        CardContent {
-                                            div { class: "flex flex-col gap-3",
-                                                div { class: "flex justify-between items-baseline",
-                                                    div { class: "flex flex-col",
-                                                        span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.material_name}" }
-                                                        span { class: "text-xs text-gray-500 dark:text-gray-400", "Supplier: {item.party_name}" }
-                                                    }
-                                                    span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {item.total_amount:.2}" }
-                                                }
-                                                div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
-                                                    div { class: "flex flex-col",
-                                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity (kg)" }
-                                                        span { class: "font-semibold text-gray-800 dark:text-gray-200", "{item.quantity_kg:.1} kg @ ₹{item.rate_per_kg:.2}" }
-                                                    }
-                                                    div { class: "flex flex-col",
-                                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance Paid" }
-                                                        span { class: "font-semibold text-green-600 dark:text-green-500", "₹{item.advance_paid:.2}" }
-                                                    }
-                                                    div { class: "flex flex-col items-end",
-                                                        span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
-                                                        span { class: "font-semibold text-red-500", "₹{item.balance:.2}" }
+                            if view_layout() == ViewLayout::Table {
+                                // ── DATA TABLE VIEW ──
+                                div { class: "mt-2",
+                                    Card {
+                                        div { class: "overflow-x-auto",
+                                            table { class: "w-full text-sm text-left border-collapse",
+                                                thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700",
+                                                    tr {
+                                                        th { class: "px-4 py-3", "Date" }
+                                                        th { class: "px-4 py-3", "Material" }
+                                                        th { class: "px-4 py-3", "Supplier Party" }
+                                                        th { class: "px-4 py-3 text-right", "Qty (kg)" }
+                                                        th { class: "px-4 py-3 text-right", "Rate/kg" }
+                                                        th { class: "px-4 py-3 text-right", "Total (₹)" }
+                                                        th { class: "px-4 py-3 text-right", "Advance (₹)" }
+                                                        th { class: "px-4 py-3 text-right", "Balance (₹)" }
+                                                        th { class: "px-4 py-3 text-center", "Status" }
+                                                        th { class: "px-4 py-3 text-right", "Actions" }
                                                     }
                                                 }
-                                            }
-                                        }
-                                        CardFooter {
-                                            div { class: "flex justify-end gap-2 w-full pt-1",
-                                                {
-                                                    let edit_item = item.clone();
-                                                    let del_id = item.id.clone();
-                                                    rsx! {
-                                                        Button {
-                                                            variant: ButtonVariant::Outline,
-                                                            onclick: move |_| {
-                                                                form_id.set(Some(edit_item.id.clone()));
-                                                                form_date.set(edit_item.date.clone());
-                                                                form_material.set(edit_item.material_name.clone());
-                                                                form_party_name.set(edit_item.party_name.clone());
-                                                                form_party_id.set(edit_item.party_id.clone());
-                                                                form_qty.set(edit_item.quantity_kg.to_string());
-                                                                form_rate.set(edit_item.rate_per_kg.to_string());
-                                                                form_advance.set(edit_item.advance_paid.to_string());
-                                                                is_sheet_open.set(true);
-                                                            },
-                                                            "{edit_str}"
+                                                tbody { class: "divide-y divide-stone-200 dark:divide-stone-800",
+                                                    for item in filtered_purchases.iter() {
+                                                        {
+                                                            let edit_item = item.clone();
+                                                            let del_id = item.id.clone();
+                                                            rsx! {
+                                                                tr {
+                                                                    key: "{item.id}",
+                                                                    class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
+                                                                    td { class: "px-4 py-3 font-medium text-stone-900 dark:text-stone-100 whitespace-nowrap", "{item.date}" }
+                                                                    td { class: "px-4 py-3 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap", "{item.material_name}" }
+                                                                    td { class: "px-4 py-3 font-medium text-stone-800 dark:text-stone-200 whitespace-nowrap", "{item.party_name}" }
+                                                                    td { class: "px-4 py-3 text-right font-medium text-stone-700 dark:text-stone-300", "{item.quantity_kg:.1}" }
+                                                                    td { class: "px-4 py-3 text-right font-medium text-stone-700 dark:text-stone-300", "₹{item.rate_per_kg:.2}" }
+                                                                    td { class: "px-4 py-3 text-right font-bold text-stone-900 dark:text-stone-100", "₹{item.total_amount:.2}" }
+                                                                    td { class: "px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400", "₹{item.advance_paid:.2}" }
+                                                                    td { class: "px-4 py-3 text-right font-semibold text-rose-600 dark:text-rose-400", "₹{item.balance:.2}" }
+                                                                    td { class: "px-4 py-3 text-center",
+                                                                        span {
+                                                                            class: if item.status == "PAID" {
+                                                                                "px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                                                            } else {
+                                                                                "px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                                                                            },
+                                                                            "{item.status}"
+                                                                        }
+                                                                    }
+                                                                    td { class: "px-4 py-3 text-right whitespace-nowrap",
+                                                                        div { class: "flex items-center justify-end gap-2",
+                                                                            Button {
+                                                                                variant: ButtonVariant::Outline,
+                                                                                onclick: move |_| {
+                                                                                    form_id.set(Some(edit_item.id.clone()));
+                                                                                    form_date.set(edit_item.date.clone());
+                                                                                    form_material.set(edit_item.material_name.clone());
+                                                                                    form_party_name.set(edit_item.party_name.clone());
+                                                                                    form_party_id.set(edit_item.party_id.clone());
+                                                                                    form_qty.set(edit_item.quantity_kg.to_string());
+                                                                                    form_rate.set(edit_item.rate_per_kg.to_string());
+                                                                                    form_advance.set(edit_item.advance_paid.to_string());
+                                                                                    is_sheet_open.set(true);
+                                                                                },
+                                                                                "{edit_str}"
+                                                                            }
+                                                                            Button {
+                                                                                variant: ButtonVariant::Destructive,
+                                                                                onclick: move |_| delete_id.set(Some(del_id.clone())),
+                                                                                "{delete_str}"
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
                                                         }
-                                                        Button {
-                                                            variant: ButtonVariant::Destructive,
-                                                            onclick: move |_| delete_id.set(Some(del_id.clone())),
-                                                            "{delete_str}"
+                                                    }
+                                                }
+                                                tfoot { class: "bg-amber-50/70 dark:bg-stone-800/90 font-bold border-t border-amber-200 dark:border-stone-700 text-stone-900 dark:text-stone-100",
+                                                    tr {
+                                                        td { class: "px-4 py-3", "TOTAL" }
+                                                        td { class: "px-4 py-3 text-stone-500 dark:text-stone-400 font-normal", "{filtered_purchases.len()} bills" }
+                                                        td {}
+                                                        td { class: "px-4 py-3 text-right text-stone-900 dark:text-stone-100", "{total_qty_sum:.1} kg" }
+                                                        td {}
+                                                        td { class: "px-4 py-3 text-right text-blue-700 dark:text-blue-300", "₹{total_amount_sum:.2}" }
+                                                        td { class: "px-4 py-3 text-right text-emerald-700 dark:text-emerald-300", "₹{total_advance_sum:.2}" }
+                                                        td { class: "px-4 py-3 text-right text-rose-700 dark:text-rose-300", "₹{total_balance_sum:.2}" }
+                                                        td {}
+                                                        td {}
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                // ── CARD VIEW ──
+                                div { class: "flex flex-col gap-3 mt-2",
+                                    for item in filtered_purchases {
+                                        Card { key: "{item.id}",
+                                            CardHeader {
+                                                div { class: "flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-medium",
+                                                    span { "{item.date}" }
+                                                    span { class: if item.status == "PAID" { "text-green-600 dark:text-green-400 font-semibold" } else { "text-amber-600 dark:text-amber-400 font-semibold" }, "{item.status}" }
+                                                }
+                                            }
+                                            CardContent {
+                                                div { class: "flex flex-col gap-3",
+                                                    div { class: "flex justify-between items-baseline",
+                                                        div { class: "flex flex-col",
+                                                            span { class: "font-bold text-xl text-gray-900 dark:text-gray-100", "{item.material_name}" }
+                                                            span { class: "text-xs text-gray-500 dark:text-gray-400", "Supplier: {item.party_name}" }
+                                                        }
+                                                        span { class: "text-base font-bold text-blue-600 dark:text-blue-400", "₹ {item.total_amount:.2}" }
+                                                    }
+                                                    div { class: "grid grid-cols-3 gap-2 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-800 text-xs",
+                                                        div { class: "flex flex-col",
+                                                            span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Quantity (kg)" }
+                                                            span { class: "font-semibold text-gray-800 dark:text-gray-200", "{item.quantity_kg:.1} kg @ ₹{item.rate_per_kg:.2}" }
+                                                        }
+                                                        div { class: "flex flex-col",
+                                                            span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Advance Paid" }
+                                                            span { class: "font-semibold text-green-600 dark:text-green-500", "₹{item.advance_paid:.2}" }
+                                                        }
+                                                        div { class: "flex flex-col items-end",
+                                                            span { class: "text-gray-500 dark:text-gray-400 mb-0.5", "Balance" }
+                                                            span { class: "font-semibold text-red-500", "₹{item.balance:.2}" }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            CardFooter {
+                                                div { class: "flex justify-end gap-2 w-full pt-1",
+                                                    {
+                                                        let edit_item = item.clone();
+                                                        let del_id = item.id.clone();
+                                                        rsx! {
+                                                            Button {
+                                                                variant: ButtonVariant::Outline,
+                                                                onclick: move |_| {
+                                                                    form_id.set(Some(edit_item.id.clone()));
+                                                                    form_date.set(edit_item.date.clone());
+                                                                    form_material.set(edit_item.material_name.clone());
+                                                                    form_party_name.set(edit_item.party_name.clone());
+                                                                    form_party_id.set(edit_item.party_id.clone());
+                                                                    form_qty.set(edit_item.quantity_kg.to_string());
+                                                                    form_rate.set(edit_item.rate_per_kg.to_string());
+                                                                    form_advance.set(edit_item.advance_paid.to_string());
+                                                                    is_sheet_open.set(true);
+                                                                },
+                                                                "{edit_str}"
+                                                            }
+                                                            Button {
+                                                                variant: ButtonVariant::Destructive,
+                                                                onclick: move |_| delete_id.set(Some(del_id.clone())),
+                                                                "{delete_str}"
+                                                            }
                                                         }
                                                     }
                                                 }

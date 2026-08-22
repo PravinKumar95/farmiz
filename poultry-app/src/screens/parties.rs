@@ -4,11 +4,12 @@ use crate::components::toast::{use_toast, ToastOptions};
 use crate::i18n::tr;
 
 use crate::components::button::{Button, ButtonVariant};
-use crate::components::card::{Card, CardContent};
+use crate::components::card::{Card, CardContent, CardFooter, CardHeader};
 use crate::components::confirm_dialog::ConfirmDialog;
 use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
+use crate::components::layout_toggle::{LayoutToggle, ViewLayout};
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::Party;
 use crate::services::*;
@@ -18,6 +19,7 @@ pub fn Parties() -> Element {
     let mut parties = use_parties();
     let api = use_auth();
     let toast_api = use_toast();
+    let mut view_layout = use_signal(ViewLayout::default);
     let mut is_sheet_open = use_signal(|| false);
 
     let mut delete_id = use_signal(|| Option::<String>::None);
@@ -171,7 +173,7 @@ pub fn Parties() -> Element {
                     }
                 }
 
-                // Controls: Filter Tabs & Search Bar
+                // Controls: Filter Tabs, Search Bar & Layout Toggle
                 div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-1",
                     div { class: "flex flex-wrap gap-1 p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start",
                         for (tab_key, tab_label) in [("ALL", "All"), ("CUSTOMER", "Customers"), ("SUPPLIER", "Suppliers"), ("BAKERY", "Bakeries")] {
@@ -187,11 +189,17 @@ pub fn Parties() -> Element {
                             }
                         }
                     }
-                    div { class: "w-full sm:w-64",
-                        Input {
-                            placeholder: "{search_ph}",
-                            value: "{search_query}",
-                            oninput: move |e: Event<FormData>| search_query.set(e.value())
+                    div { class: "flex items-center gap-2",
+                        div { class: "w-full sm:w-64",
+                            Input {
+                                placeholder: "{search_ph}",
+                                value: "{search_query}",
+                                oninput: move |e: Event<FormData>| search_query.set(e.value())
+                            }
+                        }
+                        LayoutToggle {
+                            selected: view_layout(),
+                            onchange: move |vl| view_layout.set(vl)
                         }
                     }
                 }
@@ -201,7 +209,7 @@ pub fn Parties() -> Element {
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
                 div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
                     match parties.cloned() {
-                        Some(Ok(_)) if !filtered_list.is_empty() => rsx! {
+                        Some(Ok(_)) if !filtered_list.is_empty() && view_layout() == ViewLayout::Table => rsx! {
                             Card { class: "mt-2",
                                 CardContent { class: "p-0 rounded-xl",
                                     div { class: "overflow-x-auto",
@@ -281,6 +289,87 @@ pub fn Parties() -> Element {
                                                                     }
                                                                 }
                                                             }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        Some(Ok(_)) if !filtered_list.is_empty() => rsx! {
+                            div { class: "grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2",
+                                for party in filtered_list {
+                                    {
+                                        let bal_str = if party.party_type == "SUPPLIER" {
+                                            if party.current_balance < 0.0 {
+                                                format!("-₹ {:.2} (Payable)", party.current_balance.abs())
+                                            } else if party.current_balance > 0.0 {
+                                                format!("+₹ {:.2} (Surplus)", party.current_balance)
+                                            } else {
+                                                "₹ 0.00".to_string()
+                                            }
+                                        } else {
+                                            if party.current_balance > 0.0 {
+                                                format!("₹ {:.2} (Due)", party.current_balance)
+                                            } else if party.current_balance < 0.0 {
+                                                format!("-₹ {:.2} (Overpaid)", party.current_balance.abs())
+                                            } else {
+                                                "₹ 0.00".to_string()
+                                            }
+                                        };
+                                        let p_edit = party.clone();
+                                        let p_del_id = party.id.clone();
+                                        let p_id_link = party.id.clone();
+                                        rsx! {
+                                            Card { key: "{party.id}",
+                                                CardHeader {
+                                                    div { class: "flex justify-between items-center",
+                                                        Link {
+                                                            to: crate::routes::AuthenticatedRoute::PartyDetail { id: p_id_link },
+                                                            class: "text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 hover:underline flex items-center gap-1",
+                                                            "{party.name} 📖"
+                                                        }
+                                                        span {
+                                                            class: match party.party_type.as_str() {
+                                                                "CUSTOMER" => "px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300",
+                                                                "SUPPLIER" => "px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300",
+                                                                "BAKERY" => "px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300",
+                                                                _ => "px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
+                                                            },
+                                                            "{party.party_type}"
+                                                        }
+                                                    }
+                                                }
+                                                CardContent {
+                                                    div { class: "flex justify-between items-center bg-stone-50 dark:bg-stone-800/50 p-3 rounded-lg border border-stone-200/60 dark:border-stone-700/60 text-xs",
+                                                        span { class: "text-gray-500 dark:text-gray-400", "Current Balance" }
+                                                        span {
+                                                            class: if party.current_balance > 0.0 { "text-base font-bold text-emerald-600 dark:text-emerald-400" } else if party.current_balance < 0.0 { "text-base font-bold text-rose-600 dark:text-rose-400" } else { "text-base font-bold text-gray-500" },
+                                                            "{bal_str}"
+                                                        }
+                                                    }
+                                                }
+                                                CardFooter {
+                                                    div { class: "flex justify-end gap-2 w-full pt-1",
+                                                        Button {
+                                                            variant: ButtonVariant::Outline,
+                                                            onclick: move |_| {
+                                                                form_id.set(Some(p_edit.id.clone()));
+                                                                form_name.set(p_edit.name.clone());
+                                                                form_type.set(p_edit.party_type.clone());
+                                                                form_balance.set(p_edit.current_balance.to_string());
+                                                                is_sheet_open.set(true);
+                                                            },
+                                                            "{edit_str}"
+                                                        }
+                                                        Button {
+                                                            variant: ButtonVariant::Destructive,
+                                                            onclick: move |_| {
+                                                                delete_id.set(Some(p_del_id.clone()));
+                                                            },
+                                                            "{delete_str}"
                                                         }
                                                     }
                                                 }
