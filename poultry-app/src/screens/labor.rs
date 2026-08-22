@@ -354,11 +354,11 @@ pub fn Labor() -> Element {
         div { class: "flex flex-col h-full w-full min-h-0",
 
             // FIXED HEADER
-            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
-                div { class: "flex justify-between items-center",
-                    div {
-                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "👥 {title_str}" }
-                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track daily attendance, cash advances, payroll settlements & worker directory" }
+            div { class: "shrink-0 p-3 md:p-6 pb-2 md:pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-2 md:gap-3",
+                div { class: "flex justify-between items-center gap-2",
+                    div { class: "min-w-0",
+                        h1 { class: "text-lg md:text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 truncate", "👥 {title_str}" }
+                        p { class: "hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track daily attendance, cash advances, payroll settlements & worker directory" }
                     }
                     if view_mode() == "WORKERS" {
                         Button {
@@ -390,64 +390,72 @@ pub fn Labor() -> Element {
                     }
                 }
 
-                // Mode Toggle Bar (Logs vs Settlement vs Workers) & Filters
-                div { class: "flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-1",
-                    div { class: "flex p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start shrink-0",
-                        button {
-                            class: if view_mode() == "LOGS" {
-                                "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all flex items-center gap-1"
-                            } else {
-                                "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1"
-                            },
-                            onclick: move |_| view_mode.set("LOGS".to_string()),
-                            "📋 Daily Logs"
-                        }
-                        button {
-                            class: if view_mode() == "SETTLEMENT" {
-                                "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all flex items-center gap-1"
-                            } else {
-                                "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1"
-                            },
-                            onclick: move |_| view_mode.set("SETTLEMENT".to_string()),
-                            "🧮 Monthly Settlement"
-                        }
-                        button {
-                            class: if view_mode() == "WORKERS" {
-                                "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all flex items-center gap-1"
-                            } else {
-                                "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1"
-                            },
-                            onclick: move |_| view_mode.set("WORKERS".to_string()),
-                            "👷 Manage Workers"
-                        }
-                    }
-
-                    div { class: "flex items-center gap-2 flex-1",
-                        div { class: "flex-1 min-w-[200px]",
-                            Input {
-                                placeholder: if view_mode() == "WORKERS" { "🔍 Search worker name or role..." } else { "🔍 Search employee name or date..." },
-                                value: "{search_query}",
-                                oninput: move |e: Event<FormData>| search_query.set(e.value())
+                // Mode Toggle Bar & Filters
+                div { class: "flex flex-col gap-2",
+                    div { class: "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2",
+                        div { class: "flex p-0.5 sm:p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start shrink-0 overflow-x-auto max-w-full",
+                            button {
+                                class: if view_mode() == "LOGS" {
+                                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-xs transition-all flex items-center gap-1 text-xs whitespace-nowrap"
+                                } else {
+                                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1 text-xs whitespace-nowrap"
+                                },
+                                onclick: move |_| view_mode.set("LOGS".to_string()),
+                                span { "📋" }
+                                span { class: "hidden sm:inline", " Daily" }
+                                span { " Logs" }
+                            }
+                            button {
+                                class: if view_mode() == "SETTLEMENT" {
+                                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-xs transition-all flex items-center gap-1 text-xs whitespace-nowrap"
+                                } else {
+                                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1 text-xs whitespace-nowrap"
+                                },
+                                onclick: move |_| view_mode.set("SETTLEMENT".to_string()),
+                                span { "🧮" }
+                                span { class: "hidden sm:inline", " Monthly" }
+                                span { " Settlement" }
+                            }
+                            button {
+                                class: if view_mode() == "WORKERS" {
+                                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-xs transition-all flex items-center gap-1 text-xs whitespace-nowrap"
+                                } else {
+                                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1 text-xs whitespace-nowrap"
+                                },
+                                onclick: move |_| view_mode.set("WORKERS".to_string()),
+                                span { "👷" }
+                                span { class: "hidden sm:inline", " Manage" }
+                                span { " Workers" }
                             }
                         }
-                        LayoutToggle {
-                            selected: view_layout(),
-                            onchange: move |vl| view_layout.set(vl)
+
+                        div { class: "flex items-center gap-2 flex-1",
+                            div { class: "flex-1 min-w-0",
+                                Input {
+                                    placeholder: if view_mode() == "WORKERS" { "🔍 Search worker..." } else { "🔍 Search employee or date..." },
+                                    value: "{search_query}",
+                                    oninput: move |e: Event<FormData>| search_query.set(e.value())
+                                }
+                            }
+                            LayoutToggle {
+                                selected: view_layout(),
+                                onchange: move |vl| view_layout.set(vl)
+                            }
                         }
                     }
-                }
 
-                if view_mode() != "WORKERS" {
-                    DateRangeFilter {
-                        selected: date_range(),
-                        onchange: move |dr| date_range.set(dr)
+                    if view_mode() != "WORKERS" {
+                        DateRangeFilter {
+                            selected: date_range(),
+                            onchange: move |dr| date_range.set(dr)
+                        }
                     }
                 }
             }
 
             // SCROLLABLE CONTENT
-            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
+            div { class: "flex-1 overflow-y-auto min-h-0 p-3 md:p-6",
+                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-16 md:pb-20",
 
                     if view_mode() == "WORKERS" {
                         // WORKERS DIRECTORY VIEW

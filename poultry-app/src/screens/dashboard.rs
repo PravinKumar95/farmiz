@@ -23,14 +23,14 @@ pub fn Dashboard() -> Element {
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
             // FIXED HEADER
-            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-1",
-                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🏠 {dash_title}" }
-                p { class: "text-xs text-gray-500 dark:text-gray-400", "Farm operational summary, today's business metrics & quick overview" }
+            div { class: "shrink-0 p-3 md:p-6 pb-2 md:pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-1",
+                h1 { class: "text-lg md:text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 truncate", "🏠 {dash_title}" }
+                p { class: "hidden sm:block text-xs text-gray-500 dark:text-gray-400", "Farm operational summary, today's business metrics & quick overview" }
             }
 
             // SCROLLABLE CONTENT
-            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-6 w-full max-w-5xl mx-auto pb-20",
+            div { class: "flex-1 overflow-y-auto min-h-0 p-3 md:p-6",
+                div { class: "flex flex-col gap-4 md:gap-6 w-full max-w-5xl mx-auto pb-16 md:pb-20",
                     // Welcome card
                     Card {
                         class: "bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border-blue-200 dark:from-stone-800/80 dark:to-stone-850/80 dark:border-stone-700",

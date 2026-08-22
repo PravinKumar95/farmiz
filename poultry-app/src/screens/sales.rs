@@ -271,11 +271,11 @@ pub fn Sales() -> Element {
         div { class: "flex flex-col h-full w-full min-h-0",
 
             // SECTION 1: FIXED HEADER — does NOT scroll
-            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
-                div { class: "flex justify-between items-center",
-                    div {
-                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "💰 {title_str}" }
-                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Daily standard egg & broken egg sales dispatch and receivables" }
+            div { class: "shrink-0 p-3 md:p-6 pb-2 md:pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-2 md:gap-3",
+                div { class: "flex justify-between items-center gap-2",
+                    div { class: "min-w-0",
+                        h1 { class: "text-lg md:text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 truncate", "💰 {title_str}" }
+                        p { class: "hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Daily standard egg & broken egg sales dispatch and receivables" }
                     }
                     Button {
                         onclick: move |_| {
@@ -293,35 +293,35 @@ pub fn Sales() -> Element {
                     }
                 }
 
-                div { class: "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5",
-                    div { class: "flex-1 min-w-[200px]",
-                        Input {
-                            placeholder: "{search_ph}",
-                            value: "{search_query}",
-                            oninput: move |e: Event<FormData>| search_query.set(e.value())
-                        }
-                    }
-
-                    div { class: "flex items-center gap-2 flex-wrap",
+                div { class: "flex flex-col gap-2",
+                    div { class: "flex items-center gap-2",
                         // Tab Filter Pills (Standard Eggs vs Broken Eggs)
-                        div { class: "flex p-1 bg-stone-100 dark:bg-stone-800/80 rounded-lg border border-stone-200/80 dark:border-stone-700/60 text-xs font-medium shrink-0",
+                        div { class: "flex p-0.5 bg-stone-100 dark:bg-stone-800/80 rounded-lg border border-stone-200/80 dark:border-stone-700/60 text-xs font-medium shrink-0",
                             button {
                                 class: if active_tab() == Some("standard".to_string()) {
-                                    "px-3 py-1 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all"
+                                    "px-2 sm:px-3 py-1 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-xs transition-all text-xs"
                                 } else {
-                                    "px-3 py-1 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all"
+                                    "px-2 sm:px-3 py-1 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all text-xs"
                                 },
                                 onclick: move |_| active_tab.set(Some("standard".to_string())),
-                                "Standard Eggs"
+                                "Standard"
                             }
                             button {
                                 class: if active_tab() == Some("broken".to_string()) {
-                                    "px-3 py-1 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all"
+                                    "px-2 sm:px-3 py-1 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-xs transition-all text-xs"
                                 } else {
-                                    "px-3 py-1 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all"
+                                    "px-2 sm:px-3 py-1 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all text-xs"
                                 },
                                 onclick: move |_| active_tab.set(Some("broken".to_string())),
-                                "Broken Eggs"
+                                "Broken"
+                            }
+                        }
+
+                        div { class: "flex-1 min-w-0",
+                            Input {
+                                placeholder: "{search_ph}",
+                                value: "{search_query}",
+                                oninput: move |e: Event<FormData>| search_query.set(e.value())
                             }
                         }
 
@@ -330,17 +330,17 @@ pub fn Sales() -> Element {
                             onchange: move |vl| view_layout.set(vl)
                         }
                     }
-                }
 
-                DateRangeFilter {
-                    selected: date_range(),
-                    onchange: move |dr| date_range.set(dr)
+                    DateRangeFilter {
+                        selected: date_range(),
+                        onchange: move |dr| date_range.set(dr)
+                    }
                 }
             }
 
             // SECTION 2: SCROLLABLE CONTENT (Table or Cards view)
-            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
+            div { class: "flex-1 overflow-y-auto min-h-0 p-3 md:p-6",
+                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-16 md:pb-20",
 
                     if active_tab() == Some("standard".to_string()) {
                         match standard_sales.cloned() {

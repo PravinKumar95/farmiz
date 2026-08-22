@@ -20,23 +20,27 @@ pub fn LayoutToggle(props: LayoutToggleProps) -> Element {
         div { class: "inline-flex p-0.5 bg-stone-100 dark:bg-stone-800/90 rounded-lg border border-stone-200/80 dark:border-stone-700/60 text-xs font-medium shrink-0",
             button {
                 r#type: "button",
+                title: "Table Layout",
                 class: if is_table {
-                    "px-2.5 py-1 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all flex items-center gap-1.5"
+                    "px-2 py-1 sm:px-2.5 sm:py-1 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                 } else {
-                    "px-2.5 py-1 rounded-md text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1.5"
+                    "px-2 py-1 sm:px-2.5 sm:py-1 rounded-md text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1 cursor-pointer"
                 },
                 onclick: move |_| props.onchange.call(ViewLayout::Table),
-                "📊 Table"
+                span { "📊" }
+                span { class: "hidden sm:inline", "Table" }
             }
             button {
                 r#type: "button",
+                title: "Cards Layout",
                 class: if !is_table {
-                    "px-2.5 py-1 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all flex items-center gap-1.5"
+                    "px-2 py-1 sm:px-2.5 sm:py-1 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                 } else {
-                    "px-2.5 py-1 rounded-md text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1.5"
+                    "px-2 py-1 sm:px-2.5 sm:py-1 rounded-md text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all flex items-center gap-1 cursor-pointer"
                 },
                 onclick: move |_| props.onchange.call(ViewLayout::Cards),
-                "🗂️ Cards"
+                span { "🗂️" }
+                span { class: "hidden sm:inline", "Cards" }
             }
         }
     }

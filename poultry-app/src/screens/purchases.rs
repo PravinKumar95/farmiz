@@ -184,11 +184,11 @@ pub fn Purchases() -> Element {
         div { class: "flex flex-col h-full w-full min-h-0",
 
             // SECTION 1: FIXED HEADER — does NOT scroll
-            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
-                div { class: "flex justify-between items-center",
-                    div {
-                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🛒 {title_str}" }
-                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track raw material purchases, supplier orders & payment balances" }
+            div { class: "shrink-0 p-3 md:p-6 pb-2 md:pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-2 md:gap-3",
+                div { class: "flex justify-between items-center gap-2",
+                    div { class: "min-w-0",
+                        h1 { class: "text-lg md:text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 truncate", "🛒 {title_str}" }
+                        p { class: "hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track raw material purchases, supplier orders & payment balances" }
                     }
                     Button {
                         onclick: move |_| {
@@ -206,28 +206,30 @@ pub fn Purchases() -> Element {
                         "+ {add_btn_str}"
                     }
                 }
-                div { class: "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3",
-                    div { class: "flex-1 min-w-[200px]",
-                        Input {
-                            placeholder: "{search_ph}",
-                            value: "{search_query}",
-                            oninput: move |e: Event<FormData>| search_query.set(e.value())
+                div { class: "flex flex-col gap-2",
+                    div { class: "flex items-center gap-2",
+                        div { class: "flex-1 min-w-0",
+                            Input {
+                                placeholder: "{search_ph}",
+                                value: "{search_query}",
+                                oninput: move |e: Event<FormData>| search_query.set(e.value())
+                            }
+                        }
+                        LayoutToggle {
+                            selected: view_layout(),
+                            onchange: move |vl| view_layout.set(vl)
                         }
                     }
-                    LayoutToggle {
-                        selected: view_layout(),
-                        onchange: move |vl| view_layout.set(vl)
+                    DateRangeFilter {
+                        selected: date_range(),
+                        onchange: move |dr| date_range.set(dr)
                     }
-                }
-                DateRangeFilter {
-                    selected: date_range(),
-                    onchange: move |dr| date_range.set(dr)
                 }
             }
 
             // SECTION 2: SCROLLABLE CONTENT (Table View or Card View based on toggle)
-            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
+            div { class: "flex-1 overflow-y-auto min-h-0 p-3 md:p-6",
+                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-16 md:pb-20",
                     match purchases.cloned() {
                         Some(Ok(_)) if !filtered_purchases.is_empty() => rsx! {
                             if view_layout() == ViewLayout::Table {

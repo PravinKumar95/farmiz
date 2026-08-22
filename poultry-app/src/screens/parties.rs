@@ -154,11 +154,11 @@ pub fn Parties() -> Element {
         div { class: "flex flex-col h-full max-h-full w-full min-h-0 overflow-hidden",
 
             // SECTION 1: FIXED HEADER — does NOT scroll
-            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
-                div { class: "flex justify-between items-center",
-                    div {
-                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "📒 {title_str}" }
-                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Manage customer receivables, supplier payables & ledger balances" }
+            div { class: "shrink-0 p-3 md:p-6 pb-2 md:pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-2 md:gap-3",
+                div { class: "flex justify-between items-center gap-2",
+                    div { class: "min-w-0",
+                        h1 { class: "text-lg md:text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 truncate", "📒 {title_str}" }
+                        p { class: "hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Manage customer receivables, supplier payables & ledger balances" }
                     }
                     Button {
                         onclick: move |_| {
@@ -174,22 +174,22 @@ pub fn Parties() -> Element {
                 }
 
                 // Controls: Filter Tabs, Search Bar & Layout Toggle
-                div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-1",
-                    div { class: "flex flex-wrap gap-1 p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start",
+                div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 pt-0.5",
+                    div { class: "flex p-0.5 sm:p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start shrink-0 overflow-x-auto max-w-full",
                         for (tab_key, tab_label) in [("ALL", "All"), ("CUSTOMER", "Customers"), ("SUPPLIER", "Suppliers"), ("BAKERY", "Bakeries")] {
                             button {
                                 key: "{tab_key}",
                                 class: if selected_tab() == tab_key {
-                                    "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all"
+                                    "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-xs transition-all text-xs whitespace-nowrap"
                                 } else {
-                                    "px-3 py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all"
+                                    "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-all text-xs whitespace-nowrap"
                                 },
                                 onclick: move |_| selected_tab.set(tab_key.to_string()),
                                 "{tab_label}"
                             }
                         }
                     }
-                    div { class: "flex items-center gap-2",
+                    div { class: "flex items-center gap-2 flex-1 sm:flex-initial",
                         div { class: "w-full sm:w-64",
                             Input {
                                 placeholder: "{search_ph}",
@@ -206,8 +206,8 @@ pub fn Parties() -> Element {
             }
 
             // SECTION 2: SCROLLABLE CONTENT AREA
-            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
+            div { class: "flex-1 overflow-y-auto min-h-0 p-3 md:p-6",
+                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-16 md:pb-20",
                     match parties.cloned() {
                         Some(Ok(_)) if !filtered_list.is_empty() && view_layout() == ViewLayout::Table => rsx! {
                             Card { class: "mt-2",

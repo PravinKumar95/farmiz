@@ -243,18 +243,19 @@ pub fn Production() -> Element {
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
 
-            // SECTION 1: FIXED HEADER — Filter Controls & Title
-            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-4",
-                div { class: "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
-                    div {
-                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🥚 {title_str}" }
-                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Daily Batch Production, Dirty/Broken Egg Register & Stock Inventory" }
+            // SECTION 1: FIXED HEADER — does NOT scroll
+            div { class: "shrink-0 p-3 md:p-6 pb-2 md:pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-2 md:gap-3",
+                div { class: "flex justify-between items-center gap-2",
+                    div { class: "min-w-0",
+                        h1 { class: "text-lg md:text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 truncate", "🥚 {title_str}" }
+                        p { class: "hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Daily Batch Production, Dirty/Broken Egg Register & Stock Inventory" }
                     }
-                    div { class: "flex items-center gap-2",
+                    div { class: "flex items-center gap-1.5 shrink-0",
                         Button {
                             variant: ButtonVariant::Outline,
                             onclick: move |_| is_manage_batches_open.set(true),
-                            "⚙️ Manage Batches"
+                            span { "⚙️" }
+                            span { class: "hidden sm:inline", " Manage Batches" }
                         }
                         Button {
                             onclick: move |_| {
@@ -282,9 +283,9 @@ pub fn Production() -> Element {
                 }
 
                 // Filter controls: Search, Batch Filter, Date Range Filter, Layout Toggle
-                div { class: "flex flex-col gap-2.5",
-                    div { class: "flex flex-wrap items-center gap-3",
-                        div { class: "flex-1 min-w-[200px]",
+                div { class: "flex flex-col gap-2",
+                    div { class: "flex items-center gap-2",
+                        div { class: "flex-1 min-w-0",
                             Input {
                                 placeholder: "{search_ph}",
                                 value: "{search_query}",
@@ -294,7 +295,7 @@ pub fn Production() -> Element {
                         // Batch Filter Select
                         div { class: "relative shrink-0",
                             select {
-                                class: "h-9 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 px-3 text-xs font-medium text-stone-700 dark:text-stone-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer",
+                                class: "h-9 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 px-2 sm:px-3 text-xs font-medium text-stone-700 dark:text-stone-300 shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer max-w-[110px] sm:max-w-none",
                                 value: selected_batch().unwrap_or_default(),
                                 onchange: move |e: Event<FormData>| {
                                     let val = e.value();
@@ -323,8 +324,8 @@ pub fn Production() -> Element {
             }
 
             // SECTION 2: SCROLLABLE CONTENT — Register Table or Cards
-            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-6 w-full max-w-6xl mx-auto pb-20",
+            div { class: "flex-1 overflow-y-auto min-h-0 p-3 md:p-6",
+                div { class: "flex flex-col gap-4 md:gap-6 w-full max-w-6xl mx-auto pb-16 md:pb-20",
 
                     // Production Register Table or Cards
                     match logs.cloned() {
