@@ -51,7 +51,7 @@ pub fn MonthFilter(props: MonthFilterProps) -> Element {
     }
 
     rsx! {
-        div { class: "flex items-center gap-2.5 overflow-x-auto flex-nowrap py-2 px-1 w-full max-w-full border-b border-stone-200/60 dark:border-stone-800 mb-3 touch-pan-x",
+        div { class: "flex items-center gap-2 overflow-x-auto flex-nowrap py-1 px-0.5 max-w-full touch-pan-x",
             style: "-webkit-overflow-scrolling: touch; scrollbar-width: none;",
             for item in month_options {
                 {

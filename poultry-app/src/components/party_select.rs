@@ -38,7 +38,7 @@ pub fn PartySelect(props: PartySelectProps) -> Element {
 
     rsx! {
         select {
-            class: "w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:bg-stone-800 dark:border-stone-700 dark:text-gray-100",
+            class: "flex h-10 w-full rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
             value: "{props.value}",
             required: props.required,
             onchange: move |evt: Event<FormData>| {

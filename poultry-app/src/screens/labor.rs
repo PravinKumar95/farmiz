@@ -342,6 +342,8 @@ pub fn Labor() -> Element {
 
     let title_str = tr("labor");
     let log_btn_str = tr("log-labor");
+    let edit_str = tr("edit");
+    let delete_str = tr("delete");
 
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
@@ -434,7 +436,7 @@ pub fn Labor() -> Element {
 
             // SCROLLABLE CONTENT
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-4xl mx-auto pb-20",
+                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
 
                     if view_mode() == "WORKERS" {
                         // WORKERS DIRECTORY VIEW
@@ -444,7 +446,7 @@ pub fn Labor() -> Element {
                                     CardContent { class: "p-0 overflow-hidden rounded-xl",
                                         div { class: "overflow-x-auto",
                                             table { class: "w-full text-sm text-left",
-                                                thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-border",
+                                                thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700",
                                                     tr {
                                                         th { class: "px-6 py-3", "Worker Name" }
                                                         th { class: "px-6 py-3", "Role" }
@@ -453,9 +455,9 @@ pub fn Labor() -> Element {
                                                         th { class: "px-6 py-3 text-right", "Actions" }
                                                     }
                                                 }
-                                                tbody { class: "divide-y divide-border",
+                                                tbody { class: "divide-y divide-stone-200 dark:divide-stone-800",
                                                     for emp in filtered_workers {
-                                                        tr { class: "hover:bg-gray-50 dark:bg-stone-800 transition-colors",
+                                                        tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
                                                             td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100", "{emp.name}" }
                                                             td { class: "px-6 py-4 text-xs font-semibold text-gray-600 dark:text-gray-300", "{emp.role}" }
                                                             td { class: "px-6 py-4 text-right font-semibold text-gray-900 dark:text-gray-100", "₹ {emp.daily_wage:.2}" }
@@ -475,14 +477,14 @@ pub fn Labor() -> Element {
                                                                                 worker_form_balance.set(e_edit.current_balance.to_string());
                                                                                 is_worker_sheet_open.set(true);
                                                                             },
-                                                                            "Edit"
+                                                                            "{edit_str}"
                                                                         }
                                                                         Button {
                                                                             variant: ButtonVariant::Destructive,
                                                                             onclick: move |_| {
                                                                                 worker_delete_id.set(Some(e_del_id.clone()));
                                                                             },
-                                                                            "Delete"
+                                                                            "{delete_str}"
                                                                         }
                                                                     }
                                                                 }
@@ -598,14 +600,14 @@ pub fn Labor() -> Element {
                                                                     form_advance.set(edit_item.advance_given.to_string());
                                                                     is_labor_sheet_open.set(true);
                                                                 },
-                                                                "Edit"
+                                                                "{edit_str}"
                                                             }
                                                             Button {
                                                                 variant: ButtonVariant::Destructive,
                                                                 onclick: move |_| {
                                                                     labor_delete_id.set(Some(del_id.clone()));
                                                                 },
-                                                                "Delete"
+                                                                "{delete_str}"
                                                             }
                                                         }
                                                     }

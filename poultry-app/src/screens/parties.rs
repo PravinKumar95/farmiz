@@ -145,6 +145,8 @@ pub fn Parties() -> Element {
     let title_str = tr("ledger");
     let add_btn_str = tr("add-party");
     let search_ph = tr("search-placeholder");
+    let edit_str = tr("edit");
+    let delete_str = tr("delete");
 
     rsx! {
         div { class: "flex flex-col h-full max-h-full w-full min-h-0 overflow-hidden",
@@ -197,14 +199,14 @@ pub fn Parties() -> Element {
 
             // SECTION 2: SCROLLABLE CONTENT AREA
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-4xl mx-auto pb-20",
+                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
                     match parties.cloned() {
                         Some(Ok(_)) if !filtered_list.is_empty() => rsx! {
                             Card { class: "mt-2",
                                 CardContent { class: "p-0 rounded-xl",
                                     div { class: "overflow-x-auto",
                                         table { class: "w-full text-sm text-left",
-                                            thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-border",
+                                            thead { class: "text-xs text-gray-500 uppercase bg-gray-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700",
                                                 tr {
                                                     th { class: "px-6 py-3", "Party Name" }
                                                     th { class: "px-6 py-3", "Type" }
@@ -212,7 +214,7 @@ pub fn Parties() -> Element {
                                                     th { class: "px-6 py-3 text-right", "Actions" }
                                                 }
                                             }
-                                            tbody { class: "divide-y divide-border",
+                                            tbody { class: "divide-y divide-stone-200 dark:divide-stone-800",
                                                 for party in filtered_list {
                                                     {
                                                         let bal_str = if party.party_type == "SUPPLIER" {
@@ -235,7 +237,7 @@ pub fn Parties() -> Element {
                                                         let p_edit = party.clone();
                                                         let p_del_id = party.id.clone();
                                                         rsx! {
-                                                            tr { class: "hover:bg-gray-50 dark:bg-stone-800 transition-colors",
+                                                            tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
                                                                 td { class: "px-6 py-4 font-medium text-gray-900 dark:text-gray-100",
                                                                     Link {
                                                                         to: crate::routes::AuthenticatedRoute::PartyDetail { id: party.id.clone() },
@@ -268,14 +270,14 @@ pub fn Parties() -> Element {
                                                                             form_balance.set(p_edit.current_balance.to_string());
                                                                             is_sheet_open.set(true);
                                                                         },
-                                                                        "Edit"
+                                                                        "{edit_str}"
                                                                     }
                                                                     Button {
                                                                         variant: ButtonVariant::Destructive,
                                                                         onclick: move |_| {
                                                                             delete_id.set(Some(p_del_id.clone()));
                                                                         },
-                                                                        "Delete"
+                                                                        "{delete_str}"
                                                                     }
                                                                 }
                                                             }
@@ -336,7 +338,7 @@ pub fn Parties() -> Element {
                         div { class: "flex flex-col gap-2",
                             Label { html_for: "party-type", "Party Type" }
                             select {
-                                class: "w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm dark:bg-stone-800 dark:border-stone-700 dark:text-gray-100",
+                                class: "flex h-10 w-full rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
                                 value: "{form_type}",
                                 onchange: move |e: Event<FormData>| form_type.set(e.value()),
                                 option { value: "CUSTOMER", "CUSTOMER" }

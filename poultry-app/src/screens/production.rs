@@ -240,6 +240,8 @@ pub fn Production() -> Element {
     let title_str = tr("production");
     let log_btn_str = tr("log-production");
     let search_ph = tr("search-placeholder");
+    let edit_str = tr("edit");
+    let delete_str = tr("delete");
 
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
@@ -381,7 +383,7 @@ pub fn Production() -> Element {
                                                                         is_sheet_open.set(true);
                                                                     }
                                                                 },
-                                                                "Edit"
+                                                                "{edit_str}"
                                                             }
                                                             Button {
                                                                 variant: ButtonVariant::Destructive,
@@ -391,7 +393,7 @@ pub fn Production() -> Element {
                                                                         delete_id.set(Some(del_id.clone()));
                                                                     }
                                                                 },
-                                                                "Delete"
+                                                                "{delete_str}"
                                                             }
                                                         }
                                                     }

@@ -184,7 +184,10 @@ pub fn Purchases() -> Element {
             // SECTION 1: FIXED HEADER — does NOT scroll
             div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex justify-between items-center",
-                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "{title_str}" }
+                    div {
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🛒 {title_str}" }
+                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Track raw material purchases, supplier orders & payment balances" }
+                    }
                     Button {
                         onclick: move |_| {
                             form_id.set(None);
@@ -198,7 +201,7 @@ pub fn Purchases() -> Element {
                             form_error.set(String::new());
                             is_sheet_open.set(true);
                         },
-                        "{add_btn_str}"
+                        "+ {add_btn_str}"
                     }
                 }
 
@@ -215,7 +218,7 @@ pub fn Purchases() -> Element {
 
             // SECTION 2: SCROLLABLE CONTENT
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
+                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
                     match purchases.cloned() {
                         Some(Ok(_)) if !filtered_purchases.is_empty() => rsx! {
                             div { class: "flex flex-col gap-3 mt-2",

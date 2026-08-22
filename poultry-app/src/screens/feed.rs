@@ -161,6 +161,8 @@ pub fn Feed() -> Element {
     let title_str = tr("feed-mill");
     let add_btn_str = tr("add-feed-batch");
     let search_ph = tr("search-placeholder");
+    let edit_str = tr("edit");
+    let delete_str = tr("delete");
 
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
@@ -201,7 +203,7 @@ pub fn Feed() -> Element {
 
             // SECTION 2: SCROLLABLE CARD LIST
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-3 w-full max-w-2xl mx-auto pb-20",
+                div { class: "flex flex-col gap-3 w-full max-w-5xl mx-auto pb-20",
                     match batches.cloned() {
                         Some(Ok(_)) if !filtered_batches.is_empty() => rsx! {
                             for item in filtered_batches {
@@ -252,14 +254,14 @@ pub fn Feed() -> Element {
                                                             form_payment.set(edit_item.payment.to_string());
                                                             is_sheet_open.set(true);
                                                         },
-                                                        "Edit"
+                                                        "{edit_str}"
                                                     }
                                                     Button {
                                                         variant: ButtonVariant::Destructive,
                                                         onclick: move |_| {
                                                             delete_id.set(Some(del_id.clone()));
                                                         },
-                                                        "Delete"
+                                                        "{delete_str}"
                                                     }
                                                 }
                                             }

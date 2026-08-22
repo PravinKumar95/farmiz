@@ -21,61 +21,64 @@ pub fn Dashboard() -> Element {
     let dash_title = tr("dashboard");
 
     rsx! {
-        div {
-            class: "w-full flex flex-col gap-6 max-w-2xl mx-auto p-4 md:p-6",
-
-            // Header
-            div {
-                class: "w-full flex items-center justify-between gap-4",
-                h1 { class: "text-2xl sm:text-3xl font-bold break-words text-gray-900 dark:text-gray-100", "🏠 {dash_title}" }
+        div { class: "flex flex-col h-full w-full min-h-0",
+            // FIXED HEADER
+            div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-1",
+                h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🏠 {dash_title}" }
+                p { class: "text-xs text-gray-500 dark:text-gray-400", "Farm operational summary, today's business metrics & quick overview" }
             }
 
-            // Welcome card
-            Card {
-                class: "bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border-blue-200 dark:from-stone-800/80 dark:to-stone-850/80 dark:border-stone-700",
-                CardContent {
-                    p { class: "text-gray-600 dark:text-gray-400 text-sm", "Welcome back," }
-                    p { class: "text-lg font-semibold text-gray-900 dark:text-gray-100 mt-1", "{user_email}" }
-                }
-            }
+            // SCROLLABLE CONTENT
+            div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
+                div { class: "flex flex-col gap-6 w-full max-w-5xl mx-auto pb-20",
+                    // Welcome card
+                    Card {
+                        class: "bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border-blue-200 dark:from-stone-800/80 dark:to-stone-850/80 dark:border-stone-700",
+                        CardContent {
+                            p { class: "text-gray-600 dark:text-gray-400 text-sm", "Welcome back," }
+                            p { class: "text-lg font-semibold text-gray-900 dark:text-gray-100 mt-1", "{user_email}" }
+                        }
+                    }
 
-            // Quick stats placeholder
-            div {
-                class: "grid grid-cols-1 sm:grid-cols-2 gap-4 w-full",
-                Card {
-                    CardContent {
-                        p { class: "text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-500", "₹ {today_sales:.2}" }
-                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Today's Sales" }
+                    // Quick stats
+                    div {
+                        class: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full",
+                        Card {
+                            CardContent {
+                                p { class: "text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-500", "₹ {today_sales:.2}" }
+                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Today's Sales" }
+                            }
+                        }
+                        Card {
+                            CardContent {
+                                p { class: "text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-500", "{eggs_sold}" }
+                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Eggs Sold Today" }
+                            }
+                        }
+                        Card {
+                            CardContent {
+                                p { class: "text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-500", "₹ {today_purchases:.2}" }
+                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Today's Purchases" }
+                            }
+                        }
+                        Card {
+                            CardContent {
+                                p { class: "text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-500", "{active_parties}" }
+                                p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Active Parties" }
+                            }
+                        }
                     }
-                }
-                Card {
-                    CardContent {
-                        p { class: "text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-500", "{eggs_sold}" }
-                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Eggs Sold Today" }
-                    }
-                }
-                Card {
-                    CardContent {
-                        p { class: "text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-500", "₹ {today_purchases:.2}" }
-                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Today's Purchases" }
-                    }
-                }
-                Card {
-                    CardContent {
-                        p { class: "text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-500", "{active_parties}" }
-                        p { class: "text-sm text-gray-500 dark:text-gray-400 mt-1", "Active Parties" }
-                    }
-                }
-            }
 
-            // Getting started
-            Card {
-                CardHeader {
-                    CardTitle { "🚀 Getting Started" }
-                }
-                CardContent {
-                    p { class: "text-gray-600 dark:text-gray-300 text-sm",
-                        "Your account is set up and ready to go. Dashboard features are coming soon!"
+                    // Getting started
+                    Card {
+                        CardHeader {
+                            CardTitle { "🚀 Getting Started" }
+                        }
+                        CardContent {
+                            p { class: "text-gray-600 dark:text-gray-300 text-sm",
+                                "Your farm management account is ready. Use the sidebar navigation to manage daily egg production, sales records, material purchases, feed milling, and labor payroll."
+                            }
+                        }
                     }
                 }
             }

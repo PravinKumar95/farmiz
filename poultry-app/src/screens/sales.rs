@@ -259,6 +259,8 @@ pub fn Sales() -> Element {
     let title_str = tr("sales");
     let add_btn_str = tr("add-sale");
     let search_ph = tr("search-placeholder");
+    let edit_str = tr("edit");
+    let delete_str = tr("delete");
 
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
@@ -266,7 +268,10 @@ pub fn Sales() -> Element {
             // SECTION 1: FIXED HEADER — does NOT scroll
             div { class: "shrink-0 p-4 md:p-6 pb-3 border-b border-stone-200/60 dark:border-stone-800 bg-white dark:bg-stone-900 flex flex-col gap-3",
                 div { class: "flex justify-between items-center",
-                    h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "🥚 {title_str}" }
+                    div {
+                        h1 { class: "text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100", "💰 {title_str}" }
+                        p { class: "text-xs text-gray-500 dark:text-gray-400 mt-0.5", "Daily standard egg & broken egg sales dispatch and receivables" }
+                    }
                     Button {
                         onclick: move |_| {
                             form_id.set(None);
@@ -321,7 +326,7 @@ pub fn Sales() -> Element {
 
             // SECTION 2: SCROLLABLE CONTENT (Direct Card List matching Purchases)
             div { class: "flex-1 overflow-y-auto min-h-0 p-4 md:p-6",
-                div { class: "flex flex-col gap-4 w-full max-w-2xl mx-auto pb-20",
+                div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-20",
 
                     if active_tab() == Some("standard".to_string()) {
                         match standard_sales.cloned() {
@@ -375,14 +380,14 @@ pub fn Sales() -> Element {
                                                                     form_received.set(edit_sale.received_amount.to_string());
                                                                     is_sheet_open.set(true);
                                                                 },
-                                                                "Edit"
+                                                                "{edit_str}"
                                                             }
                                                             Button {
                                                                 variant: ButtonVariant::Destructive,
                                                                 onclick: move |_| {
                                                                     delete_info.set(Some((delete_id.clone(), "standard".to_string())));
                                                                 },
-                                                                "Delete"
+                                                                "{delete_str}"
                                                             }
                                                         }
                                                     }
@@ -396,7 +401,7 @@ pub fn Sales() -> Element {
                                 EmptyState {
                                     icon: "🥚",
                                     title: "No Standard Egg Sales Found",
-                                    description: "No standard egg sales records match your search criteria or date filter."
+                                    description: "No sales records match your search criteria or date filter."
                                 }
                             },
                             Some(Err(err)) => rsx! {
@@ -452,14 +457,14 @@ pub fn Sales() -> Element {
                                                                     form_received.set(edit_sale.payment_received.to_string());
                                                                     is_sheet_open.set(true);
                                                                 },
-                                                                "Edit"
+                                                                "{edit_str}"
                                                             }
                                                             Button {
                                                                 variant: ButtonVariant::Destructive,
                                                                 onclick: move |_| {
                                                                     delete_info.set(Some((delete_id.clone(), "broken".to_string())));
                                                                 },
-                                                                "Delete"
+                                                                "{delete_str}"
                                                             }
                                                         }
                                                     }
