@@ -9,7 +9,7 @@ use crate::components::confirm_dialog::ConfirmDialog;
 use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::components::month_filter::MonthFilter;
+use crate::components::date_range_filter::{DateRange, DateRangeFilter};
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::DailyProduction;
 use crate::services::*;
@@ -36,8 +36,7 @@ pub fn Production() -> Element {
     let mut new_batch_name_input = use_signal(String::new);
 
     // Filters
-    let current_month_str = Utc::now().format("%Y-%m").to_string();
-    let mut selected_month = use_signal(move || Some(current_month_str.clone()));
+    let mut date_range = use_signal(DateRange::default);
     let mut selected_batch = use_signal(|| Option::<String>::None); // None = All Batches
     let mut search_query = use_signal(String::new);
 
@@ -202,13 +201,9 @@ pub fn Production() -> Element {
     all_batches.sort();
     all_batches.dedup();
 
-    // Filter records by Month, Batch, and Search query
+    // Filter records by Date Range, Batch, and Search query
     let filtered_records: Vec<_> = records_list.into_iter().filter(|r| {
-        let matches_month = if let Some(ref m) = selected_month() {
-            r.date.starts_with(m)
-        } else {
-            true
-        };
+        let matches_date = date_range().matches(&r.date);
         let matches_batch = if let Some(ref b) = selected_batch() {
             r.shed_name.eq_ignore_ascii_case(b)
         } else {
@@ -221,7 +216,7 @@ pub fn Production() -> Element {
                 || r.date.contains(&q)
                 || r.notes.as_deref().unwrap_or("").to_lowercase().contains(&q)
         };
-        matches_month && matches_batch && matches_search
+        matches_date && matches_batch && matches_search
     }).collect();
 
     // Aggregate summary metrics for filtered records
@@ -284,37 +279,39 @@ pub fn Production() -> Element {
                     }
                 }
 
-                // Filter controls: Search, Month, Batch Filter
-                div { class: "flex flex-wrap items-center gap-3",
-                    div { class: "flex-1 min-w-[200px]",
-                        Input {
-                            placeholder: "{search_ph}",
-                            value: "{search_query}",
-                            oninput: move |e: Event<FormData>| search_query.set(e.value())
-                        }
-                    }
-                    MonthFilter {
-                        selected: selected_month(),
-                        onchange: move |m| selected_month.set(m)
-                    }
-                    // Batch Filter Select
-                    div { class: "relative",
-                        select {
-                            class: "h-9 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 px-3 text-xs font-medium text-stone-700 dark:text-stone-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer",
-                            value: selected_batch().unwrap_or_default(),
-                            onchange: move |e: Event<FormData>| {
-                                let val = e.value();
-                                if val.is_empty() {
-                                    selected_batch.set(None);
-                                } else {
-                                    selected_batch.set(Some(val));
-                                }
-                            },
-                            option { value: "", "All Batches" }
-                            for b in all_batches.iter() {
-                                option { key: "{b}", value: "{b}", "{b}" }
+                // Filter controls: Search, Batch Filter, Date Range Filter
+                div { class: "flex flex-col gap-2.5",
+                    div { class: "flex flex-wrap items-center gap-3",
+                        div { class: "flex-1 min-w-[200px]",
+                            Input {
+                                placeholder: "{search_ph}",
+                                value: "{search_query}",
+                                oninput: move |e: Event<FormData>| search_query.set(e.value())
                             }
                         }
+                        // Batch Filter Select
+                        div { class: "relative shrink-0",
+                            select {
+                                class: "h-9 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 px-3 text-xs font-medium text-stone-700 dark:text-stone-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer",
+                                value: selected_batch().unwrap_or_default(),
+                                onchange: move |e: Event<FormData>| {
+                                    let val = e.value();
+                                    if val.is_empty() {
+                                        selected_batch.set(None);
+                                    } else {
+                                        selected_batch.set(Some(val));
+                                    }
+                                },
+                                option { value: "", "All Batches" }
+                                for b in all_batches.iter() {
+                                    option { key: "{b}", value: "{b}", "{b}" }
+                                }
+                            }
+                        }
+                    }
+                    DateRangeFilter {
+                        selected: date_range(),
+                        onchange: move |dr| date_range.set(dr)
                     }
                 }
             }

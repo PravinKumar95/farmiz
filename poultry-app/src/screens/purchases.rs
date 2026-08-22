@@ -9,7 +9,7 @@ use crate::components::confirm_dialog::ConfirmDialog;
 use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::components::month_filter::MonthFilter;
+use crate::components::date_range_filter::{DateRange, DateRangeFilter};
 use crate::components::party_select::PartySelect;
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::MaterialPurchase;
@@ -22,8 +22,7 @@ pub fn Purchases() -> Element {
     let toast_api = use_toast();
     let mut is_sheet_open = use_signal(|| false);
 
-    let current_month_str = Utc::now().format("%Y-%m").to_string();
-    let mut selected_month = use_signal(move || Some(current_month_str.clone()));
+    let mut date_range = use_signal(DateRange::default);
     let mut search_query = use_signal(String::new);
 
     let mut delete_id = use_signal(|| Option::<String>::None);
@@ -157,11 +156,7 @@ pub fn Purchases() -> Element {
     let records_list = purchases.cloned().and_then(|r| r.ok()).unwrap_or_default();
     let q = search_query().trim().to_lowercase();
     let filtered_purchases: Vec<_> = records_list.into_iter().filter(|p| {
-        let matches_month = if let Some(ref m) = selected_month() {
-            p.date.starts_with(m)
-        } else {
-            true
-        };
+        let matches_date = date_range().matches(&p.date);
         let matches_search = if q.is_empty() {
             true
         } else {
@@ -169,7 +164,7 @@ pub fn Purchases() -> Element {
                 || p.material_name.to_lowercase().contains(&q)
                 || p.status.to_lowercase().contains(&q)
         };
-        matches_month && matches_search
+        matches_date && matches_search
     }).collect();
 
     let title_str = tr("purchases");
@@ -210,9 +205,9 @@ pub fn Purchases() -> Element {
                     value: "{search_query}",
                     oninput: move |e: Event<FormData>| search_query.set(e.value())
                 }
-                MonthFilter {
-                    selected: selected_month(),
-                    onchange: move |m| selected_month.set(m)
+                DateRangeFilter {
+                    selected: date_range(),
+                    onchange: move |dr| date_range.set(dr)
                 }
             }
 

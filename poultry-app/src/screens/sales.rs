@@ -9,7 +9,7 @@ use crate::components::confirm_dialog::ConfirmDialog;
 use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::components::month_filter::MonthFilter;
+use crate::components::date_range_filter::{DateRange, DateRangeFilter};
 use crate::components::party_select::PartySelect;
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::{BrokenEggSale, EggSale};
@@ -24,8 +24,7 @@ pub fn Sales() -> Element {
     let toast_api = use_toast();
     let mut is_sheet_open = use_signal(|| false);
 
-    let current_month_str = Utc::now().format("%Y-%m").to_string();
-    let mut selected_month = use_signal(move || Some(current_month_str.clone()));
+    let mut date_range = use_signal(DateRange::default);
     let mut search_query = use_signal(String::new);
 
     let mut delete_info = use_signal(|| Option::<(String, String)>::None);
@@ -228,32 +227,24 @@ pub fn Sales() -> Element {
 
     let std_list = standard_sales.cloned().and_then(|r| r.ok()).unwrap_or_default();
     let filtered_std: Vec<_> = std_list.into_iter().filter(|s| {
-        let matches_month = if let Some(ref m) = selected_month() {
-            s.date.starts_with(m)
-        } else {
-            true
-        };
+        let matches_date = date_range().matches(&s.date);
         let matches_search = if q.is_empty() {
             true
         } else {
             s.party_name.to_lowercase().contains(&q) || s.date.contains(&q)
         };
-        matches_month && matches_search
+        matches_date && matches_search
     }).collect();
 
     let broken_list = broken_sales.cloned().and_then(|r| r.ok()).unwrap_or_default();
     let filtered_broken: Vec<_> = broken_list.into_iter().filter(|s| {
-        let matches_month = if let Some(ref m) = selected_month() {
-            s.date.starts_with(m)
-        } else {
-            true
-        };
+        let matches_date = date_range().matches(&s.date);
         let matches_search = if q.is_empty() {
             true
         } else {
             s.bakery_name.to_lowercase().contains(&q) || s.date.contains(&q)
         };
-        matches_month && matches_search
+        matches_date && matches_search
     }).collect();
 
     let title_str = tr("sales");
@@ -288,20 +279,17 @@ pub fn Sales() -> Element {
                     }
                 }
 
-                Input {
-                    placeholder: "{search_ph}",
-                    value: "{search_query}",
-                    oninput: move |e: Event<FormData>| search_query.set(e.value())
-                }
-
-                div { class: "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2",
-                    MonthFilter {
-                        selected: selected_month(),
-                        onchange: move |m| selected_month.set(m)
+                div { class: "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5",
+                    div { class: "flex-1 min-w-[200px]",
+                        Input {
+                            placeholder: "{search_ph}",
+                            value: "{search_query}",
+                            oninput: move |e: Event<FormData>| search_query.set(e.value())
+                        }
                     }
 
                     // Tab Filter Pills (Standard Eggs vs Broken Eggs)
-                    div { class: "flex p-1 bg-stone-100 dark:bg-stone-800/80 rounded-lg border border-stone-200/80 dark:border-stone-700/60 text-xs font-medium self-start sm:self-auto",
+                    div { class: "flex p-1 bg-stone-100 dark:bg-stone-800/80 rounded-lg border border-stone-200/80 dark:border-stone-700/60 text-xs font-medium self-start sm:self-auto shrink-0",
                         button {
                             class: if active_tab() == Some("standard".to_string()) {
                                 "px-3 py-1 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all"
@@ -321,6 +309,11 @@ pub fn Sales() -> Element {
                             "Broken Eggs"
                         }
                     }
+                }
+
+                DateRangeFilter {
+                    selected: date_range(),
+                    onchange: move |dr| date_range.set(dr)
                 }
             }
 

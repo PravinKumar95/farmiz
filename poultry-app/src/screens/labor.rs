@@ -10,7 +10,7 @@ use crate::components::employee_select::EmployeeSelect;
 use crate::components::empty_state::{EmptyState, ErrorState, LoadingState};
 use crate::components::input::Input;
 use crate::components::label::Label;
-use crate::components::month_filter::MonthFilter;
+use crate::components::date_range_filter::{DateRange, DateRangeFilter};
 use crate::components::sheet::{Sheet, SheetFooter, SheetHeader, SheetTitle};
 use crate::models::{Employee, LaborPayrollSummary, LaborRecord};
 use crate::services::*;
@@ -26,8 +26,7 @@ pub fn Labor() -> Element {
     let mut view_mode = use_signal(|| "LOGS".to_string());
 
     // Search & Filter
-    let current_month_str = Utc::now().format("%Y-%m").to_string();
-    let mut selected_month = use_signal(move || Some(current_month_str.clone()));
+    let mut date_range = use_signal(DateRange::default);
     let mut search_query = use_signal(String::new);
 
     // --- Labor Record Form State ---
@@ -274,17 +273,13 @@ pub fn Labor() -> Element {
     let filtered_records: Vec<_> = rec_list
         .into_iter()
         .filter(|r| {
-            let matches_month = if let Some(ref m) = selected_month() {
-                r.date.starts_with(m)
-            } else {
-                true
-            };
+            let matches_date = date_range().matches(&r.date);
             let matches_search = if q.is_empty() {
                 true
             } else {
                 r.employee_name.to_lowercase().contains(&q) || r.date.contains(&q)
             };
-            matches_month && matches_search
+            matches_date && matches_search
         })
         .collect();
 
@@ -387,7 +382,7 @@ pub fn Labor() -> Element {
 
                 // Mode Toggle Bar (Logs vs Settlement vs Workers) & Filters
                 div { class: "flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-1",
-                    div { class: "flex p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start",
+                    div { class: "flex p-1 bg-stone-100 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-medium self-start shrink-0",
                         button {
                             class: if view_mode() == "LOGS" {
                                 "px-3 py-1.5 rounded-md bg-white dark:bg-stone-900 font-semibold text-blue-600 dark:text-blue-400 shadow-sm transition-all flex items-center gap-1"
@@ -417,20 +412,20 @@ pub fn Labor() -> Element {
                         }
                     }
 
-                    if view_mode() != "WORKERS" {
-                        div { class: "flex items-center gap-2",
-                            MonthFilter {
-                                selected: selected_month(),
-                                onchange: move |m| selected_month.set(m)
-                            }
+                    div { class: "flex-1 min-w-[200px]",
+                        Input {
+                            placeholder: if view_mode() == "WORKERS" { "🔍 Search worker name or role..." } else { "🔍 Search employee name or date..." },
+                            value: "{search_query}",
+                            oninput: move |e: Event<FormData>| search_query.set(e.value())
                         }
                     }
                 }
 
-                Input {
-                    placeholder: if view_mode() == "WORKERS" { "🔍 Search worker name or role..." } else { "🔍 Search employee name or date..." },
-                    value: "{search_query}",
-                    oninput: move |e: Event<FormData>| search_query.set(e.value())
+                if view_mode() != "WORKERS" {
+                    DateRangeFilter {
+                        selected: date_range(),
+                        onchange: move |dr| date_range.set(dr)
+                    }
                 }
             }
 

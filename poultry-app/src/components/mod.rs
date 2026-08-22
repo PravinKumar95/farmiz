@@ -14,6 +14,7 @@ pub mod party_select;
 pub mod employee_select;
 pub mod confirm_dialog;
 pub mod month_filter;
+pub mod date_range_filter;
 pub mod toast;
 pub mod theme_toggle;
 pub mod logo;
