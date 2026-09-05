@@ -66,6 +66,9 @@ pub async fn update_egg_sale(
     State(pool): State<PgPool>,
     Json(p): Json<EggSale>,
 ) -> Result<Json<EggSale>, (StatusCode, String)> {
+    let existing: Option<EggSale> = sqlx::query_as("SELECT * FROM egg_sales WHERE id=$1 AND user_id = $2")
+        .bind(id).bind(&user.user_id).fetch_optional(&pool).await.unwrap_or(None);
+
     let record = sqlx::query_as::<_, EggSale>(
         r#"UPDATE egg_sales SET 
             date=$1, party_name=$2, party_id=$3, quantity_boxes=$4, total_eggs=$5, size=$6, 
@@ -93,6 +96,12 @@ pub async fn update_egg_sale(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     sync_party_balance(&pool, &record.party_name, record.party_id, &user.user_id).await;
+
+    if let Some(old) = existing {
+        if old.party_id != record.party_id || old.party_name != record.party_name {
+            sync_party_balance(&pool, &old.party_name, old.party_id, &user.user_id).await;
+        }
+    }
 
     Ok(Json(record))
 }
@@ -171,6 +180,9 @@ pub async fn update_broken_sale(
     State(pool): State<PgPool>,
     Json(p): Json<BrokenEggSale>,
 ) -> Result<Json<BrokenEggSale>, (StatusCode, String)> {
+    let existing: Option<BrokenEggSale> = sqlx::query_as("SELECT * FROM broken_egg_sales WHERE id=$1 AND user_id = $2")
+        .bind(id).bind(&user.user_id).fetch_optional(&pool).await.unwrap_or(None);
+
     let record = sqlx::query_as::<_, BrokenEggSale>(
         r#"UPDATE broken_egg_sales SET 
             date=$1, bakery_name=$2, party_id=$3, trays_sold=$4, rate=$5, amount=$6, 
@@ -194,6 +206,12 @@ pub async fn update_broken_sale(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     sync_party_balance(&pool, &record.bakery_name, record.party_id, &user.user_id).await;
+
+    if let Some(old) = existing {
+        if old.party_id != record.party_id || old.bakery_name != record.bakery_name {
+            sync_party_balance(&pool, &old.bakery_name, old.party_id, &user.user_id).await;
+        }
+    }
 
     Ok(Json(record))
 }

@@ -55,6 +55,9 @@ pub async fn update_labor_record(
     State(pool): State<PgPool>,
     Json(p): Json<LaborRecord>,
 ) -> Result<Json<LaborRecord>, (StatusCode, String)> {
+    let existing: Option<LaborRecord> = sqlx::query_as("SELECT * FROM labor_records WHERE id=$1 AND user_id = $2")
+        .bind(id).bind(&user.user_id).fetch_optional(&pool).await.unwrap_or(None);
+
     let record = sqlx::query_as::<_, LaborRecord>(
         r#"UPDATE labor_records SET 
             date=$1, employee_name=$2, employee_id=$3, attendance=$4, advance_given=$5 
@@ -72,6 +75,12 @@ pub async fn update_labor_record(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     sync_employee_balance(&pool, &record.employee_name, record.employee_id, &user.user_id).await;
+
+    if let Some(old) = existing {
+        if old.employee_id != record.employee_id || old.employee_name != record.employee_name {
+            sync_employee_balance(&pool, &old.employee_name, old.employee_id, &user.user_id).await;
+        }
+    }
 
     Ok(Json(record))
 }

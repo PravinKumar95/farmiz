@@ -6,6 +6,28 @@ use crate::components::date_range_filter::{DateRange, DateRangeFilter};
 use crate::components::layout_toggle::{LayoutToggle, ViewLayout};
 use crate::components::empty_state::{EmptyState, LoadingState, ErrorState};
 
+fn format_balance_display(bal: f64, is_supplier: bool) -> (bool, String) {
+    let is_favorable = bal >= 0.0;
+    let bal_str = if is_supplier {
+        if bal < -0.005 {
+            format!("-₹ {:.2} (Payable)", bal.abs())
+        } else if bal > 0.005 {
+            format!("+₹ {:.2} (Surplus)", bal)
+        } else {
+            "₹ 0.00".to_string()
+        }
+    } else {
+        if bal > 0.005 {
+            format!("₹ {:.2} (Due)", bal)
+        } else if bal < -0.005 {
+            format!("-₹ {:.2} (Overpaid)", bal.abs())
+        } else {
+            "₹ 0.00".to_string()
+        }
+    };
+    (is_favorable, bal_str)
+}
+
 #[component]
 pub fn PartyDetail(id: String) -> Element {
     let nav = dioxus_router::hooks::use_navigator();
@@ -19,8 +41,6 @@ pub fn PartyDetail(id: String) -> Element {
     let party_name = party_opt.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "Loading...".to_string());
     let party_type = party_opt.as_ref().map(|p| p.party_type.clone()).unwrap_or_else(|| "CUSTOMER".to_string());
     let is_supplier = party_type == "SUPPLIER";
-
-    let mut running_balance = 0.0;
 
     rsx! {
         div { class: "flex flex-col h-full w-full min-h-0",
@@ -56,10 +76,32 @@ pub fn PartyDetail(id: String) -> Element {
             div { class: "flex-1 overflow-y-auto min-h-0 p-3 md:p-6",
                 div { class: "flex flex-col gap-4 w-full max-w-5xl mx-auto pb-16 md:pb-20",
                     match ledger.cloned() {
-                        Some(Ok(entries)) => {
-                            let filtered_entries: Vec<_> = entries.into_iter().filter(|e| date_range().matches(&e.date)).collect();
-                            if !filtered_entries.is_empty() {
+                        Some(Ok(mut entries)) => {
+                            // Ensure strict chronological ordering
+                            entries.sort_by(|a, b| a.date.cmp(&b.date).then_with(|| a.created_at.cmp(&b.created_at)));
+
+                            let mut opening_balance = 0.0;
+                            let mut prior_entries_count = 0;
+                            let mut filtered_entries = Vec::new();
+
+                            for entry in entries.into_iter() {
+                                if date_range().is_before(&entry.date) {
+                                    if is_supplier {
+                                        opening_balance = opening_balance + entry.payment - entry.charge;
+                                    } else {
+                                        opening_balance = opening_balance + entry.charge - entry.payment;
+                                    }
+                                    prior_entries_count += 1;
+                                } else if date_range().matches(&entry.date) {
+                                    filtered_entries.push(entry);
+                                }
+                            }
+
+                            let show_opening_balance = !date_range().is_all() || prior_entries_count > 0;
+
+                            if !filtered_entries.is_empty() || (show_opening_balance && prior_entries_count > 0) {
                                 if view_layout() == ViewLayout::Table {
+                                    let mut running_balance = opening_balance;
                                     rsx! {
                                         Card {
                                             CardContent { class: "p-0 overflow-hidden rounded-xl",
@@ -75,6 +117,33 @@ pub fn PartyDetail(id: String) -> Element {
                                                             }
                                                         }
                                                         tbody { class: "divide-y divide-stone-200 dark:divide-stone-800",
+                                                            if show_opening_balance {
+                                                                {
+                                                                    let (is_fav, bal_str) = format_balance_display(opening_balance, is_supplier);
+                                                                    rsx! {
+                                                                        tr { class: "bg-amber-50/50 dark:bg-amber-950/20 font-medium italic border-b border-amber-200/50 dark:border-amber-900/30",
+                                                                            td { class: "px-6 py-4 whitespace-nowrap text-stone-400 font-mono text-xs", "—" }
+                                                                            td { class: "px-6 py-4 font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-1.5",
+                                                                                span { "💼" }
+                                                                                span { "Opening Balance (Brought Forward)" }
+                                                                            }
+                                                                            td { class: "px-6 py-4 text-right text-stone-400", "—" }
+                                                                            td { class: "px-6 py-4 text-right text-stone-400", "—" }
+                                                                            td { class: "px-6 py-4 text-right font-bold",
+                                                                                class: if is_fav { "text-emerald-600 dark:text-emerald-400" } else { "text-rose-600 dark:text-rose-400" },
+                                                                                "{bal_str}"
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                            if filtered_entries.is_empty() {
+                                                                tr {
+                                                                    td { colspan: "5", class: "px-6 py-8 text-center text-sm text-stone-500 dark:text-stone-400 italic",
+                                                                        "No transaction records in this date range."
+                                                                    }
+                                                                }
+                                                            }
                                                             for entry in filtered_entries {
                                                                 {
                                                                     if is_supplier {
@@ -84,24 +153,7 @@ pub fn PartyDetail(id: String) -> Element {
                                                                         // For customers/bakeries, charge is sale amount, payment is cash received
                                                                         running_balance = running_balance + entry.charge - entry.payment;
                                                                     }
-                                                                    let is_favorable = running_balance >= 0.0;
-                                                                    let bal_str = if is_supplier {
-                                                                        if running_balance < 0.0 {
-                                                                            format!("-₹ {:.2} (Payable)", running_balance.abs())
-                                                                        } else if running_balance > 0.0 {
-                                                                            format!("+₹ {:.2} (Surplus)", running_balance)
-                                                                        } else {
-                                                                            "₹ 0.00".to_string()
-                                                                        }
-                                                                    } else {
-                                                                        if running_balance > 0.0 {
-                                                                            format!("₹ {:.2} (Due)", running_balance)
-                                                                        } else if running_balance < 0.0 {
-                                                                            format!("-₹ {:.2} (Overpaid)", running_balance.abs())
-                                                                        } else {
-                                                                            "₹ 0.00".to_string()
-                                                                        }
-                                                                    };
+                                                                    let (is_favorable, bal_str) = format_balance_display(running_balance, is_supplier);
                                                                     rsx! {
                                                                         tr { class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
                                                                             td { class: "px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 font-mono text-xs", "{entry.date}" }
@@ -127,8 +179,35 @@ pub fn PartyDetail(id: String) -> Element {
                                         }
                                     }
                                 } else {
+                                    let mut running_balance = opening_balance;
                                     rsx! {
                                         div { class: "flex flex-col gap-3",
+                                            if show_opening_balance {
+                                                {
+                                                    let (is_fav, bal_str) = format_balance_display(opening_balance, is_supplier);
+                                                    rsx! {
+                                                        Card {
+                                                            div { class: "p-4 flex flex-col gap-2 bg-amber-50/50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-lg",
+                                                                div { class: "flex justify-between items-center",
+                                                                    span { class: "text-xs font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1",
+                                                                        "💼 Opening Balance (Brought Forward)"
+                                                                    }
+                                                                    span {
+                                                                        class: if is_fav { "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" } else { "px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300" },
+                                                                        "{bal_str}"
+                                                                    }
+                                                                }
+                                                                p { class: "text-xs text-stone-500 dark:text-stone-400 italic", "Brought forward balance prior to selected period" }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            if filtered_entries.is_empty() {
+                                                div { class: "p-6 text-center text-sm text-stone-500 dark:text-stone-400 italic bg-stone-50 dark:bg-stone-800/40 rounded-xl",
+                                                    "No transaction records in this date range."
+                                                }
+                                            }
                                             for entry in filtered_entries {
                                                 {
                                                     if is_supplier {
@@ -136,24 +215,7 @@ pub fn PartyDetail(id: String) -> Element {
                                                     } else {
                                                         running_balance = running_balance + entry.charge - entry.payment;
                                                     }
-                                                    let is_favorable = running_balance >= 0.0;
-                                                    let bal_str = if is_supplier {
-                                                        if running_balance < 0.0 {
-                                                            format!("-₹ {:.2} (Payable)", running_balance.abs())
-                                                        } else if running_balance > 0.0 {
-                                                            format!("+₹ {:.2} (Surplus)", running_balance)
-                                                        } else {
-                                                            "₹ 0.00".to_string()
-                                                        }
-                                                    } else {
-                                                        if running_balance > 0.0 {
-                                                            format!("₹ {:.2} (Due)", running_balance)
-                                                        } else if running_balance < 0.0 {
-                                                            format!("-₹ {:.2} (Overpaid)", running_balance.abs())
-                                                        } else {
-                                                            "₹ 0.00".to_string()
-                                                        }
-                                                    };
+                                                    let (is_favorable, bal_str) = format_balance_display(running_balance, is_supplier);
                                                     rsx! {
                                                         Card { key: "{entry.date}_{entry.description}",
                                                             div { class: "p-4 flex flex-col gap-2.5",

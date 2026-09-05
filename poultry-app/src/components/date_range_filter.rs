@@ -50,6 +50,25 @@ impl DateRange {
         }
         true
     }
+
+    pub fn is_before(&self, date_str: &str) -> bool {
+        if date_str.is_empty() {
+            return false;
+        }
+
+        let d = if date_str.len() >= 10 {
+            &date_str[..10]
+        } else {
+            date_str
+        };
+
+        if let Some(ref start) = self.start_date {
+            if !start.is_empty() && d < start.as_str() {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 fn get_preset_dates(preset: &str) -> (Option<String>, Option<String>) {

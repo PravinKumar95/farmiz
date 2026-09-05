@@ -60,6 +60,9 @@ pub async fn update_purchase(
     State(pool): State<PgPool>,
     Json(p): Json<MaterialPurchase>,
 ) -> Result<Json<MaterialPurchase>, (StatusCode, String)> {
+    let existing: Option<MaterialPurchase> = sqlx::query_as("SELECT * FROM material_purchases WHERE id=$1 AND user_id = $2")
+        .bind(id).bind(&user.user_id).fetch_optional(&pool).await.unwrap_or(None);
+
     let record = sqlx::query_as::<_, MaterialPurchase>(
         r#"UPDATE material_purchases SET 
             date=$1, party_name=$2, party_id=$3, material_name=$4, quantity_kg=$5, 
@@ -83,6 +86,12 @@ pub async fn update_purchase(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     sync_party_balance(&pool, &record.party_name, record.party_id, &user.user_id).await;
+
+    if let Some(old) = existing {
+        if old.party_id != record.party_id || old.party_name != record.party_name {
+            sync_party_balance(&pool, &old.party_name, old.party_id, &user.user_id).await;
+        }
+    }
 
     Ok(Json(record))
 }

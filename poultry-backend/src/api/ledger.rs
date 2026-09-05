@@ -91,7 +91,9 @@ pub async fn get_party_ledger(
         });
     }
 
-    entries.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+    entries.sort_by(|a, b| {
+        a.date.cmp(&b.date).then_with(|| a.created_at.cmp(&b.created_at))
+    });
 
     Ok(Json(entries))
 }
