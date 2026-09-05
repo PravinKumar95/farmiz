@@ -95,7 +95,7 @@ test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
     await page.getByRole('button', { name: 'Sign In' }).click();
 
     // Verify transition to Authenticated Layout & Dashboard
-    await expect(page.getByText('Navigation')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Navigation', { exact: true })).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('heading', { name: /Dashboard/ })).toBeVisible();
 
     // Verify sign-out button is present in sidebar footer
