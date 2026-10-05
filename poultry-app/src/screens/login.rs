@@ -33,6 +33,8 @@ pub fn SignIn() -> Element {
     let login_action = use_context::<crate::LoginAction>();
     let on_login = login_action.0;
     let toast_api = use_toast();
+    let auth = crate::services::use_auth();
+    let is_session_expired = *auth.session_expired.read();
 
     let mut email = use_signal(|| "".to_string());
     let mut password = use_signal(|| "".to_string());
@@ -53,8 +55,7 @@ pub fn SignIn() -> Element {
                 password: password(),
             };
 
-            let backend_url = option_env!("BACKEND_URL")
-                .unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
+            let backend_url = crate::services::BACKEND_URL;
             println!("Attempting sign in with URL: {}", backend_url);
 
             let client = reqwest::Client::new();
@@ -128,6 +129,12 @@ pub fn SignIn() -> Element {
             div { class: "space-y-2 text-center sm:text-left",
                 h1 { class: "text-3xl font-bold tracking-tight text-stone-900 dark:text-white", "Welcome back" }
                 p { class: "text-sm text-stone-500 dark:text-stone-400", "Sign in to your account" }
+            }
+
+            if is_session_expired {
+                div { class: "p-3.5 bg-amber-500/10 border border-amber-500/30 text-sm rounded-lg text-amber-700 dark:text-amber-400 font-medium flex items-center gap-2",
+                    span { "⚠️ Your session has expired. Please sign in again." }
+                }
             }
 
             form { onsubmit: handle_submit, class: "space-y-4",
@@ -278,8 +285,7 @@ pub fn SignUp() -> Element {
                 password: password(),
             };
 
-            let backend_url = option_env!("BACKEND_URL")
-                .unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
+            let backend_url = crate::services::BACKEND_URL;
             let client = reqwest::Client::new();
             let res = client
                 .post(format!("{}/api/auth/signup", backend_url))
@@ -328,8 +334,7 @@ pub fn SignUp() -> Element {
                 otp: code,
             };
 
-            let backend_url = option_env!("BACKEND_URL")
-                .unwrap_or("http://127.0.0.1:9000/lambda-url/poultry-backend");
+            let backend_url = crate::services::BACKEND_URL;
             let client = reqwest::Client::new();
             let res = client
                 .post(format!("{}/api/auth/verify-email", backend_url))

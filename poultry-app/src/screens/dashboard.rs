@@ -5,11 +5,8 @@ use dioxus::prelude::*;
 #[component]
 pub fn Dashboard() -> Element {
     let _nav = dioxus_router::hooks::use_navigator();
-    let auth_email = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
-        "auth_email".to_string(),
-        || None::<String>,
-    );
-    let user_email = auth_email().unwrap_or_default();
+    let auth = crate::services::use_auth();
+    let user_email = auth.auth_email.cloned().unwrap_or_default();
 
     let stats_resource = crate::services::use_dashboard_stats();
     let stats = stats_resource.cloned().and_then(|r| r.ok());

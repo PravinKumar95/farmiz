@@ -98,6 +98,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "askama_escape"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3df27b8d5ddb458c5fb1bbc1ce172d4a38c614a97d550b0ac89003897fb01de4"
+
+[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1678,6 +1684,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79a653986dc3151f00a2be4cf04f83ec6c2af24b600ab926d5fcbcd159c6dadf"
 dependencies = [
  "dioxus-sdk-storage",
+ "dioxus-sdk-time",
 ]
 
 [[package]]
@@ -1728,6 +1735,18 @@ dependencies = [
  "serde",
  "tracing",
  "warnings",
+]
+
+[[package]]
+name = "dioxus-ssr"
+version = "0.7.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d261c5c9907b84fb1ed52f59f46d68c84a4ae860a65cc5effd0cea740ee428af"
+dependencies = [
+ "askama_escape",
+ "dioxus-core",
+ "dioxus-core-types",
+ "rustc-hash 2.1.3",
 ]
 
 [[package]]
@@ -4741,12 +4760,14 @@ dependencies = [
 name = "poultry-app"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "chrono",
  "dioxus",
  "dioxus-i18n",
  "dioxus-icons",
  "dioxus-primitives",
  "dioxus-sdk",
+ "dioxus-ssr",
  "dirs",
  "reqwest 0.13.4",
  "serde",

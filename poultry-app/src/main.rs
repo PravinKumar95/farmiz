@@ -33,34 +33,75 @@ pub struct LogoutAction(pub Callback<()>);
 #[component]
 fn App() -> Element {
     let _i18n = i18n::use_app_i18n();
-    let mut auth_token = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
+    let auth_token = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
         "auth_token".to_string(),
         || None::<String>,
     );
-    let mut auth_email = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
+    let auth_email = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
         "auth_email".to_string(),
         || None::<String>,
     );
 
-    let mut session_cookies = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
+    let session_cookies = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, _>(
         "session_cookies".to_string(),
         || None::<Vec<String>>,
     );
 
+    let session_expired = use_signal(|| false);
+
+    let auth_session = services::AuthSession {
+        token: auth_token,
+        session_cookies,
+        auth_email,
+        session_expired,
+    };
+    use_context_provider(|| auth_session);
+
     use_context_provider(|| {
+        let mut auth_token = auth_token;
+        let mut auth_email = auth_email;
+        let mut session_cookies = session_cookies;
+        let mut session_expired = session_expired;
         LoginAction(Callback::new(move |info: crate::screens::login::LoginInfo| {
             auth_token.set(Some(info.token));
             auth_email.set(Some(info.email));
             session_cookies.set(info.session_cookies);
+            session_expired.set(false);
         }))
     });
 
     use_context_provider(|| {
         LogoutAction(Callback::new(move |()| {
-            auth_token.set(None);
-            auth_email.set(None);
-            session_cookies.set(None);
+            auth_session.logout();
         }))
+    });
+
+    // Check token expiry on mount / startup
+    use_effect(move || {
+        let auth = auth_session;
+        if let Some(token) = auth.token.cloned() {
+            if services::is_jwt_expired(&token) {
+                spawn(async move {
+                    if auth.refresh().await.is_err() {
+                        auth.expire_session();
+                    }
+                });
+            }
+        }
+    });
+
+    // Periodic check for token expiry every 30 seconds
+    dioxus_sdk::time::use_interval(std::time::Duration::from_secs(30), move |()| {
+        let auth = auth_session;
+        if let Some(token) = auth.token.cloned() {
+            if services::is_jwt_expired(&token) {
+                spawn(async move {
+                    if auth.refresh().await.is_err() {
+                        auth.expire_session();
+                    }
+                });
+            }
+        }
     });
 
     rsx! {
