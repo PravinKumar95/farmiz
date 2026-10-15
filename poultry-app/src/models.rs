@@ -135,6 +135,7 @@ pub struct DailyProduction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(dead_code)]
 pub struct DashboardStats {
     pub today_sales: f64,
     pub eggs_sold_today: i32,

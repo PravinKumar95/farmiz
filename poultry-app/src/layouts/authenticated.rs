@@ -14,7 +14,6 @@ use crate::components::theme_toggle::ThemeToggle;
 #[component]
 pub fn AuthenticatedLayout() -> Element {
     let title = tr("app-title");
-    let dashboard_lbl = tr("dashboard");
     let production_lbl = tr("production");
     let sales_lbl = tr("sales");
     let purchases_lbl = tr("purchases");
@@ -27,7 +26,7 @@ pub fn AuthenticatedLayout() -> Element {
     let logout_action = use_context::<crate::LogoutAction>();
     let nav = dioxus_router::hooks::use_navigator();
     let on_signout = move |_| {
-        nav.replace(AuthenticatedRoute::Dashboard {});
+        nav.replace(AuthenticatedRoute::Purchases {});
         logout_action.0.call(());
     };
 
@@ -46,9 +45,9 @@ pub fn AuthenticatedLayout() -> Element {
                         SidebarGroupContent {
                             SidebarMenu {
                                 SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Dashboard {},
+                                    dioxus_router::components::Link { to: AuthenticatedRoute::Purchases {},
                                         SidebarMenuButton {
-                                            span { "🏠 {dashboard_lbl}" }
+                                            span { "🛒 {purchases_lbl}" }
                                         }
                                     }
                                 }
@@ -63,13 +62,6 @@ pub fn AuthenticatedLayout() -> Element {
                                     dioxus_router::components::Link { to: AuthenticatedRoute::Sales {},
                                         SidebarMenuButton {
                                             span { "💰 {sales_lbl}" }
-                                        }
-                                    }
-                                }
-                                SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Purchases {},
-                                        SidebarMenuButton {
-                                            span { "🛒 {purchases_lbl}" }
                                         }
                                     }
                                 }

@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub mod dashboard;
 pub mod login;
 pub mod sales;

@@ -94,9 +94,9 @@ test.describe('Authentication Flow (Sign Up, Sign In, Sign Out)', () => {
     // Submit Sign In to REAL backend API
     await page.getByRole('button', { name: 'Sign In' }).click();
 
-    // Verify transition to Authenticated Layout & Dashboard
+    // Verify transition to Authenticated Layout & Purchases
     await expect(page.getByText('Navigation', { exact: true })).toBeVisible({ timeout: 15000 });
-    await expect(page.getByRole('heading', { name: /Dashboard/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Purchases/ })).toBeVisible();
 
     // Verify sign-out button is present in sidebar footer
     const signOutBtn = page.getByRole('button', { name: /Sign Out/i }).first();

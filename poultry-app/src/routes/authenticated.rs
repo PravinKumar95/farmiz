@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 
 use crate::layouts::AuthenticatedLayout;
-use crate::screens::dashboard::Dashboard;
 use crate::screens::feed::Feed;
 use crate::screens::labor::Labor;
 use crate::screens::parties::Parties;
@@ -14,16 +13,16 @@ use crate::screens::settings::Settings;
 #[derive(Clone, Debug, PartialEq, Routable)]
 pub enum AuthenticatedRoute {
     #[layout(AuthenticatedLayout)]
-    #[route("/")]
-    #[redirect("/signin", || AuthenticatedRoute::Dashboard {})]
-    #[redirect("/signup", || AuthenticatedRoute::Dashboard {})]
-    Dashboard {},
+    #[route("/purchases")]
+    #[redirect("/", || AuthenticatedRoute::Purchases {})]
+    #[redirect("/signin", || AuthenticatedRoute::Purchases {})]
+    #[redirect("/signup", || AuthenticatedRoute::Purchases {})]
+    #[redirect("/dashboard", || AuthenticatedRoute::Purchases {})]
+    Purchases {},
     #[route("/production")]
     Production {},
     #[route("/sales")]
     Sales {},
-    #[route("/purchases")]
-    Purchases {},
     #[route("/feed")]
     Feed {},
     #[route("/labor")]
@@ -49,9 +48,9 @@ fn PageNotFound(_route: Vec<String>) -> Element {
                 class: "mt-6",
                 onclick: move |_| {
                     let nav = dioxus_router::hooks::use_navigator();
-                    nav.push(AuthenticatedRoute::Dashboard {});
+                    nav.push(AuthenticatedRoute::Purchases {});
                 },
-                "Go to Dashboard"
+                "Go to Purchases"
             }
         }
     }

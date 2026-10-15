@@ -395,6 +395,7 @@ pub fn use_employees() -> Resource<Result<Vec<Employee>, String>> {
     })
 }
 
+#[allow(dead_code)]
 pub fn use_dashboard_stats() -> Resource<Result<crate::models::DashboardStats, String>> {
     let auth = use_auth();
     use_resource(move || {
