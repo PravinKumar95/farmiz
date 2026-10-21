@@ -12,9 +12,21 @@
   border-radius: 0.5rem;
   background-color: #ffffff;
   color: #171717;
-  font-size: 0.875rem;
+  font-size: 16px;
   gap: 0.25rem;
   transition: all 150ms ease-out;
+}
+
+@media (min-width: 640px) {
+  .dx-input {
+    font-size: 0.875rem;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  .dx-input {
+    font-size: 16px;
+  }
 }
 
 html[data-theme="dark"] .dx-input,

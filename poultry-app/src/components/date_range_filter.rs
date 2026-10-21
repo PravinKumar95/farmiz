@@ -206,7 +206,7 @@ pub fn DateRangeFilter(props: DateRangeFilterProps) -> Element {
                         span { class: "text-stone-500 dark:text-stone-400 font-medium text-[11px]", "From" }
                         input {
                             r#type: "date",
-                            class: "h-6 px-1.5 rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500",
+                            class: "h-7 sm:h-6 px-1.5 rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 text-sm sm:text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500",
                             value: "{current_start}",
                             onchange: {
                                 let end_val = current_end.clone();
@@ -228,7 +228,7 @@ pub fn DateRangeFilter(props: DateRangeFilterProps) -> Element {
                         span { class: "text-stone-500 dark:text-stone-400 font-medium text-[11px]", "To" }
                         input {
                             r#type: "date",
-                            class: "h-6 px-1.5 rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500",
+                            class: "h-7 sm:h-6 px-1.5 rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-200 text-sm sm:text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500",
                             value: "{current_end}",
                             onchange: {
                                 let start_val = current_start.clone();

@@ -3,3 +3,26 @@
 @variant dark (&:where(.dark, .dark *));
 
 @source "./src/**/*.{rs,html,css}";
+
+/* 
+ * Prevent iOS Safari and Chrome from automatically zooming in when focusing inputs.
+ * iOS WebKit automatically zooms if font-size < 16px on any input, select, or textarea,
+ * and fails to reset the zoom level upon blur/unfocus.
+ */
+@media screen and (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea,
+  .dx-input {
+    font-size: 16px !important;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea,
+  .dx-input {
+    font-size: 16px !important;
+  }
+}
