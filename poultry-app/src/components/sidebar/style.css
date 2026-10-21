@@ -449,6 +449,12 @@
   position: relative;
 }
 
+.dx-sidebar-menu-item a {
+  display: block;
+  width: 100%;
+  text-decoration: none;
+}
+
 .dx-sidebar-menu-item > .dx-sidebar-dropdown-menu:has(.dx-sidebar-menu-action) {
   position: static;
 }

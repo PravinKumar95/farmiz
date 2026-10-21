@@ -103,6 +103,7 @@ pub struct SidebarCtx {
     open_mobile: Signal<bool>,
 }
 
+#[allow(dead_code)]
 impl SidebarCtx {
     /// Toggle the sidebar open/closed state
     pub fn toggle(&self) {
@@ -121,9 +122,19 @@ impl SidebarCtx {
         open_mobile.set(value);
     }
 
+    /// Close the mobile sidebar
+    pub fn close_mobile(&self) {
+        self.set_open_mobile(false);
+    }
+
     /// Get the current open state (desktop)
     pub fn open(&self) -> bool {
         self.open.cloned()
+    }
+
+    /// Get the current open state (mobile)
+    pub fn open_mobile(&self) -> bool {
+        (self.open_mobile)()
     }
 }
 
@@ -642,6 +653,7 @@ pub fn SidebarMenuButton(
     #[props(extends = GlobalAttributes)] attributes: Vec<Attribute>,
     #[props(default)] tooltip: Option<Element>,
     r#as: Option<Callback<Vec<Attribute>, Element>>,
+    #[props(default)] onclick: Option<EventHandler<MouseEvent>>,
     children: Element,
 ) -> Element {
     let ctx = use_sidebar();
@@ -658,11 +670,26 @@ pub fn SidebarMenuButton(
     });
     let merged = merge_attributes(vec![base, attributes]);
 
+    let handle_click = move |e: MouseEvent| {
+        if (ctx.is_mobile)() {
+            ctx.set_open_mobile(false);
+        }
+        if let Some(handler) = &onclick {
+            handler.call(e);
+        }
+    };
+
     let Some(tooltip_content) = tooltip else {
         return if let Some(dynamic) = r#as {
             dynamic.call(merged)
         } else {
-            rsx! { button { ..merged, {children} } }
+            rsx! {
+                button {
+                    onclick: handle_click,
+                    ..merged,
+                    {children}
+                }
+            }
         };
     };
 
@@ -680,7 +707,13 @@ pub fn SidebarMenuButton(
                     if let Some(dynamic) = &r#as {
                         dynamic.call(final_attrs)
                     } else {
-                        rsx! { button { ..final_attrs, {children} } }
+                        rsx! {
+                            button {
+                                onclick: handle_click,
+                                ..final_attrs,
+                                {children}
+                            }
+                        }
                     }
                 },
             }
@@ -816,8 +849,10 @@ pub fn SidebarMenuSubButton(
     #[props(default)] size: SidebarMenuSubButtonSize,
     r#as: Option<Callback<Vec<Attribute>, Element>>,
     #[props(extends = GlobalAttributes)] attributes: Vec<Attribute>,
+    #[props(default)] onclick: Option<EventHandler<MouseEvent>>,
     children: Element,
 ) -> Element {
+    let ctx = use_sidebar();
     let base = attributes!(a {
         class: Styles::dx_sidebar_menu_sub_button,
         "data-slot": "sidebar-menu-sub-button",
@@ -827,11 +862,24 @@ pub fn SidebarMenuSubButton(
     });
     let merged = merge_attributes(vec![base, attributes]);
 
+    let handle_click = move |e: MouseEvent| {
+        if (ctx.is_mobile)() {
+            ctx.set_open_mobile(false);
+        }
+        if let Some(handler) = &onclick {
+            handler.call(e);
+        }
+    };
+
     if let Some(dynamic) = r#as {
         dynamic.call(merged)
     } else {
         rsx! {
-            a { ..merged, {children} }
+            a {
+                onclick: handle_click,
+                ..merged,
+                {children}
+            }
         }
     }
 }
