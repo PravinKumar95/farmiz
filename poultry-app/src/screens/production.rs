@@ -609,8 +609,8 @@ pub fn Production() -> Element {
                                                 th { class: "px-4 py-3", "Batch / Shed" }
                                                 th { class: "px-4 py-3 text-right", "Total Trays" }
                                                 th { class: "px-4 py-3 text-right", "Total Eggs" }
-                                                th { class: "px-4 py-3 text-right", "Broken Eggs" }
-                                                th { class: "px-4 py-3 text-center", "Dirty (Cat 1 | Cat 2)" }
+                                                th { class: "px-4 py-3 text-right", "Broken Egg Trays" }
+                                                th { class: "px-4 py-3 text-center", "Dirty (Regular | Large)" }
                                                 th { class: "px-4 py-3 text-right", "Yield %" }
                                                 th { class: "px-4 py-3 text-right", "Stock (Trays)" }
                                                 th { class: "px-4 py-3 text-right", "Actions" }
@@ -732,7 +732,7 @@ pub fn Production() -> Element {
                                                     p { class: "text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5", "{item.egg_count_good}" }
                                                 }
                                                 div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Broken / Damaged" }
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Broken Egg Trays" }
                                                     p { class: "text-base font-bold text-rose-600 dark:text-rose-400 mt-0.5", "{item.egg_count_damaged:.1}" }
                                                 }
                                                 div {
@@ -740,7 +740,7 @@ pub fn Production() -> Element {
                                                     p { class: "text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5", "{item.stock_in_trays:.1}" }
                                                 }
                                                 div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Dirty (Cat 1 | 2)" }
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Dirty (Regular | Large)" }
                                                     p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.dirty_cat1:.1} | {item.dirty_cat2:.1}" }
                                                 }
                                                 div {
@@ -938,9 +938,11 @@ pub fn Production() -> Element {
                         // Quality & Defects: Broken & Dirty Eggs
                         div { class: "p-3 rounded-lg border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 flex flex-col gap-3",
                             span { class: "text-xs font-semibold uppercase text-stone-600 dark:text-stone-400 tracking-wider", "Defects & Quality (Broken / Dirty)" }
-                            div { class: "grid grid-cols-3 gap-3",
-                                div { class: "flex flex-col gap-1.5",
-                                    Label { html_for: "prod-damaged", "Broken Eggs" }
+                            div { class: "grid grid-cols-3 gap-2 sm:gap-3",
+                                div { class: "flex flex-col justify-between gap-1.5 h-full",
+                                    div { class: "min-h-[2.5rem] flex items-end",
+                                        Label { html_for: "prod-damaged", "Broken Egg Trays" }
+                                    }
                                     Input {
                                         r#type: "number",
                                         step: "0.5",
@@ -949,8 +951,10 @@ pub fn Production() -> Element {
                                         oninput: move |e: Event<FormData>| form_damaged.set(sanitize_numeric(&e.value()))
                                     }
                                 }
-                                div { class: "flex flex-col gap-1.5",
-                                    Label { html_for: "prod-dirty1", "Dirty (Cat 1 / அ)" }
+                                div { class: "flex flex-col justify-between gap-1.5 h-full",
+                                    div { class: "min-h-[2.5rem] flex items-end",
+                                        Label { html_for: "prod-dirty1", "Dirty Regular Trays" }
+                                    }
                                     Input {
                                         r#type: "number",
                                         step: "0.5",
@@ -959,8 +963,10 @@ pub fn Production() -> Element {
                                         oninput: move |e: Event<FormData>| form_dirty1.set(sanitize_numeric(&e.value()))
                                     }
                                 }
-                                div { class: "flex flex-col gap-1.5",
-                                    Label { html_for: "prod-dirty2", "Dirty (Cat 2 / வெ)" }
+                                div { class: "flex flex-col justify-between gap-1.5 h-full",
+                                    div { class: "min-h-[2.5rem] flex items-end",
+                                        Label { html_for: "prod-dirty2", "Dirty Large Trays" }
+                                    }
                                     Input {
                                         r#type: "number",
                                         step: "0.5",
