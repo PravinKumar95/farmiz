@@ -59,15 +59,14 @@ pub fn Production() -> Element {
     let mut form_opening_flock = use_signal(|| 0.0f64);
     let mut form_flock_size = use_signal(String::new);
     let mut form_prev_stock = use_signal(|| 0.0f64);
-    let mut form_trays = use_signal(|| "0".to_string());
-    let mut form_good = use_signal(|| "0".to_string());
-    let mut form_damaged = use_signal(|| "0".to_string());
-    let mut form_dirty1 = use_signal(|| "0".to_string());
-    let mut form_dirty2 = use_signal(|| "0".to_string());
+    let mut form_trays = use_signal(String::new);
+    let mut form_good = use_signal(String::new);
+    let mut form_damaged = use_signal(String::new);
+    let mut form_dirty1 = use_signal(String::new);
+    let mut form_dirty2 = use_signal(String::new);
     let mut form_yield = use_signal(|| "0.0".to_string());
-    let mut form_stock = use_signal(|| "0".to_string());
-    let mut form_mortality = use_signal(|| "0".to_string());
-    let mut form_cull = use_signal(|| "0".to_string());
+    let mut form_stock = use_signal(String::new);
+    let mut form_mortality = use_signal(String::new);
     let mut form_notes = use_signal(String::new);
     let mut form_error = use_signal(String::new);
 
@@ -146,26 +145,45 @@ pub fn Production() -> Element {
         (initial - past_attrition).max(0.0)
     };
 
-    // Helper: Recalculate live flock size and laying yield % from trays, mortality, and culls
-    let mut recalc_flock_and_yield = move |trays_val: &str, mort_val: &str, cull_val: &str| {
+    // Helper: Sanitize numeric input by stripping prepended/leading zeros (except for decimals like "0.5")
+    let sanitize_numeric = |val: &str| -> String {
+        let trimmed = val.trim();
+        if trimmed.is_empty() {
+            return String::new();
+        }
+        if trimmed.len() > 1 && trimmed.starts_with('0') && !trimmed.starts_with("0.") {
+            let stripped = trimmed.trim_start_matches('0');
+            if stripped.is_empty() {
+                "0".to_string()
+            } else if stripped.starts_with('.') {
+                format!("0{}", stripped)
+            } else {
+                stripped.to_string()
+            }
+        } else {
+            trimmed.to_string()
+        }
+    };
+
+    // Helper: Recalculate live flock size and laying yield % from trays and mortality
+    let mut recalc_flock_and_yield = move |trays_val: &str, mort_val: &str| {
         let trays = trays_val.parse::<f64>().unwrap_or(0.0);
         let eggs = (trays * 30.0).round();
         let mort = mort_val.parse::<f64>().unwrap_or(0.0);
-        let cull = cull_val.parse::<f64>().unwrap_or(0.0);
 
         if is_first_entry() {
             let initial = form_flock_size().parse::<f64>().unwrap_or(0.0);
-            let active = (initial - mort - cull).max(0.0);
-            if active > 0.0 {
+            let active = (initial - mort).max(0.0);
+            if active > 0.0 && eggs > 0.0 {
                 let y = (eggs / active) * 100.0;
                 form_yield.set(format!("{:.1}", y));
             } else {
                 form_yield.set("0.0".to_string());
             }
         } else {
-            let active_flock = (form_opening_flock() - mort - cull).max(0.0);
+            let active_flock = (form_opening_flock() - mort).max(0.0);
             form_flock_size.set(format!("{:.0}", active_flock));
-            if active_flock > 0.0 {
+            if active_flock > 0.0 && eggs > 0.0 {
                 let y = (eggs / active_flock) * 100.0;
                 form_yield.set(format!("{:.1}", y));
             } else {
@@ -176,12 +194,24 @@ pub fn Production() -> Element {
 
     // Auto-sync Total Trays -> Total Eggs + Auto-calc Yield + Auto-suggest Stock
     let mut handle_trays_change = move |val: String| {
-        form_trays.set(val.clone());
-        let trays = val.parse::<f64>().unwrap_or(0.0);
+        let clean = sanitize_numeric(&val);
+        form_trays.set(clean.clone());
+        if clean.is_empty() {
+            form_good.set(String::new());
+            recalc_flock_and_yield("", &form_mortality());
+            let prev = form_prev_stock();
+            if (prev.fract()).abs() < 0.001 {
+                form_stock.set(format!("{:.0}", prev));
+            } else {
+                form_stock.set(format!("{:.1}", prev));
+            }
+            return;
+        }
+        let trays = clean.parse::<f64>().unwrap_or(0.0);
         let eggs = (trays * 30.0).round() as i32;
         form_good.set(eggs.to_string());
 
-        recalc_flock_and_yield(&val, &form_mortality(), &form_cull());
+        recalc_flock_and_yield(&clean, &form_mortality());
 
         let new_stock = form_prev_stock() + trays;
         if (new_stock.fract()).abs() < 0.001 {
@@ -193,8 +223,20 @@ pub fn Production() -> Element {
 
     // Auto-sync Total Eggs -> Total Trays + Auto-calc Yield + Auto-suggest Stock
     let mut handle_eggs_change = move |val: String| {
-        form_good.set(val.clone());
-        let eggs = val.parse::<i32>().unwrap_or(0);
+        let clean = sanitize_numeric(&val);
+        form_good.set(clean.clone());
+        if clean.is_empty() {
+            form_trays.set(String::new());
+            recalc_flock_and_yield("", &form_mortality());
+            let prev = form_prev_stock();
+            if (prev.fract()).abs() < 0.001 {
+                form_stock.set(format!("{:.0}", prev));
+            } else {
+                form_stock.set(format!("{:.1}", prev));
+            }
+            return;
+        }
+        let eggs = clean.parse::<i32>().unwrap_or(0);
         let trays = (eggs as f64) / 30.0;
         let trays_str = if (trays.fract()).abs() < 0.001 {
             format!("{:.0}", trays)
@@ -203,7 +245,7 @@ pub fn Production() -> Element {
         };
         form_trays.set(trays_str.clone());
 
-        recalc_flock_and_yield(&trays_str, &form_mortality(), &form_cull());
+        recalc_flock_and_yield(&trays_str, &form_mortality());
 
         let new_stock = form_prev_stock() + trays;
         if (new_stock.fract()).abs() < 0.001 {
@@ -215,17 +257,17 @@ pub fn Production() -> Element {
 
     // When user types the starting flock size for a new batch
     let mut handle_flock_change = move |val: String| {
-        form_flock_size.set(val.clone());
-        let initial = val.parse::<f64>().unwrap_or(0.0);
+        let clean = sanitize_numeric(&val);
+        form_flock_size.set(clean.clone());
+        let initial = clean.parse::<f64>().unwrap_or(0.0);
         form_opening_flock.set(initial);
 
         let mort = form_mortality().parse::<f64>().unwrap_or(0.0);
-        let cull = form_cull().parse::<f64>().unwrap_or(0.0);
-        let active = (initial - mort - cull).max(0.0);
+        let active = (initial - mort).max(0.0);
 
         let trays = form_trays().parse::<f64>().unwrap_or(0.0);
         let eggs = (trays * 30.0).round();
-        if active > 0.0 {
+        if active > 0.0 && eggs > 0.0 {
             let y = (eggs / active) * 100.0;
             form_yield.set(format!("{:.1}", y));
         } else {
@@ -235,14 +277,9 @@ pub fn Production() -> Element {
 
     // When mortality is updated -> deduct from live flock and recalculate yield
     let mut handle_mortality_change = move |val: String| {
-        form_mortality.set(val.clone());
-        recalc_flock_and_yield(&form_trays(), &val, &form_cull());
-    };
-
-    // When cull count is updated -> deduct from live flock and recalculate yield
-    let mut handle_cull_change = move |val: String| {
-        form_cull.set(val.clone());
-        recalc_flock_and_yield(&form_trays(), &form_mortality(), &val);
+        let clean = sanitize_numeric(&val);
+        form_mortality.set(clean.clone());
+        recalc_flock_and_yield(&form_trays(), &clean);
     };
 
     // When shed / batch dropdown changes in the form
@@ -260,15 +297,14 @@ pub fn Production() -> Element {
             let opening = get_opening_flock_for_shed(&new_shed, form_id().as_deref());
             form_opening_flock.set(opening);
             let mort = form_mortality().parse::<f64>().unwrap_or(0.0);
-            let cull = form_cull().parse::<f64>().unwrap_or(0.0);
-            let active = (opening - mort - cull).max(0.0);
+            let active = (opening - mort).max(0.0);
             form_flock_size.set(format!("{:.0}", active));
         }
 
         let prev = get_latest_stock_for_shed(&new_shed);
         form_prev_stock.set(prev);
 
-        recalc_flock_and_yield(&form_trays(), &form_mortality(), &form_cull());
+        recalc_flock_and_yield(&form_trays(), &form_mortality());
 
         let trays = form_trays().parse::<f64>().unwrap_or(0.0);
         let new_stock = prev + trays;
@@ -316,7 +352,7 @@ pub fn Production() -> Element {
         let yield_pct: f64 = form_yield().parse().unwrap_or(0.0);
         let stock_trays: f64 = form_stock().parse().unwrap_or(0.0);
         let mortality: i32 = form_mortality().parse().unwrap_or(0);
-        let cull: i32 = form_cull().parse().unwrap_or(0);
+        let cull: i32 = 0;
         let feed: f64 = 0.0;
 
         let notes_val = if form_notes().trim().is_empty() {
@@ -501,13 +537,12 @@ pub fn Production() -> Element {
                                     form_stock.set(format!("{:.1}", prev));
                                 }
 
-                                form_trays.set("0".to_string());
-                                form_good.set("0".to_string());
-                                form_damaged.set("0".to_string());
-                                form_dirty1.set("0".to_string());
-                                form_dirty2.set("0".to_string());
-                                form_mortality.set("0".to_string());
-                                form_cull.set("0".to_string());
+                                form_trays.set(String::new());
+                                form_good.set(String::new());
+                                form_damaged.set(String::new());
+                                form_dirty1.set(String::new());
+                                form_dirty2.set(String::new());
+                                form_mortality.set(String::new());
                                 form_notes.set(String::new());
                                 form_error.set(String::new());
                                 is_sheet_open.set(true);
@@ -620,15 +655,14 @@ pub fn Production() -> Element {
 
                                                                         let prev = (edit_item.stock_in_trays - edit_item.total_trays).max(0.0);
                                                                         form_prev_stock.set(prev);
-                                                                        form_trays.set(edit_item.total_trays.to_string());
-                                                                        form_good.set(edit_item.egg_count_good.to_string());
-                                                                        form_damaged.set(edit_item.egg_count_damaged.to_string());
-                                                                        form_dirty1.set(edit_item.dirty_cat1.to_string());
-                                                                        form_dirty2.set(edit_item.dirty_cat2.to_string());
+                                                                        form_trays.set(if edit_item.total_trays == 0.0 { String::new() } else { edit_item.total_trays.to_string() });
+                                                                        form_good.set(if edit_item.egg_count_good == 0 { String::new() } else { edit_item.egg_count_good.to_string() });
+                                                                        form_damaged.set(if edit_item.egg_count_damaged == 0.0 { String::new() } else { edit_item.egg_count_damaged.to_string() });
+                                                                        form_dirty1.set(if edit_item.dirty_cat1 == 0.0 { String::new() } else { edit_item.dirty_cat1.to_string() });
+                                                                        form_dirty2.set(if edit_item.dirty_cat2 == 0.0 { String::new() } else { edit_item.dirty_cat2.to_string() });
                                                                         form_yield.set(edit_item.production_percentage.to_string());
                                                                         form_stock.set(edit_item.stock_in_trays.to_string());
-                                                                        form_mortality.set(edit_item.mortality_count.to_string());
-                                                                        form_cull.set(edit_item.cull_count.to_string());
+                                                                        form_mortality.set(if edit_item.mortality_count == 0 { String::new() } else { edit_item.mortality_count.to_string() });
                                                                         form_notes.set(edit_item.notes.clone().unwrap_or_default());
                                                                         is_sheet_open.set(true);
                                                                     }
@@ -716,8 +750,8 @@ pub fn Production() -> Element {
                                                     }
                                                 }
                                                 div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Mortality / Cull" }
-                                                    p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.mortality_count} / {item.cull_count}" }
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Mortality" }
+                                                    p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.mortality_count}" }
                                                 }
                                                 div {
                                                     p { class: "text-stone-500 dark:text-stone-400 font-medium", "Status" }
@@ -752,15 +786,14 @@ pub fn Production() -> Element {
 
                                                                 let prev = (edit_item.stock_in_trays - edit_item.total_trays).max(0.0);
                                                                 form_prev_stock.set(prev);
-                                                                form_trays.set(edit_item.total_trays.to_string());
-                                                                form_good.set(edit_item.egg_count_good.to_string());
-                                                                form_damaged.set(edit_item.egg_count_damaged.to_string());
-                                                                form_dirty1.set(edit_item.dirty_cat1.to_string());
-                                                                form_dirty2.set(edit_item.dirty_cat2.to_string());
+                                                                form_trays.set(if edit_item.total_trays == 0.0 { String::new() } else { edit_item.total_trays.to_string() });
+                                                                form_good.set(if edit_item.egg_count_good == 0 { String::new() } else { edit_item.egg_count_good.to_string() });
+                                                                form_damaged.set(if edit_item.egg_count_damaged == 0.0 { String::new() } else { edit_item.egg_count_damaged.to_string() });
+                                                                form_dirty1.set(if edit_item.dirty_cat1 == 0.0 { String::new() } else { edit_item.dirty_cat1.to_string() });
+                                                                form_dirty2.set(if edit_item.dirty_cat2 == 0.0 { String::new() } else { edit_item.dirty_cat2.to_string() });
                                                                 form_yield.set(edit_item.production_percentage.to_string());
                                                                 form_stock.set(edit_item.stock_in_trays.to_string());
-                                                                form_mortality.set(edit_item.mortality_count.to_string());
-                                                                form_cull.set(edit_item.cull_count.to_string());
+                                                                form_mortality.set(if edit_item.mortality_count == 0 { String::new() } else { edit_item.mortality_count.to_string() });
                                                                 form_notes.set(edit_item.notes.clone().unwrap_or_default());
                                                                 is_sheet_open.set(true);
                                                             },
@@ -870,7 +903,7 @@ pub fn Production() -> Element {
                                     if is_first_entry() {
                                         "First log for {form_shed}: set starting flock count"
                                     } else {
-                                        "Opening ({form_opening_flock:.0}) - Loss today ({form_mortality}+{form_cull})"
+                                        "Opening ({form_opening_flock:.0}) - Mortality today ({form_mortality})"
                                     }
                                 }
                             }
@@ -885,6 +918,7 @@ pub fn Production() -> Element {
                                     Input {
                                         r#type: "number",
                                         step: "0.1",
+                                        placeholder: "0",
                                         value: "{form_trays}",
                                         oninput: move |e: Event<FormData>| handle_trays_change(e.value())
                                     }
@@ -893,6 +927,7 @@ pub fn Production() -> Element {
                                     Label { html_for: "prod-good", "Total Eggs" }
                                     Input {
                                         r#type: "number",
+                                        placeholder: "0",
                                         value: "{form_good}",
                                         oninput: move |e: Event<FormData>| handle_eggs_change(e.value())
                                     }
@@ -909,8 +944,9 @@ pub fn Production() -> Element {
                                     Input {
                                         r#type: "number",
                                         step: "0.5",
+                                        placeholder: "0",
                                         value: "{form_damaged}",
-                                        oninput: move |e: Event<FormData>| form_damaged.set(e.value())
+                                        oninput: move |e: Event<FormData>| form_damaged.set(sanitize_numeric(&e.value()))
                                     }
                                 }
                                 div { class: "flex flex-col gap-1.5",
@@ -918,8 +954,9 @@ pub fn Production() -> Element {
                                     Input {
                                         r#type: "number",
                                         step: "0.5",
+                                        placeholder: "0",
                                         value: "{form_dirty1}",
-                                        oninput: move |e: Event<FormData>| form_dirty1.set(e.value())
+                                        oninput: move |e: Event<FormData>| form_dirty1.set(sanitize_numeric(&e.value()))
                                     }
                                 }
                                 div { class: "flex flex-col gap-1.5",
@@ -927,8 +964,9 @@ pub fn Production() -> Element {
                                     Input {
                                         r#type: "number",
                                         step: "0.5",
+                                        placeholder: "0",
                                         value: "{form_dirty2}",
-                                        oninput: move |e: Event<FormData>| form_dirty2.set(e.value())
+                                        oninput: move |e: Event<FormData>| form_dirty2.set(sanitize_numeric(&e.value()))
                                     }
                                 }
                             }
@@ -944,9 +982,9 @@ pub fn Production() -> Element {
                                 Input {
                                     r#type: "number",
                                     step: "0.1",
-                                    placeholder: "e.g. 88.0",
+                                    placeholder: "0.0",
                                     value: "{form_yield}",
-                                    oninput: move |e: Event<FormData>| form_yield.set(e.value())
+                                    oninput: move |e: Event<FormData>| form_yield.set(sanitize_numeric(&e.value()))
                                 }
                                 span { class: "text-[11px] text-stone-500 dark:text-stone-400",
                                     "Eggs ÷ {form_flock_size} birds in {form_shed}"
@@ -962,7 +1000,7 @@ pub fn Production() -> Element {
                                     step: "0.5",
                                     disabled: true,
                                     class: "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 cursor-not-allowed",
-                                    placeholder: "e.g. 355",
+                                    placeholder: "0",
                                     value: "{form_stock}",
                                     oninput: move |e: Event<FormData>| form_stock.set(e.value())
                                 }
@@ -972,25 +1010,16 @@ pub fn Production() -> Element {
                             }
                         }
 
-                        // Flock Health (Mortality & Culls)
+                        // Flock Health (Mortality)
                         div { class: "p-3 rounded-lg border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 flex flex-col gap-3",
-                            span { class: "text-xs font-semibold uppercase text-stone-600 dark:text-stone-400 tracking-wider", "Flock Health (Mortality & Culls)" }
-                            div { class: "grid grid-cols-2 gap-4",
-                                div { class: "flex flex-col gap-1.5",
-                                    Label { html_for: "prod-mortality", "Mortality" }
-                                    Input {
-                                        r#type: "number",
-                                        value: "{form_mortality}",
-                                        oninput: move |e: Event<FormData>| handle_mortality_change(e.value())
-                                    }
-                                }
-                                div { class: "flex flex-col gap-1.5",
-                                    Label { html_for: "prod-cull", "Cull Count" }
-                                    Input {
-                                        r#type: "number",
-                                        value: "{form_cull}",
-                                        oninput: move |e: Event<FormData>| handle_cull_change(e.value())
-                                    }
+                            span { class: "text-xs font-semibold uppercase text-stone-600 dark:text-stone-400 tracking-wider", "Flock Health (Mortality)" }
+                            div { class: "flex flex-col gap-1.5",
+                                Label { html_for: "prod-mortality", "Mortality (Bird Loss Today)" }
+                                Input {
+                                    r#type: "number",
+                                    placeholder: "0",
+                                    value: "{form_mortality}",
+                                    oninput: move |e: Event<FormData>| handle_mortality_change(e.value())
                                 }
                             }
                         }

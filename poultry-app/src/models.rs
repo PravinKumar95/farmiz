@@ -127,6 +127,7 @@ pub struct DailyProduction {
     pub production_percentage: f64,
     pub stock_in_trays: f64,
     pub mortality_count: i32,
+    #[serde(default)]
     pub cull_count: i32,
     pub feed_consumed_kg: f64,
     #[serde(default)]
