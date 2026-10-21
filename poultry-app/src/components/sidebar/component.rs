@@ -671,11 +671,11 @@ pub fn SidebarMenuButton(
     let merged = merge_attributes(vec![base, attributes]);
 
     let handle_click = move |e: MouseEvent| {
-        if (ctx.is_mobile)() {
-            ctx.set_open_mobile(false);
-        }
         if let Some(handler) = &onclick {
             handler.call(e);
+        }
+        if (ctx.is_mobile)() {
+            ctx.set_open_mobile(false);
         }
     };
 
@@ -863,11 +863,11 @@ pub fn SidebarMenuSubButton(
     let merged = merge_attributes(vec![base, attributes]);
 
     let handle_click = move |e: MouseEvent| {
-        if (ctx.is_mobile)() {
-            ctx.set_open_mobile(false);
-        }
         if let Some(handler) = &onclick {
             handler.call(e);
+        }
+        if (ctx.is_mobile)() {
+            ctx.set_open_mobile(false);
         }
     };
 

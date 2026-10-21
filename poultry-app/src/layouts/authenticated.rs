@@ -25,6 +25,7 @@ pub fn AuthenticatedLayout() -> Element {
 
     let logout_action = use_context::<crate::LogoutAction>();
     let nav = dioxus_router::hooks::use_navigator();
+    let current_route = dioxus_router::hooks::use_route::<AuthenticatedRoute>();
     let on_signout = move |_| {
         nav.replace(AuthenticatedRoute::Purchases {});
         logout_action.0.call(());
@@ -45,52 +46,66 @@ pub fn AuthenticatedLayout() -> Element {
                         SidebarGroupContent {
                             SidebarMenu {
                                 SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Purchases {},
-                                        SidebarMenuButton {
-                                            span { "🛒 {purchases_lbl}" }
-                                        }
+                                    SidebarMenuButton {
+                                        is_active: current_route == AuthenticatedRoute::Purchases {},
+                                        onclick: move |_| {
+                                            nav.push(AuthenticatedRoute::Purchases {});
+                                        },
+                                        span { "🛒 {purchases_lbl}" }
                                     }
                                 }
                                 SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Production {},
-                                        SidebarMenuButton {
-                                            span { "🥚 {production_lbl}" }
-                                        }
+                                    SidebarMenuButton {
+                                        is_active: current_route == AuthenticatedRoute::Production {},
+                                        onclick: move |_| {
+                                            nav.push(AuthenticatedRoute::Production {});
+                                        },
+                                        span { "🥚 {production_lbl}" }
                                     }
                                 }
                                 SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Sales {},
-                                        SidebarMenuButton {
-                                            span { "💰 {sales_lbl}" }
-                                        }
+                                    SidebarMenuButton {
+                                        is_active: current_route == AuthenticatedRoute::Sales {},
+                                        onclick: move |_| {
+                                            nav.push(AuthenticatedRoute::Sales {});
+                                        },
+                                        span { "💰 {sales_lbl}" }
                                     }
                                 }
                                 SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Feed {},
-                                        SidebarMenuButton {
-                                            span { "🌾 {feed_lbl}" }
-                                        }
+                                    SidebarMenuButton {
+                                        is_active: current_route == AuthenticatedRoute::Feed {},
+                                        onclick: move |_| {
+                                            nav.push(AuthenticatedRoute::Feed {});
+                                        },
+                                        span { "🌾 {feed_lbl}" }
                                     }
                                 }
                                 SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Labor {},
-                                        SidebarMenuButton {
-                                            span { "👥 {labor_lbl}" }
-                                        }
+                                    SidebarMenuButton {
+                                        is_active: current_route == AuthenticatedRoute::Labor {},
+                                        onclick: move |_| {
+                                            nav.push(AuthenticatedRoute::Labor {});
+                                        },
+                                        span { "👥 {labor_lbl}" }
                                     }
                                 }
                                 SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Parties {},
-                                        SidebarMenuButton {
-                                            span { "📒 {ledger_lbl}" }
-                                        }
+                                    SidebarMenuButton {
+                                        is_active: matches!(current_route, AuthenticatedRoute::Parties {} | AuthenticatedRoute::PartyDetail { .. }),
+                                        onclick: move |_| {
+                                            nav.push(AuthenticatedRoute::Parties {});
+                                        },
+                                        span { "📒 {ledger_lbl}" }
                                     }
                                 }
                                 SidebarMenuItem {
-                                    dioxus_router::components::Link { to: AuthenticatedRoute::Settings {},
-                                        SidebarMenuButton {
-                                            span { "⚙️ {settings_lbl}" }
-                                        }
+                                    SidebarMenuButton {
+                                        is_active: current_route == AuthenticatedRoute::Settings {},
+                                        onclick: move |_| {
+                                            nav.push(AuthenticatedRoute::Settings {});
+                                        },
+                                        span { "⚙️ {settings_lbl}" }
                                     }
                                 }
                             }
