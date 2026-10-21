@@ -27,6 +27,7 @@ pub fn Production() -> Element {
     let mut is_manage_batches_open = use_signal(|| false);
 
     // Available batches list
+    // Available batches list & persistent flock sizes
     let mut available_batches = use_signal(|| vec![
         "Batch A".to_string(),
         "Batch B".to_string(),
@@ -35,6 +36,10 @@ pub fn Production() -> Element {
         "Batch E".to_string(),
         "Batch F".to_string(),
     ]);
+    let mut batch_flock_sizes = dioxus_sdk::storage::use_storage::<dioxus_sdk::storage::LocalStorage, std::collections::HashMap<String, u32>>(
+        "batch_flock_sizes".to_string(),
+        || std::collections::HashMap::new(),
+    );
     let mut new_batch_name_input = use_signal(String::new);
 
     // Filters
@@ -50,41 +55,227 @@ pub fn Production() -> Element {
 
     let mut form_date = use_signal(move || today_str.clone());
     let mut form_shed = use_signal(|| "Batch A".to_string());
+    let mut is_first_entry = use_signal(|| false);
+    let mut form_opening_flock = use_signal(|| 0.0f64);
+    let mut form_flock_size = use_signal(String::new);
+    let mut form_prev_stock = use_signal(|| 0.0f64);
     let mut form_trays = use_signal(|| "0".to_string());
     let mut form_good = use_signal(|| "0".to_string());
     let mut form_damaged = use_signal(|| "0".to_string());
     let mut form_dirty1 = use_signal(|| "0".to_string());
     let mut form_dirty2 = use_signal(|| "0".to_string());
-    let mut form_yield = use_signal(|| "0".to_string());
+    let mut form_yield = use_signal(|| "0.0".to_string());
     let mut form_stock = use_signal(|| "0".to_string());
     let mut form_mortality = use_signal(|| "0".to_string());
     let mut form_cull = use_signal(|| "0".to_string());
-    let mut form_feed = use_signal(|| "0.0".to_string());
     let mut form_notes = use_signal(String::new);
     let mut form_error = use_signal(String::new);
 
     let mut is_submitting = use_signal(|| false);
     let mut is_deleting = use_signal(|| false);
 
-    // Auto-sync Total Trays -> Total Eggs
-    let mut handle_trays_change = move |val: String| {
-        form_trays.set(val.clone());
-        if let Ok(trays) = val.parse::<f64>() {
-            let eggs = (trays * 30.0).round() as i32;
-            form_good.set(eggs.to_string());
+    // Helper: Find latest reported closing stock for a given batch/shed
+    let get_latest_stock_for_shed = move |shed: &str| -> f64 {
+        let list = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
+        list.iter()
+            .filter(|r| r.shed_name.eq_ignore_ascii_case(shed))
+            .map(|r| r.stock_in_trays)
+            .next()
+            .unwrap_or(0.0)
+    };
+
+    // Helper: Lookup initial flock size for a batch from stored config or past records
+    let get_initial_flock_for_shed = move |shed: &str| -> Option<u32> {
+        let sizes = batch_flock_sizes();
+        if let Some(&size) = sizes.get(shed) {
+            if size > 0 {
+                return Some(size);
+            }
+        }
+        let list = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
+        let mut shed_records: Vec<_> = list.into_iter()
+            .filter(|r| r.shed_name.eq_ignore_ascii_case(shed))
+            .collect();
+        shed_records.sort_by(|a, b| a.date.cmp(&b.date));
+        if let Some(first_rec) = shed_records.first() {
+            if first_rec.flock_size > 0 {
+                let starting = first_rec.flock_size as u32 + (first_rec.mortality_count + first_rec.cull_count) as u32;
+                return Some(starting);
+            }
+            if first_rec.production_percentage > 0.0 && first_rec.egg_count_good > 0 {
+                let deduced = ((first_rec.egg_count_good as f64) / (first_rec.production_percentage / 100.0)).round() as u32;
+                if deduced > 0 {
+                    return Some(deduced);
+                }
+            }
+        }
+        None
+    };
+
+    // Helper: Determine if this is the first entry for this batch
+    let is_first_entry_for_shed = move |shed: &str, current_id: Option<&str>| -> bool {
+        let list = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
+        let other_records_count = list.iter()
+            .filter(|r| r.shed_name.eq_ignore_ascii_case(shed))
+            .filter(|r| {
+                if let Some(cid) = current_id {
+                    r.id != cid
+                } else {
+                    true
+                }
+            })
+            .count();
+        other_records_count == 0 || get_initial_flock_for_shed(shed).is_none()
+    };
+
+    // Helper: Calculate opening flock (initial batch size minus past mortality & culls)
+    let get_opening_flock_for_shed = move |shed: &str, current_edit_id: Option<&str>| -> f64 {
+        let initial = get_initial_flock_for_shed(shed).unwrap_or(0) as f64;
+        let list = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
+        let past_attrition: f64 = list.iter()
+            .filter(|r| r.shed_name.eq_ignore_ascii_case(shed))
+            .filter(|r| {
+                if let Some(cid) = current_edit_id {
+                    r.id != cid
+                } else {
+                    true
+                }
+            })
+            .map(|r| (r.mortality_count + r.cull_count) as f64)
+            .sum();
+        (initial - past_attrition).max(0.0)
+    };
+
+    // Helper: Recalculate live flock size and laying yield % from trays, mortality, and culls
+    let mut recalc_flock_and_yield = move |trays_val: &str, mort_val: &str, cull_val: &str| {
+        let trays = trays_val.parse::<f64>().unwrap_or(0.0);
+        let eggs = (trays * 30.0).round();
+        let mort = mort_val.parse::<f64>().unwrap_or(0.0);
+        let cull = cull_val.parse::<f64>().unwrap_or(0.0);
+
+        if is_first_entry() {
+            let initial = form_flock_size().parse::<f64>().unwrap_or(0.0);
+            let active = (initial - mort - cull).max(0.0);
+            if active > 0.0 {
+                let y = (eggs / active) * 100.0;
+                form_yield.set(format!("{:.1}", y));
+            } else {
+                form_yield.set("0.0".to_string());
+            }
+        } else {
+            let active_flock = (form_opening_flock() - mort - cull).max(0.0);
+            form_flock_size.set(format!("{:.0}", active_flock));
+            if active_flock > 0.0 {
+                let y = (eggs / active_flock) * 100.0;
+                form_yield.set(format!("{:.1}", y));
+            } else {
+                form_yield.set("0.0".to_string());
+            }
         }
     };
 
-    // Auto-sync Total Eggs -> Total Trays
+    // Auto-sync Total Trays -> Total Eggs + Auto-calc Yield + Auto-suggest Stock
+    let mut handle_trays_change = move |val: String| {
+        form_trays.set(val.clone());
+        let trays = val.parse::<f64>().unwrap_or(0.0);
+        let eggs = (trays * 30.0).round() as i32;
+        form_good.set(eggs.to_string());
+
+        recalc_flock_and_yield(&val, &form_mortality(), &form_cull());
+
+        let new_stock = form_prev_stock() + trays;
+        if (new_stock.fract()).abs() < 0.001 {
+            form_stock.set(format!("{:.0}", new_stock));
+        } else {
+            form_stock.set(format!("{:.1}", new_stock));
+        }
+    };
+
+    // Auto-sync Total Eggs -> Total Trays + Auto-calc Yield + Auto-suggest Stock
     let mut handle_eggs_change = move |val: String| {
         form_good.set(val.clone());
-        if let Ok(eggs) = val.parse::<i32>() {
-            let trays = (eggs as f64) / 30.0;
-            if (trays.fract()).abs() < 0.001 {
-                form_trays.set(format!("{:.0}", trays));
-            } else {
-                form_trays.set(format!("{:.1}", trays));
-            }
+        let eggs = val.parse::<i32>().unwrap_or(0);
+        let trays = (eggs as f64) / 30.0;
+        let trays_str = if (trays.fract()).abs() < 0.001 {
+            format!("{:.0}", trays)
+        } else {
+            format!("{:.1}", trays)
+        };
+        form_trays.set(trays_str.clone());
+
+        recalc_flock_and_yield(&trays_str, &form_mortality(), &form_cull());
+
+        let new_stock = form_prev_stock() + trays;
+        if (new_stock.fract()).abs() < 0.001 {
+            form_stock.set(format!("{:.0}", new_stock));
+        } else {
+            form_stock.set(format!("{:.1}", new_stock));
+        }
+    };
+
+    // When user types the starting flock size for a new batch
+    let mut handle_flock_change = move |val: String| {
+        form_flock_size.set(val.clone());
+        let initial = val.parse::<f64>().unwrap_or(0.0);
+        form_opening_flock.set(initial);
+
+        let mort = form_mortality().parse::<f64>().unwrap_or(0.0);
+        let cull = form_cull().parse::<f64>().unwrap_or(0.0);
+        let active = (initial - mort - cull).max(0.0);
+
+        let trays = form_trays().parse::<f64>().unwrap_or(0.0);
+        let eggs = (trays * 30.0).round();
+        if active > 0.0 {
+            let y = (eggs / active) * 100.0;
+            form_yield.set(format!("{:.1}", y));
+        } else {
+            form_yield.set("0.0".to_string());
+        }
+    };
+
+    // When mortality is updated -> deduct from live flock and recalculate yield
+    let mut handle_mortality_change = move |val: String| {
+        form_mortality.set(val.clone());
+        recalc_flock_and_yield(&form_trays(), &val, &form_cull());
+    };
+
+    // When cull count is updated -> deduct from live flock and recalculate yield
+    let mut handle_cull_change = move |val: String| {
+        form_cull.set(val.clone());
+        recalc_flock_and_yield(&form_trays(), &form_mortality(), &val);
+    };
+
+    // When shed / batch dropdown changes in the form
+    let mut handle_shed_change = move |new_shed: String| {
+        form_shed.set(new_shed.clone());
+
+        let first_time = is_first_entry_for_shed(&new_shed, form_id().as_deref());
+        is_first_entry.set(first_time);
+
+        if first_time {
+            form_opening_flock.set(0.0);
+            form_flock_size.set(String::new());
+            form_yield.set("0.0".to_string());
+        } else {
+            let opening = get_opening_flock_for_shed(&new_shed, form_id().as_deref());
+            form_opening_flock.set(opening);
+            let mort = form_mortality().parse::<f64>().unwrap_or(0.0);
+            let cull = form_cull().parse::<f64>().unwrap_or(0.0);
+            let active = (opening - mort - cull).max(0.0);
+            form_flock_size.set(format!("{:.0}", active));
+        }
+
+        let prev = get_latest_stock_for_shed(&new_shed);
+        form_prev_stock.set(prev);
+
+        recalc_flock_and_yield(&form_trays(), &form_mortality(), &form_cull());
+
+        let trays = form_trays().parse::<f64>().unwrap_or(0.0);
+        let new_stock = prev + trays;
+        if (new_stock.fract()).abs() < 0.001 {
+            form_stock.set(format!("{:.0}", new_stock));
+        } else {
+            form_stock.set(format!("{:.1}", new_stock));
         }
     };
 
@@ -105,6 +296,18 @@ pub fn Production() -> Element {
             return;
         }
 
+        if is_first_entry() {
+            let flock_num = form_flock_size().parse::<u32>().unwrap_or(0);
+            if flock_num == 0 {
+                form_error.set("Please enter the initial flock size (starting bird count) for this batch.".to_string());
+                return;
+            }
+        }
+
+        let is_first = is_first_entry();
+        let initial_flock_to_save = form_flock_size().parse::<u32>().unwrap_or(0);
+        let shed_for_save = shed_name.clone();
+
         let total_trays: f64 = form_trays().parse().unwrap_or(0.0);
         let good: i32 = form_good().parse().unwrap_or(0);
         let damaged: f64 = form_damaged().parse().unwrap_or(0.0);
@@ -114,7 +317,7 @@ pub fn Production() -> Element {
         let stock_trays: f64 = form_stock().parse().unwrap_or(0.0);
         let mortality: i32 = form_mortality().parse().unwrap_or(0);
         let cull: i32 = form_cull().parse().unwrap_or(0);
-        let feed: f64 = form_feed().parse().unwrap_or(0.0);
+        let feed: f64 = 0.0;
 
         let notes_val = if form_notes().trim().is_empty() {
             None
@@ -140,6 +343,7 @@ pub fn Production() -> Element {
             mortality_count: mortality,
             cull_count: cull,
             feed_consumed_kg: feed,
+            flock_size: form_flock_size().parse::<i32>().unwrap_or(0),
             notes: notes_val,
             user_id: None,
             created_at: None,
@@ -156,6 +360,11 @@ pub fn Production() -> Element {
 
             match res {
                 Ok(_) => {
+                    if is_first && initial_flock_to_save > 0 {
+                        let mut sizes = batch_flock_sizes();
+                        sizes.insert(shed_for_save, initial_flock_to_save);
+                        batch_flock_sizes.set(sizes);
+                    }
                     is_sheet_open.set(false);
                     form_error.set(String::new());
                     logs.restart();
@@ -227,7 +436,14 @@ pub fn Production() -> Element {
     let total_broken_sum: f64 = filtered_records.iter().map(|r| r.egg_count_damaged).sum();
     let total_dirty1_sum: f64 = filtered_records.iter().map(|r| r.dirty_cat1).sum();
     let total_dirty2_sum: f64 = filtered_records.iter().map(|r| r.dirty_cat2).sum();
-    let total_stock_sum: f64 = filtered_records.iter().map(|r| r.stock_in_trays).sum();
+    
+    // For stock in trays: sum latest closing stock of each distinct batch in filtered records
+    let mut batch_latest_stocks = std::collections::HashMap::new();
+    for r in &filtered_records {
+        batch_latest_stocks.entry(r.shed_name.clone()).or_insert(r.stock_in_trays);
+    }
+    let total_stock_sum: f64 = batch_latest_stocks.values().sum();
+
     let avg_yield: f64 = if !filtered_records.is_empty() {
         filtered_records.iter().map(|r| r.production_percentage).sum::<f64>() / (filtered_records.len() as f64)
     } else {
@@ -262,17 +478,36 @@ pub fn Production() -> Element {
                                 form_id.set(None);
                                 form_date.set(Utc::now().format("%Y-%m-%d").to_string());
                                 let first_b = available_batches().first().cloned().unwrap_or_else(|| "Batch A".to_string());
-                                form_shed.set(first_b);
+                                form_shed.set(first_b.clone());
+
+                                let first_time = is_first_entry_for_shed(&first_b, None);
+                                is_first_entry.set(first_time);
+
+                                if first_time {
+                                    form_opening_flock.set(0.0);
+                                    form_flock_size.set(String::new());
+                                    form_yield.set("0.0".to_string());
+                                } else {
+                                    let opening = get_opening_flock_for_shed(&first_b, None);
+                                    form_opening_flock.set(opening);
+                                    form_flock_size.set(format!("{:.0}", opening));
+                                }
+
+                                let prev = get_latest_stock_for_shed(&first_b);
+                                form_prev_stock.set(prev);
+                                if (prev.fract()).abs() < 0.001 {
+                                    form_stock.set(format!("{:.0}", prev));
+                                } else {
+                                    form_stock.set(format!("{:.1}", prev));
+                                }
+
                                 form_trays.set("0".to_string());
                                 form_good.set("0".to_string());
                                 form_damaged.set("0".to_string());
                                 form_dirty1.set("0".to_string());
                                 form_dirty2.set("0".to_string());
-                                form_yield.set("0".to_string());
-                                form_stock.set("0".to_string());
                                 form_mortality.set("0".to_string());
                                 form_cull.set("0".to_string());
-                                form_feed.set("0.0".to_string());
                                 form_notes.set(String::new());
                                 form_error.set(String::new());
                                 is_sheet_open.set(true);
@@ -373,6 +608,18 @@ pub fn Production() -> Element {
                                                                         form_id.set(Some(edit_item.id.clone()));
                                                                         form_date.set(edit_item.date.clone());
                                                                         form_shed.set(edit_item.shed_name.clone());
+
+                                                                        let edit_shed = edit_item.shed_name.clone();
+                                                                        let first_time = is_first_entry_for_shed(&edit_shed, Some(&edit_item.id));
+                                                                        is_first_entry.set(first_time);
+
+                                                                        let opening = get_opening_flock_for_shed(&edit_shed, Some(&edit_item.id));
+                                                                        form_opening_flock.set(opening);
+                                                                        let active = (opening - edit_item.mortality_count as f64 - edit_item.cull_count as f64).max(0.0);
+                                                                        form_flock_size.set(format!("{:.0}", active));
+
+                                                                        let prev = (edit_item.stock_in_trays - edit_item.total_trays).max(0.0);
+                                                                        form_prev_stock.set(prev);
                                                                         form_trays.set(edit_item.total_trays.to_string());
                                                                         form_good.set(edit_item.egg_count_good.to_string());
                                                                         form_damaged.set(edit_item.egg_count_damaged.to_string());
@@ -382,7 +629,6 @@ pub fn Production() -> Element {
                                                                         form_stock.set(edit_item.stock_in_trays.to_string());
                                                                         form_mortality.set(edit_item.mortality_count.to_string());
                                                                         form_cull.set(edit_item.cull_count.to_string());
-                                                                        form_feed.set(edit_item.feed_consumed_kg.to_string());
                                                                         form_notes.set(edit_item.notes.clone().unwrap_or_default());
                                                                         is_sheet_open.set(true);
                                                                     }
@@ -464,8 +710,10 @@ pub fn Production() -> Element {
                                                     p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.dirty_cat1:.1} | {item.dirty_cat2:.1}" }
                                                 }
                                                 div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Feed Consumed" }
-                                                    p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.feed_consumed_kg:.1} kg" }
+                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Laying Yield" }
+                                                    p { class: "text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5",
+                                                        if item.production_percentage > 0.0 { "{item.production_percentage:.1}%" } else { "-" }
+                                                    }
                                                 }
                                                 div {
                                                     p { class: "text-stone-500 dark:text-stone-400 font-medium", "Mortality / Cull" }
@@ -492,6 +740,18 @@ pub fn Production() -> Element {
                                                                 form_id.set(Some(edit_item.id.clone()));
                                                                 form_date.set(edit_item.date.clone());
                                                                 form_shed.set(edit_item.shed_name.clone());
+
+                                                                let edit_shed = edit_item.shed_name.clone();
+                                                                let first_time = is_first_entry_for_shed(&edit_shed, Some(&edit_item.id));
+                                                                is_first_entry.set(first_time);
+
+                                                                let opening = get_opening_flock_for_shed(&edit_shed, Some(&edit_item.id));
+                                                                form_opening_flock.set(opening);
+                                                                let active = (opening - edit_item.mortality_count as f64 - edit_item.cull_count as f64).max(0.0);
+                                                                form_flock_size.set(format!("{:.0}", active));
+
+                                                                let prev = (edit_item.stock_in_trays - edit_item.total_trays).max(0.0);
+                                                                form_prev_stock.set(prev);
                                                                 form_trays.set(edit_item.total_trays.to_string());
                                                                 form_good.set(edit_item.egg_count_good.to_string());
                                                                 form_damaged.set(edit_item.egg_count_damaged.to_string());
@@ -501,7 +761,6 @@ pub fn Production() -> Element {
                                                                 form_stock.set(edit_item.stock_in_trays.to_string());
                                                                 form_mortality.set(edit_item.mortality_count.to_string());
                                                                 form_cull.set(edit_item.cull_count.to_string());
-                                                                form_feed.set(edit_item.feed_consumed_kg.to_string());
                                                                 form_notes.set(edit_item.notes.clone().unwrap_or_default());
                                                                 is_sheet_open.set(true);
                                                             },
@@ -565,8 +824,8 @@ pub fn Production() -> Element {
                             div { class: "p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200", "{form_error}" }
                         }
 
-                        // Date & Batch Dropdown
-                        div { class: "grid grid-cols-1 sm:grid-cols-2 gap-4",
+                        // Date, Batch Dropdown & Flock Size
+                        div { class: "grid grid-cols-1 sm:grid-cols-3 gap-4",
                             div { class: "flex flex-col gap-2",
                                 Label { html_for: "prod-date", "Date" }
                                 Input { r#type: "date", value: "{form_date}", oninput: move |e: Event<FormData>| form_date.set(e.value()) }
@@ -583,9 +842,35 @@ pub fn Production() -> Element {
                                 select {
                                     class: "flex h-10 w-full rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500",
                                     value: form_shed(),
-                                    onchange: move |e: Event<FormData>| form_shed.set(e.value()),
+                                    onchange: move |e: Event<FormData>| handle_shed_change(e.value()),
                                     for b in all_batches.iter() {
                                         option { key: "{b}", value: "{b}", "{b}" }
+                                    }
+                                }
+                            }
+                            div { class: "flex flex-col gap-2",
+                                div { class: "flex items-center justify-between",
+                                    Label { html_for: "prod-flock",
+                                        if is_first_entry() { "Initial Flock Size (Birds)" } else { "Live Birds (Flock)" }
+                                    }
+                                    if is_first_entry() {
+                                        span { class: "text-[11px] text-amber-600 dark:text-amber-400 font-semibold", "✏️ First entry: Enter count" }
+                                    } else {
+                                        span { class: "text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold", "⚡ Auto-calculated" }
+                                    }
+                                }
+                                Input {
+                                    r#type: "number",
+                                    disabled: !is_first_entry(),
+                                    placeholder: if is_first_entry() { "e.g. 10000" } else { "" },
+                                    value: "{form_flock_size}",
+                                    oninput: move |e: Event<FormData>| handle_flock_change(e.value())
+                                }
+                                span { class: "text-[11px] text-stone-500 dark:text-stone-400",
+                                    if is_first_entry() {
+                                        "First log for {form_shed}: set starting flock count"
+                                    } else {
+                                        "Opening ({form_opening_flock:.0}) - Loss today ({form_mortality}+{form_cull})"
                                     }
                                 }
                             }
@@ -649,10 +934,13 @@ pub fn Production() -> Element {
                             }
                         }
 
-                        // Yield % & Stock in Trays
-                        div { class: "grid grid-cols-2 gap-4",
-                            div { class: "flex flex-col gap-2",
-                                Label { html_for: "prod-yield", "Laying Yield (%)" }
+                        // Yield % & Stock in Trays (Auto-Calculated)
+                        div { class: "grid grid-cols-1 sm:grid-cols-2 gap-4",
+                            div { class: "flex flex-col gap-1.5",
+                                div { class: "flex items-center justify-between",
+                                    Label { html_for: "prod-yield", "Laying Yield (%)" }
+                                    span { class: "text-[11px] text-amber-600 dark:text-amber-400 font-semibold", "⚡ Auto-calculated" }
+                                }
                                 Input {
                                     r#type: "number",
                                     step: "0.1",
@@ -660,32 +948,50 @@ pub fn Production() -> Element {
                                     value: "{form_yield}",
                                     oninput: move |e: Event<FormData>| form_yield.set(e.value())
                                 }
+                                span { class: "text-[11px] text-stone-500 dark:text-stone-400",
+                                    "Eggs ÷ {form_flock_size} birds in {form_shed}"
+                                }
                             }
-                            div { class: "flex flex-col gap-2",
-                                Label { html_for: "prod-stock", "Stock in Trays" }
+                            div { class: "flex flex-col gap-1.5",
+                                div { class: "flex items-center justify-between",
+                                    Label { html_for: "prod-stock", "Stock in Trays" }
+                                    span { class: "text-[11px] text-blue-600 dark:text-blue-400 font-semibold", "📦 Auto-calculated" }
+                                }
                                 Input {
                                     r#type: "number",
                                     step: "0.5",
+                                    disabled: true,
+                                    class: "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 cursor-not-allowed",
                                     placeholder: "e.g. 355",
                                     value: "{form_stock}",
                                     oninput: move |e: Event<FormData>| form_stock.set(e.value())
                                 }
+                                span { class: "text-[11px] text-stone-500 dark:text-stone-400",
+                                    "Prev stock ({form_prev_stock:.1}) + Today's trays"
+                                }
                             }
                         }
 
-                        // Flock Health & Feed
-                        div { class: "grid grid-cols-3 gap-3",
-                            div { class: "flex flex-col gap-1.5",
-                                Label { html_for: "prod-mortality", "Mortality" }
-                                Input { r#type: "number", value: "{form_mortality}", oninput: move |e: Event<FormData>| form_mortality.set(e.value()) }
-                            }
-                            div { class: "flex flex-col gap-1.5",
-                                Label { html_for: "prod-cull", "Cull Count" }
-                                Input { r#type: "number", value: "{form_cull}", oninput: move |e: Event<FormData>| form_cull.set(e.value()) }
-                            }
-                            div { class: "flex flex-col gap-1.5",
-                                Label { html_for: "prod-feed", "Feed (KG)" }
-                                Input { r#type: "number", step: "0.1", value: "{form_feed}", oninput: move |e: Event<FormData>| form_feed.set(e.value()) }
+                        // Flock Health (Mortality & Culls)
+                        div { class: "p-3 rounded-lg border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50 flex flex-col gap-3",
+                            span { class: "text-xs font-semibold uppercase text-stone-600 dark:text-stone-400 tracking-wider", "Flock Health (Mortality & Culls)" }
+                            div { class: "grid grid-cols-2 gap-4",
+                                div { class: "flex flex-col gap-1.5",
+                                    Label { html_for: "prod-mortality", "Mortality" }
+                                    Input {
+                                        r#type: "number",
+                                        value: "{form_mortality}",
+                                        oninput: move |e: Event<FormData>| handle_mortality_change(e.value())
+                                    }
+                                }
+                                div { class: "flex flex-col gap-1.5",
+                                    Label { html_for: "prod-cull", "Cull Count" }
+                                    Input {
+                                        r#type: "number",
+                                        value: "{form_cull}",
+                                        oninput: move |e: Event<FormData>| handle_cull_change(e.value())
+                                    }
+                                }
                             }
                         }
 
@@ -727,7 +1033,7 @@ pub fn Production() -> Element {
                         // Add new batch form
                         div { class: "flex items-center gap-2",
                             Input {
-                                placeholder: "Enter batch name (e.g. Batch G)",
+                                placeholder: "Enter batch name (e.g. Batch G, Shed 2)",
                                 value: "{new_batch_name_input}",
                                 oninput: move |e: Event<FormData>| new_batch_name_input.set(e.value())
                             }
@@ -736,7 +1042,7 @@ pub fn Production() -> Element {
                                     let name = new_batch_name_input().trim().to_string();
                                     if !name.is_empty() && !available_batches().contains(&name) {
                                         let mut list = available_batches();
-                                        list.push(name);
+                                        list.push(name.clone());
                                         available_batches.set(list);
                                         new_batch_name_input.set(String::new());
                                     }
@@ -751,7 +1057,18 @@ pub fn Production() -> Element {
                                 div {
                                     key: "{b}",
                                     class: "flex items-center justify-between py-2",
-                                    span { class: "font-medium text-stone-800 dark:text-stone-200 text-sm", "{b}" }
+                                    div { class: "flex items-center gap-2",
+                                        span { class: "font-medium text-stone-800 dark:text-stone-200 text-sm", "{b}" }
+                                        if let Some(flock) = get_initial_flock_for_shed(&b) {
+                                            span { class: "text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/60",
+                                                "Initial: {flock} birds"
+                                            }
+                                        } else {
+                                            span { class: "text-xs text-stone-400 dark:text-stone-500 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-full",
+                                                "Pending first log"
+                                            }
+                                        }
+                                    }
                                     button {
                                         class: "text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30",
                                         onclick: {

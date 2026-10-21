@@ -129,6 +129,8 @@ pub struct DailyProduction {
     pub mortality_count: i32,
     pub cull_count: i32,
     pub feed_consumed_kg: f64,
+    #[serde(default)]
+    pub flock_size: i32,
     pub notes: Option<String>,
     pub user_id: Option<String>,
     pub created_at: Option<String>,
