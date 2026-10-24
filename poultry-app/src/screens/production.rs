@@ -18,6 +18,7 @@ use crate::services::*;
 #[component]
 pub fn Production() -> Element {
     let mut logs = use_daily_production();
+    let mut egg_sales = use_egg_sales();
     let api = use_auth();
     let toast_api = use_toast();
 
@@ -73,14 +74,21 @@ pub fn Production() -> Element {
     let mut is_submitting = use_signal(|| false);
     let mut is_deleting = use_signal(|| false);
 
-    // Helper: Find latest reported closing stock for a given batch/shed
-    let get_latest_stock_for_shed = move |shed: &str| -> f64 {
-        let list = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
-        list.iter()
-            .filter(|r| r.shed_name.eq_ignore_ascii_case(shed))
-            .map(|r| r.stock_in_trays)
-            .next()
-            .unwrap_or(0.0)
+    // Helper: Find live net stock of good eggs available on the farm (Produced - Sold)
+    let get_live_opening_stock = move |exclude_id: Option<&str>| -> f64 {
+        let prod_list = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
+        let sales_list = egg_sales.cloned().and_then(|r| r.ok()).unwrap_or_default();
+
+        let total_produced: f64 = prod_list.iter()
+            .filter(|p| exclude_id.map_or(true, |id| p.id != id))
+            .map(|p| if p.total_trays > 0.0 { p.total_trays } else { (p.egg_count_good as f64) / 30.0 })
+            .sum();
+
+        let total_sold: f64 = sales_list.iter()
+            .map(|s| (s.total_eggs as f64) / 30.0)
+            .sum();
+
+        (total_produced - total_sold).max(0.0)
     };
 
     // Helper: Lookup initial flock size for a batch from stored config or past records
@@ -301,7 +309,7 @@ pub fn Production() -> Element {
             form_flock_size.set(format!("{:.0}", active));
         }
 
-        let prev = get_latest_stock_for_shed(&new_shed);
+        let prev = get_live_opening_stock(form_id().as_deref());
         form_prev_stock.set(prev);
 
         recalc_flock_and_yield(&form_trays(), &form_mortality());
@@ -404,6 +412,7 @@ pub fn Production() -> Element {
                     is_sheet_open.set(false);
                     form_error.set(String::new());
                     logs.restart();
+                    egg_sales.restart();
                     let desc = if is_edit { "Production record updated successfully." } else { "Production record logged successfully." };
                     toast_api.success(tr("success"), ToastOptions::new().description(desc));
                 }
@@ -426,6 +435,7 @@ pub fn Production() -> Element {
                 if let Ok(_) = res {
                     delete_id.set(None);
                     logs.restart();
+                    egg_sales.restart();
                     toast_api.success(tr("success"), ToastOptions::new().description("Production record deleted successfully."));
                 } else if let Err(e) = res {
                     toast_api.error(tr("error"), ToastOptions::new().description(e));
@@ -473,12 +483,25 @@ pub fn Production() -> Element {
     let total_dirty1_sum: f64 = filtered_records.iter().map(|r| r.dirty_cat1).sum();
     let total_dirty2_sum: f64 = filtered_records.iter().map(|r| r.dirty_cat2).sum();
     
-    // For stock in trays: sum latest closing stock of each distinct batch in filtered records
-    let mut batch_latest_stocks = std::collections::HashMap::new();
-    for r in &filtered_records {
-        batch_latest_stocks.entry(r.shed_name.clone()).or_insert(r.stock_in_trays);
-    }
-    let total_stock_sum: f64 = batch_latest_stocks.values().sum();
+    let all_prod_records = logs.cloned().and_then(|r| r.ok()).unwrap_or_default();
+    let all_sales_records = egg_sales.cloned().and_then(|r| r.ok()).unwrap_or_default();
+
+    let total_all_good_produced: f64 = all_prod_records.iter().map(|p| if p.total_trays > 0.0 { p.total_trays } else { (p.egg_count_good as f64) / 30.0 }).sum();
+    let total_all_std_sold: f64 = all_sales_records.iter().map(|s| (s.total_eggs as f64) / 30.0).sum();
+    let total_stock_sum: f64 = (total_all_good_produced - total_all_std_sold).max(0.0);
+
+    let get_stock_for_record = |item: &DailyProduction| -> (f64, f64) {
+        let prod_to_date: f64 = all_prod_records.iter()
+            .filter(|p| p.date < item.date || (p.date == item.date && p.id <= item.id))
+            .map(|p| if p.total_trays > 0.0 { p.total_trays } else { (p.egg_count_good as f64) / 30.0 })
+            .sum();
+        let sold_to_date: f64 = all_sales_records.iter()
+            .filter(|s| s.date <= item.date)
+            .map(|s| (s.total_eggs as f64) / 30.0)
+            .sum();
+        let net = (prod_to_date - sold_to_date).max(0.0);
+        (net, sold_to_date)
+    };
 
     let avg_yield: f64 = if !filtered_records.is_empty() {
         filtered_records.iter().map(|r| r.production_percentage).sum::<f64>() / (filtered_records.len() as f64)
@@ -511,6 +534,8 @@ pub fn Production() -> Element {
                         }
                         Button {
                             onclick: move |_| {
+                                logs.restart();
+                                egg_sales.restart();
                                 form_id.set(None);
                                 form_date.set(Utc::now().format("%Y-%m-%d").to_string());
                                 let first_b = available_batches().first().cloned().unwrap_or_else(|| "Batch A".to_string());
@@ -529,7 +554,7 @@ pub fn Production() -> Element {
                                     form_flock_size.set(format!("{:.0}", opening));
                                 }
 
-                                let prev = get_latest_stock_for_shed(&first_b);
+                                let prev = get_live_opening_stock(None);
                                 form_prev_stock.set(prev);
                                 if (prev.fract()).abs() < 0.001 {
                                     form_stock.set(format!("{:.0}", prev));
@@ -618,66 +643,74 @@ pub fn Production() -> Element {
                                         }
                                         tbody { class: "divide-y divide-stone-200 dark:divide-stone-800",
                                             for item in filtered_records.iter() {
-                                                tr {
-                                                    key: "{item.id}",
-                                                    class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
-                                                    td { class: "px-4 py-3 font-medium text-stone-900 dark:text-stone-100 whitespace-nowrap", "{item.date}" }
-                                                    td { class: "px-4 py-3 font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap", "{item.shed_name}" }
-                                                    td { class: "px-4 py-3 text-right font-medium text-stone-700 dark:text-stone-300",
-                                                        if item.total_trays > 0.0 { "{item.total_trays:.1}" } else { "{(item.egg_count_good as f64 / 30.0):.1}" }
-                                                    }
-                                                    td { class: "px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400", "{item.egg_count_good}" }
-                                                    td { class: "px-4 py-3 text-right font-medium text-red-600 dark:text-red-400", "{item.egg_count_damaged:.1}" }
-                                                    td { class: "px-4 py-3 text-center font-medium text-amber-600 dark:text-amber-300", "{item.dirty_cat1:.1} | {item.dirty_cat2:.1}" }
-                                                    td { class: "px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400",
-                                                        if item.production_percentage > 0.0 { "{item.production_percentage:.1}%" } else { "-" }
-                                                    }
-                                                    td { class: "px-4 py-3 text-right font-medium text-blue-600 dark:text-blue-400", "{item.stock_in_trays:.1}" }
-                                                    td { class: "px-4 py-3 text-right whitespace-nowrap",
-                                                        div { class: "flex items-center justify-end gap-2",
-                                                            Button {
-                                                                variant: ButtonVariant::Outline,
-                                                                onclick: {
-                                                                    let edit_item = item.clone();
-                                                                    move |_| {
-                                                                        form_id.set(Some(edit_item.id.clone()));
-                                                                        form_date.set(edit_item.date.clone());
-                                                                        form_shed.set(edit_item.shed_name.clone());
-
-                                                                        let edit_shed = edit_item.shed_name.clone();
-                                                                        let first_time = is_first_entry_for_shed(&edit_shed, Some(&edit_item.id));
-                                                                        is_first_entry.set(first_time);
-
-                                                                        let opening = get_opening_flock_for_shed(&edit_shed, Some(&edit_item.id));
-                                                                        form_opening_flock.set(opening);
-                                                                        let active = (opening - edit_item.mortality_count as f64 - edit_item.cull_count as f64).max(0.0);
-                                                                        form_flock_size.set(format!("{:.0}", active));
-
-                                                                        let prev = (edit_item.stock_in_trays - edit_item.total_trays).max(0.0);
-                                                                        form_prev_stock.set(prev);
-                                                                        form_trays.set(if edit_item.total_trays == 0.0 { String::new() } else { edit_item.total_trays.to_string() });
-                                                                        form_good.set(if edit_item.egg_count_good == 0 { String::new() } else { edit_item.egg_count_good.to_string() });
-                                                                        form_damaged.set(if edit_item.egg_count_damaged == 0.0 { String::new() } else { edit_item.egg_count_damaged.to_string() });
-                                                                        form_dirty1.set(if edit_item.dirty_cat1 == 0.0 { String::new() } else { edit_item.dirty_cat1.to_string() });
-                                                                        form_dirty2.set(if edit_item.dirty_cat2 == 0.0 { String::new() } else { edit_item.dirty_cat2.to_string() });
-                                                                        form_yield.set(edit_item.production_percentage.to_string());
-                                                                        form_stock.set(edit_item.stock_in_trays.to_string());
-                                                                        form_mortality.set(if edit_item.mortality_count == 0 { String::new() } else { edit_item.mortality_count.to_string() });
-                                                                        form_notes.set(edit_item.notes.clone().unwrap_or_default());
-                                                                        is_sheet_open.set(true);
-                                                                    }
-                                                                },
-                                                                "{edit_str}"
+                                                {
+                                                    let (rec_stock, rec_sold) = get_stock_for_record(item);
+                                                    let edit_item = item.clone();
+                                                    let del_id = item.id.clone();
+                                                    rsx! {
+                                                        tr {
+                                                            key: "{item.id}",
+                                                            class: "hover:bg-gray-50 dark:hover:bg-stone-800/60 transition-colors",
+                                                            td { class: "px-4 py-3 font-medium text-stone-900 dark:text-stone-100 whitespace-nowrap", "{item.date}" }
+                                                            td { class: "px-4 py-3 font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap", "{item.shed_name}" }
+                                                            td { class: "px-4 py-3 text-right font-medium text-stone-700 dark:text-stone-300",
+                                                                if item.total_trays > 0.0 { "{item.total_trays:.1}" } else { "{(item.egg_count_good as f64 / 30.0):.1}" }
                                                             }
-                                                            Button {
-                                                                variant: ButtonVariant::Destructive,
-                                                                onclick: {
-                                                                    let del_id = item.id.clone();
-                                                                    move |_| {
-                                                                        delete_id.set(Some(del_id.clone()));
+                                                            td { class: "px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400", "{item.egg_count_good}" }
+                                                            td { class: "px-4 py-3 text-right font-medium text-red-600 dark:text-red-400", "{item.egg_count_damaged:.1}" }
+                                                            td { class: "px-4 py-3 text-center font-medium text-amber-600 dark:text-amber-300", "{item.dirty_cat1:.1} | {item.dirty_cat2:.1}" }
+                                                            td { class: "px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400",
+                                                                if item.production_percentage > 0.0 { "{item.production_percentage:.1}%" } else { "-" }
+                                                            }
+                                                            td { class: "px-4 py-3 text-right font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap",
+                                                                div { class: "font-semibold", "{rec_stock:.1}" }
+                                                                if rec_sold > 0.0 {
+                                                                    span { class: "text-[10px] text-stone-400 font-normal block", "(-{rec_sold:.0} sold)" }
+                                                                }
+                                                            }
+                                                            td { class: "px-4 py-3 text-right whitespace-nowrap",
+                                                                div { class: "flex items-center justify-end gap-2",
+                                                                    Button {
+                                                                        variant: ButtonVariant::Outline,
+                                                                        onclick: move |_| {
+                                                                            egg_sales.restart();
+                                                                            form_id.set(Some(edit_item.id.clone()));
+                                                                            form_date.set(edit_item.date.clone());
+                                                                            form_shed.set(edit_item.shed_name.clone());
+
+                                                                            let edit_shed = edit_item.shed_name.clone();
+                                                                            let first_time = is_first_entry_for_shed(&edit_shed, Some(&edit_item.id));
+                                                                            is_first_entry.set(first_time);
+
+                                                                            let opening = get_opening_flock_for_shed(&edit_shed, Some(&edit_item.id));
+                                                                            form_opening_flock.set(opening);
+                                                                            let active = (opening - edit_item.mortality_count as f64 - edit_item.cull_count as f64).max(0.0);
+                                                                            form_flock_size.set(format!("{:.0}", active));
+
+                                                                            let prev = get_live_opening_stock(Some(&edit_item.id));
+                                                                            form_prev_stock.set(prev);
+                                                                            form_trays.set(if edit_item.total_trays == 0.0 { String::new() } else { edit_item.total_trays.to_string() });
+                                                                            form_good.set(if edit_item.egg_count_good == 0 { String::new() } else { edit_item.egg_count_good.to_string() });
+                                                                            form_damaged.set(if edit_item.egg_count_damaged == 0.0 { String::new() } else { edit_item.egg_count_damaged.to_string() });
+                                                                            form_dirty1.set(if edit_item.dirty_cat1 == 0.0 { String::new() } else { edit_item.dirty_cat1.to_string() });
+                                                                            form_dirty2.set(if edit_item.dirty_cat2 == 0.0 { String::new() } else { edit_item.dirty_cat2.to_string() });
+                                                                            form_yield.set(edit_item.production_percentage.to_string());
+                                                                            let cur_stock = prev + edit_item.total_trays;
+                                                                            form_stock.set(format!("{:.1}", cur_stock));
+                                                                            form_mortality.set(if edit_item.mortality_count == 0 { String::new() } else { edit_item.mortality_count.to_string() });
+                                                                            form_notes.set(edit_item.notes.clone().unwrap_or_default());
+                                                                            is_sheet_open.set(true);
+                                                                        },
+                                                                        "{edit_str}"
                                                                     }
-                                                                },
-                                                                "{delete_str}"
+                                                                    Button {
+                                                                        variant: ButtonVariant::Destructive,
+                                                                        onclick: move |_| {
+                                                                            delete_id.set(Some(del_id.clone()));
+                                                                        },
+                                                                        "{delete_str}"
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -705,72 +738,77 @@ pub fn Production() -> Element {
                         Some(Ok(_)) if !filtered_records.is_empty() => rsx! {
                             div { class: "flex flex-col gap-4",
                                 for item in filtered_records.iter() {
-                                    Card { key: "{item.id}", class: "border-l-4 border-l-amber-500 dark:border-l-amber-400",
-                                        div { class: "p-4 sm:p-5 flex flex-col gap-3",
-                                            div { class: "flex justify-between items-center",
-                                                div { class: "flex items-center gap-2",
-                                                    span { class: "text-sm font-semibold text-stone-900 dark:text-stone-100", "🗓️ {item.date}" }
-                                                    span { class: "px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
-                                                        "🏷️ {item.shed_name}"
+                                    {
+                                        let (c_stock, c_sold) = get_stock_for_record(item);
+                                        let edit_item = item.clone();
+                                        let del_id = item.id.clone();
+                                        rsx! {
+                                            Card { key: "{item.id}", class: "border-l-4 border-l-amber-500 dark:border-l-amber-400",
+                                                div { class: "p-4 sm:p-5 flex flex-col gap-3",
+                                                    div { class: "flex justify-between items-center",
+                                                        div { class: "flex items-center gap-2",
+                                                            span { class: "text-sm font-semibold text-stone-900 dark:text-stone-100", "🗓️ {item.date}" }
+                                                            span { class: "px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
+                                                                "🏷️ {item.shed_name}"
+                                                            }
+                                                        }
+                                                        if item.production_percentage > 0.0 {
+                                                            span { class: "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800",
+                                                                "Yield: {item.production_percentage:.1}%"
+                                                            }
+                                                        }
                                                     }
-                                                }
-                                                if item.production_percentage > 0.0 {
-                                                    span { class: "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800",
-                                                        "Yield: {item.production_percentage:.1}%"
+                                                    div { class: "grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-2 bg-stone-50 dark:bg-stone-800/50 rounded-lg p-3 border border-stone-200/60 dark:border-stone-700/60 text-xs",
+                                                        div {
+                                                            p { class: "text-stone-500 dark:text-stone-400 font-medium", "Total Trays" }
+                                                            p { class: "text-base font-bold text-amber-600 dark:text-amber-400 mt-0.5",
+                                                                if item.total_trays > 0.0 { "{item.total_trays:.1}" } else { "{(item.egg_count_good as f64 / 30.0):.1}" }
+                                                            }
+                                                        }
+                                                        div {
+                                                            p { class: "text-stone-500 dark:text-stone-400 font-medium", "Good Eggs" }
+                                                            p { class: "text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5", "{item.egg_count_good}" }
+                                                        }
+                                                        div {
+                                                            p { class: "text-stone-500 dark:text-stone-400 font-medium", "Broken Egg Trays" }
+                                                            p { class: "text-base font-bold text-rose-600 dark:text-rose-400 mt-0.5", "{item.egg_count_damaged:.1}" }
+                                                        }
+                                                        div {
+                                                            p { class: "text-stone-500 dark:text-stone-400 font-medium", "Stock in Trays" }
+                                                            p { class: "text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5", "{c_stock:.1}" }
+                                                            if c_sold > 0.0 {
+                                                                p { class: "text-[10px] text-stone-400 font-normal", "(-{c_sold:.0} sold)" }
+                                                            }
+                                                        }
+                                                        div {
+                                                            p { class: "text-stone-500 dark:text-stone-400 font-medium", "Dirty (Regular | Large)" }
+                                                            p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.dirty_cat1:.1} | {item.dirty_cat2:.1}" }
+                                                        }
+                                                        div {
+                                                            p { class: "text-stone-500 dark:text-stone-400 font-medium", "Laying Yield" }
+                                                            p { class: "text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5",
+                                                                if item.production_percentage > 0.0 { "{item.production_percentage:.1}%" } else { "-" }
+                                                            }
+                                                        }
+                                                        div {
+                                                            p { class: "text-stone-500 dark:text-stone-400 font-medium", "Mortality" }
+                                                            p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.mortality_count}" }
+                                                        }
+                                                        div {
+                                                            p { class: "text-stone-500 dark:text-stone-400 font-medium", "Status" }
+                                                            p { class: "text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5", "Logged" }
+                                                        }
                                                     }
-                                                }
-                                            }
-                                            div { class: "grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-2 bg-stone-50 dark:bg-stone-800/50 rounded-lg p-3 border border-stone-200/60 dark:border-stone-700/60 text-xs",
-                                                div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Total Trays" }
-                                                    p { class: "text-base font-bold text-amber-600 dark:text-amber-400 mt-0.5",
-                                                        if item.total_trays > 0.0 { "{item.total_trays:.1}" } else { "{(item.egg_count_good as f64 / 30.0):.1}" }
+                                                    if let Some(notes) = &item.notes {
+                                                        if !notes.is_empty() {
+                                                            p { class: "text-xs text-stone-500 dark:text-stone-400 italic bg-stone-100/50 dark:bg-stone-800/30 p-2 rounded", "Note: {notes}" }
+                                                        }
                                                     }
-                                                }
-                                                div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Good Eggs" }
-                                                    p { class: "text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5", "{item.egg_count_good}" }
-                                                }
-                                                div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Broken Egg Trays" }
-                                                    p { class: "text-base font-bold text-rose-600 dark:text-rose-400 mt-0.5", "{item.egg_count_damaged:.1}" }
-                                                }
-                                                div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Stock in Trays" }
-                                                    p { class: "text-base font-bold text-blue-600 dark:text-blue-400 mt-0.5", "{item.stock_in_trays:.1}" }
-                                                }
-                                                div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Dirty (Regular | Large)" }
-                                                    p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.dirty_cat1:.1} | {item.dirty_cat2:.1}" }
-                                                }
-                                                div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Laying Yield" }
-                                                    p { class: "text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5",
-                                                        if item.production_percentage > 0.0 { "{item.production_percentage:.1}%" } else { "-" }
-                                                    }
-                                                }
-                                                div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Mortality" }
-                                                    p { class: "text-sm font-semibold text-stone-700 dark:text-stone-300 mt-0.5", "{item.mortality_count}" }
-                                                }
-                                                div {
-                                                    p { class: "text-stone-500 dark:text-stone-400 font-medium", "Status" }
-                                                    p { class: "text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5", "Logged" }
-                                                }
-                                            }
-                                            if let Some(notes) = &item.notes {
-                                                if !notes.is_empty() {
-                                                    p { class: "text-xs text-stone-500 dark:text-stone-400 italic bg-stone-100/50 dark:bg-stone-800/30 p-2 rounded", "Note: {notes}" }
-                                                }
-                                            }
-                                            div { class: "flex justify-end gap-2 pt-1 border-t border-stone-100 dark:border-stone-800",
-                                                {
-                                                    let edit_item = item.clone();
-                                                    let del_id = item.id.clone();
-                                                    rsx! {
+                                                    div { class: "flex justify-end gap-2 pt-1 border-t border-stone-100 dark:border-stone-800",
                                                         Button {
                                                             variant: ButtonVariant::Outline,
                                                             onclick: move |_| {
+                                                                egg_sales.restart();
                                                                 form_id.set(Some(edit_item.id.clone()));
                                                                 form_date.set(edit_item.date.clone());
                                                                 form_shed.set(edit_item.shed_name.clone());
@@ -784,7 +822,7 @@ pub fn Production() -> Element {
                                                                 let active = (opening - edit_item.mortality_count as f64 - edit_item.cull_count as f64).max(0.0);
                                                                 form_flock_size.set(format!("{:.0}", active));
 
-                                                                let prev = (edit_item.stock_in_trays - edit_item.total_trays).max(0.0);
+                                                                let prev = get_live_opening_stock(Some(&edit_item.id));
                                                                 form_prev_stock.set(prev);
                                                                 form_trays.set(if edit_item.total_trays == 0.0 { String::new() } else { edit_item.total_trays.to_string() });
                                                                 form_good.set(if edit_item.egg_count_good == 0 { String::new() } else { edit_item.egg_count_good.to_string() });
@@ -792,7 +830,8 @@ pub fn Production() -> Element {
                                                                 form_dirty1.set(if edit_item.dirty_cat1 == 0.0 { String::new() } else { edit_item.dirty_cat1.to_string() });
                                                                 form_dirty2.set(if edit_item.dirty_cat2 == 0.0 { String::new() } else { edit_item.dirty_cat2.to_string() });
                                                                 form_yield.set(edit_item.production_percentage.to_string());
-                                                                form_stock.set(edit_item.stock_in_trays.to_string());
+                                                                let cur_stock = prev + edit_item.total_trays;
+                                                                form_stock.set(format!("{:.1}", cur_stock));
                                                                 form_mortality.set(if edit_item.mortality_count == 0 { String::new() } else { edit_item.mortality_count.to_string() });
                                                                 form_notes.set(edit_item.notes.clone().unwrap_or_default());
                                                                 is_sheet_open.set(true);
@@ -999,19 +1038,18 @@ pub fn Production() -> Element {
                             div { class: "flex flex-col gap-1.5",
                                 div { class: "flex items-center justify-between",
                                     Label { html_for: "prod-stock", "Stock in Trays" }
-                                    span { class: "text-[11px] text-blue-600 dark:text-blue-400 font-semibold", "📦 Auto-calculated" }
+                                    span { class: "text-[11px] text-blue-600 dark:text-blue-400 font-semibold", "📦 Live Stock after Sales" }
                                 }
                                 Input {
+                                    id: "prod-stock",
                                     r#type: "number",
                                     step: "0.5",
-                                    disabled: true,
-                                    class: "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 cursor-not-allowed",
                                     placeholder: "0",
                                     value: "{form_stock}",
-                                    oninput: move |e: Event<FormData>| form_stock.set(e.value())
+                                    oninput: move |e: Event<FormData>| form_stock.set(sanitize_numeric(&e.value()))
                                 }
                                 span { class: "text-[11px] text-stone-500 dark:text-stone-400",
-                                    "Prev stock ({form_prev_stock:.1}) + Today's trays"
+                                    "Opening stock after sales ({form_prev_stock:.1} Trays) + Today's collection ({form_trays} Trays)"
                                 }
                             }
                         }

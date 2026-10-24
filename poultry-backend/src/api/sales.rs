@@ -56,6 +56,7 @@ pub async fn create_egg_sale(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     sync_party_balance(&pool, &record.party_name, record.party_id, &user.user_id).await;
+    sync_production_stock(&pool, &user.user_id).await;
 
     Ok(Json(record))
 }
@@ -96,6 +97,7 @@ pub async fn update_egg_sale(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     sync_party_balance(&pool, &record.party_name, record.party_id, &user.user_id).await;
+    sync_production_stock(&pool, &user.user_id).await;
 
     if let Some(old) = existing {
         if old.party_id != record.party_id || old.party_name != record.party_name {
@@ -124,6 +126,7 @@ pub async fn delete_egg_sale(
     if let Some(record) = existing {
         sync_party_balance(&pool, &record.party_name, record.party_id, &user.user_id).await;
     }
+    sync_production_stock(&pool, &user.user_id).await;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -236,4 +239,41 @@ pub async fn delete_broken_sale(
     }
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn sync_production_stock(pool: &PgPool, user_id: &str) {
+    let produced_trays: Option<f64> = sqlx::query_scalar(
+        r#"SELECT COALESCE(SUM(CASE WHEN total_trays > 0.0 THEN total_trays ELSE egg_count_good::double precision / 30.0 END), 0.0)
+           FROM daily_production WHERE user_id = $1"#
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(Some(0.0));
+
+    let sold_trays: Option<f64> = sqlx::query_scalar(
+        r#"SELECT COALESCE(SUM(total_eggs::double precision / 30.0), 0.0)
+           FROM egg_sales WHERE user_id = $1"#
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(Some(0.0));
+
+    let net_stock = (produced_trays.unwrap_or(0.0) - sold_trays.unwrap_or(0.0)).max(0.0);
+
+    let _ = sqlx::query(
+        r#"UPDATE daily_production 
+           SET stock_in_trays = $1 
+           WHERE id = (
+               SELECT id FROM daily_production 
+               WHERE user_id = $2 
+               ORDER BY date DESC, created_at DESC 
+               LIMIT 1
+           )"#
+    )
+    .bind(net_stock)
+    .bind(user_id)
+    .execute(pool)
+    .await;
 }
